@@ -30,7 +30,6 @@ public:
         if (deleted)
         {
             world.DespawnLaser(static_cast<GameObject*>(this));
-            delete this;
         }
     }
 };

@@ -35,7 +35,6 @@ public:
         if (deleted)
         {
             world.DespawnLaser(this);
-            delete this;
         }
     }
 };
