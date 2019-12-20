@@ -5,8 +5,8 @@
 class GameMode
 {
 protected:
-    bool gameOver;
     int score;
+    bool gameOver;
 public:
     GameMode() : gameOver(false) {}
     virtual ~GameMode() = default;
