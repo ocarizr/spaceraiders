@@ -4,6 +4,7 @@
 #include <deque>
 #include <algorithm>
 
+#include "GameMode.h"
 #include "GameObject.h"
 #include "Input.h"
 
@@ -18,6 +19,7 @@ private:
 public:
     Input* controllerInput = nullptr;
     Vector2D bounds;
+    VSync vsync;
     // Number of available active laser slots for aliens and player
     int AlienLasers = 10;
     int PlayerLasers = 4;

@@ -54,6 +54,7 @@ int main()
     while (world.HasPlayer()) // break when game-over
 #endif
     {
+        auto start = std::chrono::high_resolution_clock::now();
         world.Update();
         world.ProcessQueues();
 
@@ -65,9 +66,12 @@ int main()
         }
 
         mainRenderer.Update(rl);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds timestamp = end - start;
+        int convertToMilli = static_cast<int>(timestamp.count() / 1000000);
 
         // Sleep a bit so updates don't run too fast
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(world.vsync.GetSyncPeriod(convertToMilli)));
     }
     world.RemoveAllObjects();
     RenderItemList rl;

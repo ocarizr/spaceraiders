@@ -9,8 +9,8 @@ set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 set(project_name SpaceRaiders)
 set(project_sources
     SpaceRaiders.cpp renderer.cpp
-    renderer.h Vector2D.h Input.h
-    PlayField.h
+    renderer.h VSync.h Vector2D.h Input.h
+    GameMode.h PlayField.h
     GameObject.h Explosion.h
     PlayerLaser.h PlayerShip.h
     AlienLaser.h Alien.h)
