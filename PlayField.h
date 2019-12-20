@@ -1,7 +1,7 @@
 #ifndef PLAYFIELD_H
 #define PLAYFIELD_H
-#include <cstring>
-#include <vector>
+#include <list>
+#include <deque>
 #include <algorithm>
 
 #include "GameObject.h"
@@ -10,8 +10,10 @@
 class PlayField
 {
 private:
-    typedef GameObject* GameObjPtr;
-    std::vector<GameObjPtr> gameObjects;
+    std::list<GameObjPtr> gameObjects;
+
+    std::deque<GameObjPtr> gameObjectsToAdd;
+    std::deque<GameObjPtr> gameObjectsToRemove;
 
 public:
     Input* controllerInput = nullptr;
@@ -21,24 +23,28 @@ public:
     int PlayerLasers = 4;
 
     PlayField(Vector2D iBounds) : bounds(iBounds) {}
-    ~PlayField();
-    const std::vector<GameObjPtr>& GameObjects() { return gameObjects; }
+
+    inline ~PlayField()
+    {
+        if(controllerInput)
+            delete controllerInput;
+    }
+
+    const std::list<GameObjPtr>& GameObjects() { return gameObjects; }
 
     void Update()
     {
-        int amount = static_cast<int>(gameObjects.size());
         // Update list of active objects in the world
-        // for (auto it : gameObjects)
-        for (int index = 0; index < amount; ++index)
+        for (auto item : gameObjects)
         {
-            gameObjects[index]->Update(*this);
-            amount = std::min(amount, static_cast<int>(gameObjects.size()));
+            item->Update(*this);
         }
+        //PlayField::GameMode->Update();
     }
 
-    GameObject* GetPlayerObject()
+    GameObjPtr GetPlayerObject()
     {
-        auto it = std::find_if(gameObjects.begin(), gameObjects.end(), [](GameObjPtr in) { return (strcmp(in->m_objType, "ot_PlayerShip") == 0); });
+        auto it = std::find_if(gameObjects.begin(), gameObjects.end(), [](GameObjPtr in) { return in->m_objType == "ot_PlayerShip"; });
         if (it != gameObjects.end())
             return (*it);
         return nullptr;
@@ -50,48 +56,62 @@ public:
     }
 
     //
-    void SpawnLaser(GameObject* newObj)
+    void SpawnLaser(GameObjPtr newObj)
     {
-        if (strcmp(newObj->m_objType, "ot_AlienLaser") == 0)
+        if (newObj->m_objType == "ot_AlienLaser")
             AlienLasers--;
-        else if (strcmp(newObj->m_objType, "ot_PlayerLaser") == 0)
+        else if (newObj->m_objType == "ot_PlayerLaser")
             PlayerLasers--;
         AddObject(newObj);
     }
-    void DespawnLaser(GameObject* newObj)
+    void DespawnLaser(GameObjPtr newObj)
     {
-        if (strcmp(newObj->m_objType, "ot_AlienLaser") == 0)
+        if (newObj->m_objType == "ot_AlienLaser")
             AlienLasers++;
-        else if (strcmp(newObj->m_objType, "ot_PlayerLaser") == 0)
+        else if (newObj->m_objType == "ot_PlayerLaser")
             PlayerLasers++;
         RemoveObject(newObj);
     }
 
-    void AddObject(GameObject* newObj)
+    void AddObject(GameObjPtr newObj)
     {
-        //gameObjectsToAdd.push_back(GameObjPtr(newObj));
-        gameObjects.push_back(newObj);
+        gameObjectsToAdd.push_back(std::move(newObj));
     }
-    void RemoveObject(GameObject* newObj)
+    void RemoveObject(GameObjPtr newObj)
     {
-        //gameObjectsToRemove.push_back(newObj);
-        auto it = std::find_if(gameObjects.begin(), gameObjects.end(), [&](GameObjPtr in) { return (in == newObj); });
-        gameObjects.erase(it);
+        gameObjectsToRemove.push_back(newObj);
     }
 
     void RemoveAllObjects()
     {
-        while(!gameObjects.empty())
+        for(auto& item : gameObjects)
         {
-            gameObjects.erase(gameObjects.begin());
+            delete item;
         }
+        gameObjects.clear();
+    }
+
+    void ProcessQueues()
+    {
+        for (auto& item : gameObjectsToAdd)
+        {
+            gameObjects.push_back(std::move(item));
+        }
+        gameObjectsToAdd.clear();
+
+        for(auto& item : gameObjectsToRemove)
+        {
+            auto it = std::find_if(gameObjects.begin(), gameObjects.end(), [&](auto& go){return go == item;});
+            if(it != gameObjects.end())
+            {
+                delete *it;
+                gameObjects.erase(it);
+            }
+        }
+        gameObjectsToRemove.clear();
     }
 };
 
-PlayField::~PlayField()
-{
-    if(controllerInput)
-        delete controllerInput;
-}
+
 
 #endif // PLAYFIELD_H

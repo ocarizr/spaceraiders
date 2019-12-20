@@ -5,8 +5,8 @@
 class PlayerShip : public GameObject
 {
 public:
-    PlayerShip() { m_objType = new char[64]; memcpy(m_objType, "ot_PlayerShip", 14); sprite = RS_Player; }
-    ~PlayerShip() override;
+    PlayerShip() : GameObject("ot_PlayerShip", RS_Player) {}
+    ~PlayerShip() noexcept override;
 
     void Update(PlayField& world) override
     {
@@ -18,13 +18,13 @@ public:
         if (world.controllerInput->Fire() && world.PlayerLasers > 0)
         {
             //Spawn laser
-            GameObject& newLaser = *(new PlayerLaser);
-            newLaser.pos = pos;
-            world.SpawnLaser(&newLaser);
+            GameObjPtr newLaser = new PlayerLaser;
+            newLaser->pos = pos;
+            world.SpawnLaser(newLaser);
         }
     }
 };
 
-PlayerShip::~PlayerShip() { delete m_objType; }
+PlayerShip::~PlayerShip() noexcept = default;
 
 #endif // PLAYERSHIP_H

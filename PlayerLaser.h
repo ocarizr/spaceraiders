@@ -5,8 +5,8 @@
 class PlayerLaser : public GameObject
 {
 public:
-    PlayerLaser() { m_objType = new char[64]; memcpy(m_objType, "ot_PlayerLaser", 15); sprite = RS_PlayerLaser; }
-    ~PlayerLaser() override;
+    PlayerLaser() : GameObject("ot_PlayerLaser", RS_PlayerLaser) {}
+    ~PlayerLaser() noexcept override;
 
     void Update(PlayField& world) override
     {
@@ -19,14 +19,14 @@ public:
 
         for (auto it : world.GameObjects())
         {
-            if (strcmp(it->m_objType, "ot_AlienShip") == 0 && it->pos.IntCmp(pos))
+            if (it->m_objType == "ot_AlienShip" && it->pos.IntCmp(pos))
             {
                 deleted = true;
                 //Spawn explosion, kill the alien that we hit
                 //ToDo - add scoring
-                GameObject& no = *(new Explosion);
-                no.pos = pos;
-                world.AddObject(&no);
+                GameObjPtr no = new Explosion;
+                no->pos = pos;
+                world.AddObject(no);
                 if (it->DecreaseHealth())
                     world.RemoveObject(it);
             }
@@ -39,6 +39,6 @@ public:
     }
 };
 
-PlayerLaser::~PlayerLaser(){ delete[] m_objType; }
+PlayerLaser::~PlayerLaser() noexcept = default;
 
 #endif // PLAYERLASER_H

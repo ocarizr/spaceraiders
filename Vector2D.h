@@ -22,8 +22,6 @@ public:
     Vector2D operator / (const float other);
     Vector2D operator - (const Vector2D& other);
 
-    float length();
-
     float x;
     float y;
 };

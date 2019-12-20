@@ -5,8 +5,8 @@
 class AlienLaser : public GameObject
 {
 public:
-    AlienLaser() { m_objType = new char[64]; memcpy(m_objType, "ot_AlienLaser", 14); sprite = RS_AlienLaser; }
-    ~AlienLaser() override;
+    AlienLaser() : GameObject("ot_AlienLaser", RS_AlienLaser) {}
+    ~AlienLaser() noexcept override;
 
     void Update(PlayField& world) override
     {
@@ -16,25 +16,24 @@ public:
         {
             deleted = true;
         }
-        GameObject* player = world.GetPlayerObject();
+        auto player = world.GetPlayerObject();
         if (player && pos.IntCmp(player->pos))
         {
             deleted = true;
             //Spawn explosion, kill player
-            GameObject& no = *(new Explosion);
-            no.pos = pos;
-            world.AddObject(&no);
+            GameObjPtr no = new Explosion;
+            no->pos = pos;
+            world.AddObject(no);
             world.RemoveObject(player);
         }
 
         if (deleted)
         {
-            world.DespawnLaser(static_cast<GameObject*>(this));
+            world.DespawnLaser(static_cast<GameObjPtr>(this));
         }
     }
 };
 
-AlienLaser::~AlienLaser()
-{ delete[] m_objType; }
+AlienLaser::~AlienLaser() noexcept = default;
 
 #endif // ALIENLASER_H

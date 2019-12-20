@@ -1,5 +1,6 @@
 #ifndef GAMEOBJECT_H
 #define GAMEOBJECT_H
+#include <string>
 #include "Vector2D.h"
 
 class PlayField;
@@ -7,14 +8,18 @@ class PlayField;
 class GameObject
 {
 public:
-	virtual ~GameObject() = default;
+    GameObject() = default;
+    GameObject(std::string objType, unsigned char s) : m_objType(objType), pos(), sprite(s){}
+    virtual ~GameObject() = default;
 
-	char* m_objType = nullptr;
+    std::string m_objType = nullptr;
 	Vector2D pos;
 	unsigned char sprite;
 
     virtual void Update(PlayField& world) = 0;
     virtual bool DecreaseHealth() { return true; }
 };
+
+typedef GameObject* GameObjPtr;
 
 #endif // GAMEOBJECT_H

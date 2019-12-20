@@ -5,6 +5,8 @@
 #include "PlayerShip.h"
 #include "Alien.h"
 
+std::default_random_engine rGen;
+
 /*
 static char ObjectType[][64] =
 {
@@ -29,15 +31,17 @@ int main()
     // Populate aliens
     for (int k = 0; k < 20; k++)
     {
-        Alien& a = *(new Alien);
-        a.pos.x = static_cast<float>(xCoord(rGen));
-        a.pos.y = static_cast<float>(yCoord(rGen));
-        world.AddObject(&a);
+        Alien* a = new Alien;
+        a->pos.x = static_cast<float>(xCoord(rGen));
+        a->pos.y = static_cast<float>(yCoord(rGen));
+        world.AddObject(a);
     }
     // Add player
-    PlayerShip& p = *(new PlayerShip);
-    p.pos = Vector2D(40, 27);
-    world.AddObject(&p);
+    PlayerShip* p = new PlayerShip;
+    p->pos = Vector2D(40, 27);
+    world.AddObject(p);
+
+    world.ProcessQueues();
 
 //#define TEST_RUN
 #ifdef TEST_RUN
@@ -51,6 +55,7 @@ int main()
 #endif
     {
         world.Update();
+        world.ProcessQueues();
 
         RenderItemList rl;
         for (auto it : world.GameObjects())
@@ -60,6 +65,7 @@ int main()
         }
 
         mainRenderer.Update(rl);
+
         // Sleep a bit so updates don't run too fast
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }

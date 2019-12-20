@@ -2,6 +2,7 @@
 #include <iostream>
 #include <windows.h>
 #include "Renderer.h"
+#include "PlayField.h"
 
 void setCursorPosition(int x, int y)
 {

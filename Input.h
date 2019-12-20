@@ -4,7 +4,7 @@
 #include <windows.h>
 #include <winuser.h>
 
-std::default_random_engine rGen;
+extern std::default_random_engine rGen;
 using intRand = std::uniform_int_distribution<int>;
 using floatRand = std::uniform_real_distribution<float>;
 

@@ -2,7 +2,7 @@
 #define ALIEN_H
 #include "AlienLaser.h"
 
-enum class AlienState
+enum class AlienState : unsigned char
 {
     as_Normal,
     as_Better
@@ -11,8 +11,8 @@ enum class AlienState
 class Alien : public GameObject
 {
 public:
-    Alien() : state(AlienState::as_Normal) { m_objType = new char[64]; memcpy(m_objType, "ot_AlienShip", 13); sprite = RS_Alien; }
-    ~Alien() override;
+    Alien() : GameObject("ot_AlienShip", RS_Alien) { state = AlienState::as_Better; }
+    ~Alien() noexcept override;
 
 private:
     // Alien constants - these could move out into PlayField as configurable variables
@@ -26,13 +26,13 @@ private:
     float velocity = 0.5f;
     AlienState state;
 
-    void Transform()
+    void Transform() noexcept
     {
         state = AlienState::as_Better;
         sprite = RS_BetterAlien;
         velocity *= 2.f;
     }
-    bool DecreaseHealth() override { health -= 1.f; return health <= 0; }
+    bool DecreaseHealth() noexcept override { health -= 1.f; return health <= 0; }
 
     void Update(PlayField& world) override
     {
@@ -48,13 +48,13 @@ private:
         if (pos.y >= world.bounds.y - 1)
         {
             // kill player
-            GameObject* player = world.GetPlayerObject();
+            auto player = world.GetPlayerObject();
             if (player && pos.IntCmp(player->pos))
             {
                 //Spawn explosion
-                GameObject& no = *(new Explosion);
-                no.pos = pos;
-                world.AddObject(&no);
+                GameObjPtr no = new Explosion;
+                no->pos = pos;
+                world.AddObject(no);
                 world.RemoveObject(player);
             }
         }
@@ -72,14 +72,13 @@ private:
         if (fireRate(rGen) < 0.5 && world.AlienLasers > 0)
         {
             //Spawn laser
-            GameObject& newLaser = *(new AlienLaser);
-            newLaser.pos = pos;
-            world.SpawnLaser(&newLaser);
+            GameObjPtr newLaser = new AlienLaser;
+            newLaser->pos = pos;
+            world.SpawnLaser(newLaser);
         }
     }
 };
 
-Alien::~Alien()
-{ delete m_objType; }
+Alien::~Alien() noexcept = default;
 
 #endif // ALIEN_H
