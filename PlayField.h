@@ -4,9 +4,11 @@
 #include <deque>
 #include <algorithm>
 
-#include "GameMode.h"
 #include "GameObject.h"
 #include "Input.h"
+#include "VSync.h"
+
+class GameMode;
 
 class PlayField
 {
@@ -15,6 +17,8 @@ private:
 
     std::deque<GameObjPtr> gameObjectsToAdd;
     std::deque<GameObjPtr> gameObjectsToRemove;
+
+    GameMode* gameMode = nullptr;
 
 public:
     Input* controllerInput = nullptr;
@@ -26,23 +30,11 @@ public:
 
     PlayField(Vector2D iBounds) : bounds(iBounds) {}
 
-    inline ~PlayField()
-    {
-        if(controllerInput)
-            delete controllerInput;
-    }
+    ~PlayField();
 
     const std::list<GameObjPtr>& GameObjects() { return gameObjects; }
 
-    void Update()
-    {
-        // Update list of active objects in the world
-        for (auto item : gameObjects)
-        {
-            item->Update(*this);
-        }
-        //PlayField::GameMode->Update();
-    }
+    void Update();
 
     GameObjPtr GetPlayerObject()
     {
@@ -57,7 +49,6 @@ public:
         return GetPlayerObject() != nullptr;
     }
 
-    //
     void SpawnLaser(GameObjPtr newObj)
     {
         if (newObj->m_objType == "ot_AlienLaser")
@@ -112,8 +103,10 @@ public:
         }
         gameObjectsToRemove.clear();
     }
+
+    GameMode* GetGameMode() const{ return gameMode; }
+
+    void SetGameMode(GameMode* value){ gameMode = value; }
 };
-
-
 
 #endif // PLAYFIELD_H

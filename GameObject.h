@@ -17,7 +17,7 @@ public:
 	unsigned char sprite;
 
     virtual void Update(PlayField& world) = 0;
-    virtual bool DecreaseHealth() { return true; }
+    virtual bool DecreaseHealth(PlayField& world) { return true; }
 };
 
 typedef GameObject* GameObjPtr;

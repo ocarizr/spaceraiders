@@ -2,6 +2,7 @@
 #define RENDERER_H
 #include <vector>
 #include "Vector2D.h"
+#include "GameMode.h"
 
 struct RenderItem
 {
@@ -29,7 +30,7 @@ public:
     ~Renderer();
 
     // Draws all game objects after clearing filling the Canvas with _ symbol
-    void Update(const RenderItemList& renderList);
+    void Update(const RenderItemList& renderList, PlayField& world);
 
 private:
     Vector2D renderBounds;
@@ -45,7 +46,7 @@ private:
     void FillCanvas(unsigned char sprite);
 
     // Prints canvas char array on console
-    void DrawCanvas();
+    void DrawCanvas(PlayField& world);
 };
 
 #endif // RENDERER_H

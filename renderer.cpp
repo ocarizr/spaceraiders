@@ -2,7 +2,6 @@
 #include <iostream>
 #include <windows.h>
 #include "Renderer.h"
-#include "PlayField.h"
 
 void setCursorPosition(int x, int y)
 {
@@ -27,7 +26,7 @@ Renderer::~Renderer()
     delete[] disp[1].canvas;
 }
 
-void Renderer::Update(const RenderItemList& RenderList)
+void Renderer::Update(const RenderItemList& RenderList, PlayField& world)
 {
     FillCanvas(RS_BackgroundTile);
 
@@ -43,7 +42,7 @@ void Renderer::Update(const RenderItemList& RenderList)
         }
     }
 
-    DrawCanvas();
+    DrawCanvas(world);
 }
 
 void Renderer::FillCanvas(unsigned char sprite)
@@ -54,12 +53,18 @@ void Renderer::FillCanvas(unsigned char sprite)
     }
 }
 
-void Renderer::DrawCanvas()
+void Renderer::DrawCanvas(PlayField& world)
 {
-    //ToDo: Scoring output/tracking
-    //GameMode* gameMode = world.GetGameMode();
-    //if (gameMode)
-    //	std::cout << "Score: " << gameMode->GetScore() << std::endl;
+    auto gameMode = world.GetGameMode();
+    {
+        auto ta = dynamic_cast<TimeAttack*>(gameMode);
+        if(ta)
+        {
+            std::cout << "Time: " << ta->GetTimer() << '\t';
+        }
+    }
+    if (gameMode)
+        std::cout << "Score: " << gameMode->GetScore() << std::endl;
 
     for (int y = 0; y < renderBounds.y; y++)
     {

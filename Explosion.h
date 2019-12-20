@@ -2,7 +2,7 @@
 #define EXPLOSION_H
 #include <memory>
 
-#include "PlayField.h"
+#include "GameMode.h"
 #include "Renderer.h"
 
 class Explosion : public GameObject

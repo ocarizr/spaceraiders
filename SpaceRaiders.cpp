@@ -25,6 +25,8 @@ int main()
     Renderer mainRenderer(size);
     PlayField world(size);
 
+    world.SetGameMode(new TimeAttack);
+
     intRand xCoord(0, static_cast<int>(size.x-1));
     intRand yCoord(0, 10);
 
@@ -65,7 +67,7 @@ int main()
             rl.push_back(a);
         }
 
-        mainRenderer.Update(rl);
+        mainRenderer.Update(rl, world);
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds timestamp = end - start;
         int convertToMilli = static_cast<int>(timestamp.count() / 1000000);
@@ -75,7 +77,7 @@ int main()
     }
     world.RemoveAllObjects();
     RenderItemList rl;
-    mainRenderer.Update(rl);
+    mainRenderer.Update(rl, world);
 
     getchar();
 

@@ -22,13 +22,14 @@ public:
             if (it->m_objType == "ot_AlienShip" && it->pos.IntCmp(pos))
             {
                 deleted = true;
-                //Spawn explosion, kill the alien that we hit
-                //ToDo - add scoring
-                GameObjPtr no = new Explosion;
-                no->pos = pos;
-                world.AddObject(no);
-                if (it->DecreaseHealth())
+
+                if (it->DecreaseHealth(world))
+                {
+                    GameObjPtr no = new Explosion;
+                    no->pos = pos;
+                    world.AddObject(no);
                     world.RemoveObject(it);
+                }
             }
         }
 

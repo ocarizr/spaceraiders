@@ -30,9 +30,17 @@ private:
     {
         state = AlienState::as_Better;
         sprite = RS_BetterAlien;
+        health = 2.f;
         velocity *= 2.f;
     }
-    bool DecreaseHealth() noexcept override { health -= 1.f; return health <= 0; }
+    bool DecreaseHealth(PlayField& world) noexcept override
+    {
+        health -= 1.f;
+        bool isDead = health <= 0;
+        if(isDead)
+            world.GetGameMode()->UpdateScore(state == AlienState::as_Normal ? 10 : 20);
+        return isDead;
+    }
 
     void Update(PlayField& world) override
     {
