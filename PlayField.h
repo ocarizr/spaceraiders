@@ -49,6 +49,12 @@ public:
         return GetPlayerObject() != nullptr;
     }
 
+    bool HasAliens()
+    {
+        auto it = std::find_if(gameObjects.begin(), gameObjects.end(), [](GameObjPtr in){ return in->m_objType == "ot_AlienShip"; });
+        return it != GameObjects().end();
+    }
+
     void SpawnLaser(GameObjPtr newObj)
     {
         if (newObj->m_objType == "ot_AlienLaser")

@@ -7,6 +7,8 @@
 
 std::default_random_engine rGen;
 
+const int canvasWidth = 80;
+const int canvasHeight = 28;
 /*
 static char ObjectType[][64] =
 {
@@ -21,7 +23,7 @@ static char ObjectType[][64] =
 int main()
 {
     rGen.seed(1);
-    Vector2D size(80, 28);
+    Vector2D size(canvasWidth, canvasHeight);
     Renderer mainRenderer(size);
     PlayField world(size);
 
@@ -40,7 +42,7 @@ int main()
     }
     // Add player
     auto p = new PlayerShip;
-    p->pos = Vector2D(40, 27);
+    p->pos = Vector2D(canvasWidth / 2, 27);
     world.AddObject(p);
 
     world.ProcessQueues();

@@ -7,14 +7,13 @@ class VSync
     const int ten = 1000/10;
     const int twenty = 1000/20;
     const int thirty = 1000/30;
-    const int sixty = 1000/60;
 
     void SetFps(int& timestamp)
     {
         fps = timestamp < five ?
                                5 : (timestamp < ten ?
                                                   10 : (timestamp < twenty ?
-                                                                        20 : (timestamp < thirty ? 30 : 60)));
+                                                                        20 : 30));
     }
 
 public:
@@ -33,11 +32,8 @@ public:
         case 20:
             return twenty;
             break;
-        case 30:
-            return thirty;
-            break;
         default:
-            return sixty;
+            return thirty;
         }
     }
 

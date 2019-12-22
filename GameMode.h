@@ -35,7 +35,7 @@ public:
     [[nodiscard]] int GetTimer() const noexcept { return timer / 1000; }
 };
 
-class SingleLife : public GameMode
+class UntilPlayerDeath : public GameMode
 {
     void Update(PlayField& world) override
     {
@@ -43,12 +43,11 @@ class SingleLife : public GameMode
     }
 };
 
-class Normal : public GameMode
+class DestroyAllAliens : public GameMode
 {
     void Update(PlayField& world) override
     {
-        // implement ASAP
-        gameOver = true;
+        gameOver = !world.HasAliens();
     }
 };
 
