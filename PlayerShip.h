@@ -4,24 +4,30 @@
 
 class PlayerShip : public GameObject
 {
+    const float delayTime = .3f;
+    float fireDelay = delayTime;
 public:
     PlayerShip() : GameObject("ot_PlayerShip", RS_Player) {}
     ~PlayerShip() noexcept override;
 
     void Update(PlayField& world) override
     {
-        if (world.controllerInput->Left())
-            pos.x -= 1;
+        if(world.controllerInput->Left() && world.controllerInput->Right()) {} // Don't move
+        else if (world.controllerInput->Left())
+            pos.x -= 4 * world.vsync.DeltaTime();
         else if (world.controllerInput->Right())
-            pos.x += 1;
+            pos.x += 4 * world.vsync.DeltaTime();
 
-        if (world.controllerInput->Fire() && world.PlayerLasers > 0)
+        if (world.controllerInput->Fire() && world.PlayerLasers > 0 && fireDelay <= 0.f)
         {
+            fireDelay = delayTime;
             //Spawn laser
             GameObjPtr newLaser = new PlayerLaser;
             newLaser->pos = pos;
             world.SpawnLaser(newLaser);
         }
+        else
+            fireDelay -= world.vsync.DeltaTime();
     }
 };
 

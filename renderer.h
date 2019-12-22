@@ -1,6 +1,7 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 #include <vector>
+#include <sstream>
 #include "Vector2D.h"
 #include "GameMode.h"
 
@@ -26,11 +27,11 @@ enum RaiderSprites
 class Renderer
 {
 public:
-    Renderer(const Vector2D& bounds);
-    ~Renderer();
+    explicit Renderer(const Vector2D& bounds);
+    ~Renderer() noexcept;
 
     // Draws all game objects after clearing filling the Canvas with _ symbol
-    void Update(const RenderItemList& renderList, PlayField& world);
+    void Update(const RenderItemList& renderList, const PlayField& world);
 
 private:
     Vector2D renderBounds;
@@ -43,10 +44,10 @@ private:
     unsigned char* CurCanvas(int x, int y) { return &disp[curIdx % 2].canvas[x + static_cast<int>(renderBounds.x) * y];  }
 
     // Fills whole canvas array with sprite
-    void FillCanvas(unsigned char sprite);
+    void FillCanvas(unsigned char sprite) noexcept;
 
     // Prints canvas char array on console
-    void DrawCanvas(PlayField& world);
+    void DrawCanvas(const PlayField& world);
 };
 
 #endif // RENDERER_H

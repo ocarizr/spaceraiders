@@ -8,7 +8,7 @@ protected:
     int score;
     bool gameOver;
 public:
-    GameMode() : gameOver(false) {}
+    GameMode() : score(0), gameOver(false) {}
     virtual ~GameMode() = default;
 
     int GetScore() noexcept { return score; }
@@ -32,7 +32,7 @@ class TimeAttack : public GameMode
     }
 
 public:
-    int GetTimer() const noexcept { return timer / 1000; }
+    [[nodiscard]] int GetTimer() const noexcept { return timer / 1000; }
 };
 
 class SingleLife : public GameMode

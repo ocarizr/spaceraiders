@@ -28,7 +28,7 @@ public:
     int AlienLasers = 10;
     int PlayerLasers = 4;
 
-    PlayField(Vector2D iBounds) : bounds(iBounds) {}
+    explicit PlayField(const Vector2D& iBounds) : bounds(iBounds) {}
 
     ~PlayField();
 
@@ -68,7 +68,7 @@ public:
 
     void AddObject(GameObjPtr newObj)
     {
-        gameObjectsToAdd.push_back(std::move(newObj));
+        gameObjectsToAdd.push_back(newObj);
     }
     void RemoveObject(GameObjPtr newObj)
     {
@@ -88,7 +88,7 @@ public:
     {
         for (auto& item : gameObjectsToAdd)
         {
-            gameObjects.push_back(std::move(item));
+            gameObjects.push_back(item);
         }
         gameObjectsToAdd.clear();
 
@@ -104,7 +104,7 @@ public:
         gameObjectsToRemove.clear();
     }
 
-    GameMode* GetGameMode() const{ return gameMode; }
+    [[nodiscard]] GameMode* GetGameMode() const{ return gameMode; }
 
     void SetGameMode(GameMode* value){ gameMode = value; }
 };

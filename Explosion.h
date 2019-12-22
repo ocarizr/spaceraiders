@@ -3,18 +3,18 @@
 #include <memory>
 
 #include "GameMode.h"
-#include "Renderer.h"
+#include "renderer.h"
 
 class Explosion : public GameObject
 {
 public:
     // Explosion lasts 5 ticks before it dissappears
-    int timer = 250;
+    float timer = .25f;
     Explosion() : GameObject("ot_Explosion", RS_Explosion) {}
     ~Explosion() noexcept override;
     void Update(PlayField& world) override
     {
-        timer -= world.vsync.GetFramePeriod();
+        timer -= world.vsync.DeltaTime();
         if (timer <= 0)
         {
             world.RemoveObject(this);

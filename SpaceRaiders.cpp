@@ -1,6 +1,6 @@
 // SpaceRaiders.cpp : Defines the entry point for the console application.
-#include <chrono>
 #include <thread>
+#include <iostream>
 
 #include "PlayerShip.h"
 #include "Alien.h"
@@ -33,13 +33,13 @@ int main()
     // Populate aliens
     for (int k = 0; k < 20; k++)
     {
-        Alien* a = new Alien;
+        auto a = new Alien;
         a->pos.x = static_cast<float>(xCoord(rGen));
         a->pos.y = static_cast<float>(yCoord(rGen));
         world.AddObject(a);
     }
     // Add player
-    PlayerShip* p = new PlayerShip;
+    auto p = new PlayerShip;
     p->pos = Vector2D(40, 27);
     world.AddObject(p);
 
@@ -47,14 +47,11 @@ int main()
 
 //#define TEST_RUN
 #ifdef TEST_RUN
-    // Test run with random input
     world.controllerInput = new RndInput;
-    while (world.HasPlayer())
 #else
-    // ToDo - implement keyboard (or other device input)
     world.controllerInput = new KeyboardInput;
-    while (world.HasPlayer()) // break when game-over
 #endif
+    while (!world.GetGameMode()->GameOver()) // break when game-over
     {
         auto start = std::chrono::high_resolution_clock::now();
         world.Update();
@@ -68,10 +65,9 @@ int main()
         }
 
         mainRenderer.Update(rl, world);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds timestamp = end - start;
+        auto finish = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds timestamp = finish - start;
         int convertToMilli = static_cast<int>(timestamp.count() / 1000000);
-
         // Sleep a bit so updates don't run too fast
         std::this_thread::sleep_for(std::chrono::milliseconds(world.vsync.GetSyncPeriod(convertToMilli)));
     }

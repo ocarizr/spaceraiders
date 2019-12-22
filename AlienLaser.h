@@ -11,7 +11,7 @@ public:
     void Update(PlayField& world) override
     {
         bool deleted = false;
-        pos.y += 1.f;
+        pos.y += 6.f * world.vsync.DeltaTime();
         if (pos.y > world.bounds.y)
         {
             deleted = true;

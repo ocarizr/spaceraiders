@@ -23,7 +23,7 @@ private:
     float health = 1.f;
     float energy = 0.f;
     float direction = 1.f;
-    float velocity = 0.5f;
+    float velocity = 2.f;
     AlienState state;
 
     void Transform() noexcept
@@ -44,12 +44,12 @@ private:
 
     void Update(PlayField& world) override
     {
-        pos.x += direction * velocity;
+        pos.x += direction * velocity * world.vsync.DeltaTime();
         // Border check
         if (pos.x < 0 || pos.x >= world.bounds.x - 1)
         {
             direction = -direction;
-            pos.y += 1;
+            pos.y += 1 * world.vsync.DeltaTime();
         }
 
         // Border check vertical:
