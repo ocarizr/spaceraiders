@@ -6,7 +6,7 @@ class PlayerLaser : public GameObject
 {
 public:
     PlayerLaser() : GameObject("ot_PlayerLaser", RS_PlayerLaser) {}
-    ~PlayerLaser() noexcept override;
+    inline ~PlayerLaser() noexcept override = default;
 
     void Update(PlayField& world) override
     {
@@ -39,7 +39,5 @@ public:
         }
     }
 };
-
-PlayerLaser::~PlayerLaser() noexcept = default;
 
 #endif // PLAYERLASER_H

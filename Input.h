@@ -28,15 +28,22 @@ public:
 
 class KeyboardInput : public Input
 {
+public:
     static bool IsPressed(short byte)
     {
         return static_cast<bool>(byte >> 15 & 0x1);
     }
 
-public:
     bool Left() override { return IsPressed(GetKeyState(0x25)); }
     bool Right() override { return IsPressed(GetKeyState(0x27)); }
     bool Fire() override { return IsPressed(GetKeyState(0x20)); }
+};
+
+class KeyboardWithRandomFire : public Input
+{
+    bool Left() override { return KeyboardInput::IsPressed(GetKeyState(0x25)); }
+    bool Right() override { return KeyboardInput::IsPressed(GetKeyState(0x27)); }
+    bool Fire() override { floatRand keyRate(0, 1); return (keyRate(rGen) < 0.5f); }
 };
 
 #endif // INPUT_H

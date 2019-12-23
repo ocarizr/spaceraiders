@@ -49,9 +49,9 @@ int main()
 
 //#define TEST_RUN
 #ifdef TEST_RUN
-    world.controllerInput = new RndInput;
-#else
     world.controllerInput = new KeyboardInput;
+#else
+    world.controllerInput = new KeyboardWithRandomFire;
 #endif
     while (!world.GetGameMode()->GameOver()) // break when game-over
     {

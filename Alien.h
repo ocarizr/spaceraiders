@@ -12,7 +12,7 @@ class Alien : public GameObject
 {
 public:
     Alien() : GameObject("ot_AlienShip", RS_Alien) { state = AlienState::as_Better; }
-    ~Alien() noexcept override;
+    inline ~Alien() noexcept override = default;
 
 private:
     // Alien constants - these could move out into PlayField as configurable variables
@@ -38,7 +38,32 @@ private:
         health -= 1.f;
         bool isDead = health <= 0;
         if(isDead)
+        {
             world.GetGameMode()->UpdateScore(state == AlienState::as_Normal ? 10 : 20);
+
+            floatRand dropRate(0, 10);
+            if(dropRate(rGen) <= 1.f)
+            {
+                auto puRate = dropRate(rGen);
+                PowerUp* pu;
+                if(puRate < .3f)
+                {
+                    pu = new SpeedBoost;
+                }
+                else if(puRate < .6f)
+                {
+                    pu = new FireBoost;
+                }
+                else
+                {
+                    pu = new TripleFire;
+                }
+                Vector2D dropPos(pos.x, pos.y + 1);
+                pu->pos = dropPos;
+                world.AddObject(pu);
+            }
+
+        }
         return isDead;
     }
 
@@ -46,7 +71,7 @@ private:
     {
         pos.x += direction * velocity * world.vsync.DeltaTime();
         // Border check
-        if (pos.x < 0 || pos.x >= world.bounds.x - 1)
+        if (pos.x <= 0 || pos.x >= world.bounds.x - 1)
         {
             direction = -direction;
             pos.y += 1 * world.vsync.DeltaTime();
@@ -86,7 +111,5 @@ private:
         }
     }
 };
-
-Alien::~Alien() noexcept = default;
 
 #endif // ALIEN_H

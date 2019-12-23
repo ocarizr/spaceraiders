@@ -63,6 +63,7 @@ public:
             PlayerLasers--;
         AddObject(newObj);
     }
+
     void DespawnLaser(GameObjPtr newObj)
     {
         if (newObj->m_objType == "ot_AlienLaser")
@@ -76,6 +77,7 @@ public:
     {
         gameObjectsToAdd.push_back(newObj);
     }
+
     void RemoveObject(GameObjPtr newObj)
     {
         gameObjectsToRemove.push_back(newObj);

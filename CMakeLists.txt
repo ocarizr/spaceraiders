@@ -14,6 +14,7 @@ set(project_sources
     GameMode.h PlayField.h PlayField.cpp
     GameObject.h Explosion.h
     PlayerLaser.h PlayerShip.h
-    AlienLaser.h Alien.h)
+    AlienLaser.h Alien.h
+    PowerUp.h PowerUp.cpp)
 
 add_executable(${project_name} ${project_sources})
