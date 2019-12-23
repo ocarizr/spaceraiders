@@ -19,14 +19,11 @@ public:
             deleted = true;
         }
 
-        if (pos.y >= world.bounds.y - 1)
+        auto player = world.GetPlayerObject();
+        if (player && pos.IntCmp(player->pos))
         {
-            // kill player
-            auto player = world.GetPlayerObject();
-            if (player && pos.IntCmp(player->pos))
-            {
-                ApplyPowerUp(player);
-            }
+            ApplyPowerUp(player);
+            deleted = true;
         }
 
         if (deleted)

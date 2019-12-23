@@ -22,7 +22,8 @@ enum RaiderSprites
     RS_PlayerLaser = 0xBA,
     RS_AlienLaser = '|',
     RS_Explosion = '*',
-    RS_PowerUP = 'U'
+    RS_PowerUP = 'U',
+    RS_BlockWall = '_'
 };
 
 class Renderer

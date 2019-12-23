@@ -11,7 +11,7 @@ public:
     void Update(PlayField& world) override
     {
         bool deleted = false;
-        pos.y += 6.f * world.vsync.DeltaTime();
+        pos.y += 4.f * world.vsync.DeltaTime();
         if (pos.y > world.bounds.y)
         {
             deleted = true;
@@ -25,6 +25,15 @@ public:
             no->pos = pos;
             world.AddObject(no);
             world.RemoveObject(player);
+        }
+
+        for(const auto& obj : world.GameObjects())
+        {
+            if(obj->m_objType == "ot_BlockWall" && obj->pos.IntCmp(pos))
+            {
+                deleted = true;
+                break;
+            }
         }
 
         if (deleted)

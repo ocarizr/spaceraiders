@@ -6,8 +6,8 @@ class PlayerShip : public GameObject
 {
     float delayTime = .4f;
     float fireDelay = delayTime;
-    bool tripleLaser = false;
     float movementSpeed = 4.f;
+    bool tripleLaser = false;
 
 public:
     PlayerShip() : GameObject("ot_PlayerShip", RS_Player) {}
@@ -41,19 +41,12 @@ public:
 
         if (world.controllerInput->Fire() && world.PlayerLasers > 0 && fireDelay <= 0.f)
         {
-            if(!tripleLaser)
-            {
-                fireDelay = delayTime;
-                //Spawn laser
-                GameObjPtr newLaser = new PlayerLaser;
-                Vector2D laserPos(pos.x, pos.y - 1);
-                newLaser->pos = laserPos;
-                world.SpawnLaser(newLaser);
-            }
-            else
-            {
-                // Shoot Triple Laser
-            }
+            fireDelay = delayTime;
+            //Spawn laser
+            GameObjPtr newLaser = tripleLaser ? new PlayerLaser : new PlayerLaser;
+            Vector2D laserPos(pos.x, pos.y - 1);
+            newLaser->pos = laserPos;
+            world.SpawnLaser(newLaser);
         }
         else
             fireDelay -= world.vsync.DeltaTime();

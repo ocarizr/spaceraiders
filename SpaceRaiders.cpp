@@ -4,21 +4,12 @@
 
 #include "PlayerShip.h"
 #include "Alien.h"
+#include "BlockWall.h"
 
 std::default_random_engine rGen;
 
 const int canvasWidth = 80;
 const int canvasHeight = 28;
-/*
-static char ObjectType[][64] =
-{
-        "ot_AlienShip",
-        "ot_PlayerShip",
-        "ot_AlienLaser",
-        "ot_PlayerLaser",
-        "ot_Explosion"
-};
-*/
 
 int main()
 {
@@ -27,24 +18,12 @@ int main()
     Renderer mainRenderer(size);
     PlayField world(size);
 
-    world.SetGameMode(new TimeAttack);
-
-    intRand xCoord(0, static_cast<int>(size.x-1));
-    intRand yCoord(0, 10);
+    world.SetGameMode(new UntilPlayerDeath);
 
     // Populate aliens
-    for (int k = 0; k < 20; k++)
-    {
-        auto a = new Alien;
-        a->pos.x = static_cast<float>(xCoord(rGen));
-        a->pos.y = static_cast<float>(yCoord(rGen));
-        world.AddObject(a);
-    }
+    world.AddAlienWave(size);
     // Add player
-    auto p = new PlayerShip;
-    p->pos = Vector2D(canvasWidth / 2, 27);
-    world.AddObject(p);
-
+    world.AddPlayer(size);
     world.ProcessQueues();
 
 //#define TEST_RUN
@@ -58,6 +37,7 @@ int main()
         auto start = std::chrono::high_resolution_clock::now();
         world.Update();
         world.ProcessQueues();
+        if(!world.HasAliens()) world.AddAlienWave(size);
 
         RenderItemList rl;
         for (auto it : world.GameObjects())
@@ -68,8 +48,9 @@ int main()
 
         mainRenderer.Update(rl, world);
         auto finish = std::chrono::high_resolution_clock::now();
+
         std::chrono::nanoseconds timestamp = finish - start;
-        int convertToMilli = static_cast<int>(timestamp.count() / 1000000);
+        const int convertToMilli = static_cast<int>(timestamp.count() / 1000000);
         // Sleep a bit so updates don't run too fast
         std::this_thread::sleep_for(std::chrono::milliseconds(world.vsync.GetSyncPeriod(convertToMilli)));
     }

@@ -7,13 +7,15 @@ class VSync
     const int ten = 1000/10;
     const int twenty = 1000/20;
     const int thirty = 1000/30;
+    const int sixty = 1000/60;
 
-    void SetFps(int& timestamp)
+    void SetFps(const int& timestamp)
     {
-        fps = timestamp < five ?
-                               5 : (timestamp < ten ?
-                                                  10 : (timestamp < twenty ?
-                                                                        20 : 30));
+        fps = timestamp < five ? 5 :
+                               (timestamp < ten ? 10 :
+                                                (timestamp < twenty ? 20 :
+                                                                    (timestamp < thirty ? 30 :
+                                                                                        60)));
     }
 
 public:
@@ -23,17 +25,11 @@ public:
     int GetFramePeriod()
     {
         switch (fps) {
-        case 5:
-            return five;
-            break;
-        case 10:
-            return ten;
-            break;
-        case 20:
-            return twenty;
-            break;
-        default:
-            return thirty;
+        case 5: return five;
+        case 10: return ten;
+        case 20: return twenty;
+        case 30: return thirty;
+        default: return sixty;
         }
     }
 
@@ -42,7 +38,7 @@ public:
         return static_cast<float>(GetFramePeriod()) / 1000.f;
     }
 
-    int GetSyncPeriod(int& timestamp)
+    int GetSyncPeriod(const int& timestamp)
     {
         SetFps(timestamp);
         auto frame = GetFramePeriod();

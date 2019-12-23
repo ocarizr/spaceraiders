@@ -2,6 +2,7 @@
 #define PLAYFIELD_H
 #include <list>
 #include <deque>
+#include <atomic>
 #include <algorithm>
 
 #include "GameObject.h"
@@ -24,11 +25,13 @@ public:
     Input* controllerInput = nullptr;
     Vector2D bounds;
     VSync vsync;
-    // Number of available active laser slots for aliens and player
-    int AlienLasers = 10;
-    int PlayerLasers = 4;
 
-    explicit PlayField(const Vector2D& iBounds) : bounds(iBounds) {}
+    // Number of available active laser slots for aliens and player
+    // Atomic to don't be optimized by compiler
+    std::atomic<int> AlienLasers;
+    std::atomic<int> PlayerLasers;
+
+    explicit PlayField(const Vector2D& iBounds) : bounds(iBounds), AlienLasers(10), PlayerLasers(5) {}
 
     ~PlayField();
 
@@ -51,8 +54,16 @@ public:
 
     bool HasAliens()
     {
-        auto it = std::find_if(gameObjects.begin(), gameObjects.end(), [](GameObjPtr in){ return in->m_objType == "ot_AlienShip"; });
+        auto it = std::find_if(gameObjects.begin(), gameObjects.end(),
+                               [](const GameObjPtr in){ return in->m_objType == "ot_AlienShip"; });
         return it != GameObjects().end();
+    }
+
+    int AlienCount()
+    {
+        auto count = std::count_if(gameObjects.begin(), gameObjects.end(),
+                             [](const GameObjPtr in){ return in->m_objType == "ot_AlienShip"; });
+        return static_cast<int>(count);
     }
 
     void SpawnLaser(GameObjPtr newObj)
@@ -67,7 +78,12 @@ public:
     void DespawnLaser(GameObjPtr newObj)
     {
         if (newObj->m_objType == "ot_AlienLaser")
-            AlienLasers++;
+        {
+            if(AlienLasers < AlienCount() * 3)
+            {
+                AlienLasers++;
+            }
+        }
         else if (newObj->m_objType == "ot_PlayerLaser")
             PlayerLasers++;
         RemoveObject(newObj);
@@ -115,6 +131,12 @@ public:
     [[nodiscard]] GameMode* GetGameMode() const{ return gameMode; }
 
     void SetGameMode(GameMode* value){ gameMode = value; }
+
+    void AddAlienWave(Vector2D& canvasSize);
+
+    void AddBlockWalls(Vector2D& canvasSize);
+
+    void AddPlayer(Vector2D& canvasSize);
 };
 
 #endif // PLAYFIELD_H

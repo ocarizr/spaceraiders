@@ -11,7 +11,7 @@ public:
     void Update(PlayField& world) override
     {
         bool deleted = false;
-        pos.y -= 6.f * world.vsync.DeltaTime();
+        pos.y -= 4.f * world.vsync.DeltaTime();
         if (pos.y < 0)
         {
             deleted = true;
@@ -19,7 +19,8 @@ public:
 
         for (auto it : world.GameObjects())
         {
-            if (it->m_objType == "ot_AlienShip" && it->pos.IntCmp(pos))
+            if ((it->m_objType == "ot_AlienShip" || it->m_objType == "ot_BlockWall")
+                && it->pos.IntCmp(pos))
             {
                 deleted = true;
 

@@ -11,13 +11,13 @@ enum class AlienState : unsigned char
 class Alien : public GameObject
 {
 public:
-    Alien() : GameObject("ot_AlienShip", RS_Alien) { state = AlienState::as_Better; }
+    Alien() : GameObject("ot_AlienShip", RS_Alien) { state = AlienState::as_Normal; }
     inline ~Alien() noexcept override = default;
 
 private:
     // Alien constants - these could move out into PlayField as configurable variables
     const float maxUpdateRate = 0.01f;
-    const float transformEnergy = 1.f;
+    const float transformEnergy = 2.f;
 
     // Variables dictating energy level for upgrade, direction of movement, and current speed
     float health = 1.f;
@@ -62,7 +62,6 @@ private:
                 pu->pos = dropPos;
                 world.AddObject(pu);
             }
-
         }
         return isDead;
     }
@@ -74,7 +73,7 @@ private:
         if (pos.x <= 0 || pos.x >= world.bounds.x - 1)
         {
             direction = -direction;
-            pos.y += 1 * world.vsync.DeltaTime();
+            pos.y += 1;
         }
 
         // Border check vertical:
@@ -89,24 +88,26 @@ private:
                 no->pos = pos;
                 world.AddObject(no);
                 world.RemoveObject(player);
+                DecreaseHealth(world);
             }
         }
 
         // Transform into better Alien
         if (state != AlienState::as_Better)
         {
-            floatRand updateRate(-maxUpdateRate, 2 * maxUpdateRate);
+            floatRand updateRate(0, maxUpdateRate);
             energy += updateRate(rGen);
             if (energy >= transformEnergy)
                 Transform();
         }
 
         floatRand fireRate(0, 1);
-        if (fireRate(rGen) < 0.5 && world.AlienLasers > 0)
+        if (fireRate(rGen) < .5f && world.AlienLasers > 0)
         {
             //Spawn laser
             GameObjPtr newLaser = new AlienLaser;
-            newLaser->pos = pos;
+            Vector2D laserPos(pos.x, pos.y + 1);
+            newLaser->pos = laserPos;
             world.SpawnLaser(newLaser);
         }
     }

@@ -9,12 +9,9 @@ set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 set(project_name SpaceRaiders)
 set(project_sources
-    SpaceRaiders.cpp renderer.cpp
-    renderer.h VSync.h Vector2D.h Input.h
-    GameMode.h PlayField.h PlayField.cpp
-    GameObject.h Explosion.h
-    PlayerLaser.h PlayerShip.h
-    AlienLaser.h Alien.h
-    PowerUp.h PowerUp.cpp)
+    SpaceRaiders.cpp
+    renderer.cpp
+    PlayField.cpp
+    PowerUp.cpp)
 
 add_executable(${project_name} ${project_sources})
