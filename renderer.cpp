@@ -58,17 +58,17 @@ void Renderer::DrawCanvas(const PlayField& world)
     std::stringstream canvas;
     auto gameMode = world.GetGameMode();
 
+    if(world.GetGameMode() && !world.GetGameMode()->GameOver())
     {
-        auto ta = dynamic_cast<TimeAttack*>(gameMode);
-        if (ta)
         {
-            canvas << "Time: " << std::setw(2) << std::setfill('0') << ta->GetTimer() << '\t';
+            auto ta = dynamic_cast<TimeAttack*>(gameMode);
+            if (ta)
+                canvas << "Time: " << std::setw(2) << std::setfill('0') << ta->GetTimer() << '\t';
         }
+
+        if (gameMode)
+            canvas << "Score: " << gameMode->GetScore() << '\n';
     }
-
-    if (gameMode)
-        canvas << "Score: " << gameMode->GetScore() << '\n';
-
     for (int y = 0; y < static_cast<int>(renderBounds.y); ++y)
     {
         for (int x = 0; x < static_cast<int>(renderBounds.x); ++x)

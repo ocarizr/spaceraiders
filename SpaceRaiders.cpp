@@ -20,27 +20,29 @@ int main()
     Renderer mainRenderer(size);
     PlayField world(size);
 
-    RenderItemList rl;
-    GameMenus::GenerateStartMenu(rl, size);
-    mainRenderer.Update(rl, world);
-    int modeSelected = 0;
-
-    do
     {
-        modeSelected = GameMenus::SelectOptionFromStartMenu();
-    } while (modeSelected == 0);
+        RenderItemList rl;
+        GameMenus::GenerateStartMenu(rl, size);
+        mainRenderer.Update(rl, world);
+        int modeSelected = 0;
 
-    switch (modeSelected)
-    {
-    case 1:
-        world.SetGameMode(new UntilPlayerDeath);
-        break;
-    case 2:
-        world.SetGameMode(new TimeAttack);
-        break;
-    case 3:
-        world.SetGameMode(new DestroyAllAliens);
-        break;
+        do
+        {
+            modeSelected = GameMenus::SelectOptionFromStartMenu();
+        } while (modeSelected == 0);
+
+        switch (modeSelected)
+        {
+        case 1:
+            world.SetGameMode(new UntilPlayerDeath);
+            break;
+        case 2:
+            world.SetGameMode(new TimeAttack);
+            break;
+        case 3:
+            world.SetGameMode(new DestroyAllAliens);
+            break;
+        }
     }
 
     // Populate aliens
@@ -84,7 +86,7 @@ int main()
         GameMenus::GenerateGameOverMenu(rl, size, world.GetGameMode()->GetScore(), world.HasPlayer());
         mainRenderer.Update(rl, world);
     }
-    getchar();
+    getchar(); // just to wait the player to confirm the close game
 
     return 0;
 }
