@@ -23,8 +23,14 @@ void PlayField::AddAlienWave(Vector2D& canvasSize)
     intRand xCoord(1, static_cast<int>(canvasSize.x - 2));
     intRand yCoord(0, 10);
 
-    intRand amountOfAliens(15, 30);
-    int amount = amountOfAliens(rGen);
+    int amount;
+    if(dynamic_cast<DestroyAllAliens*>(gameMode))
+        amount = 50;
+    else
+    {
+        intRand amountOfAliens(15, 30);
+        amount = amountOfAliens(rGen);
+    }
 
     for (int k = 0; k < amount; ++k)
     {

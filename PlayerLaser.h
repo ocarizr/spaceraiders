@@ -6,9 +6,10 @@ class PlayerLaser : public GameObject
 {
 public:
     PlayerLaser() : GameObject("ot_PlayerLaser", RS_PlayerLaser) {}
-    inline ~PlayerLaser() noexcept override = default;
+    PlayerLaser(std::string objName, unsigned char s) : GameObject(objName, s) {}
+    inline virtual ~PlayerLaser() noexcept override = default;
 
-    void Update(PlayField& world) override
+    virtual void Update(PlayField& world) override
     {
         bool deleted = false;
         pos.y -= 4.f * world.vsync.DeltaTime();

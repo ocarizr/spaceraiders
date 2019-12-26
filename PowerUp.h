@@ -8,7 +8,7 @@ class PowerUp : public GameObject
 public:
     PowerUp() : GameObject("ot_PowerUp", RS_PowerUP) {}
     virtual ~PowerUp() noexcept override = default;
-    virtual void ApplyPowerUp(GameObjPtr player) = 0;
+    virtual void ApplyPowerUp(GameObjPtr player, PlayField& world) = 0;
 
     void Update(PlayField& world) override
     {
@@ -22,7 +22,7 @@ public:
         auto player = world.GetPlayerObject();
         if (player && pos.IntCmp(player->pos))
         {
-            ApplyPowerUp(player);
+            ApplyPowerUp(player, world);
             deleted = true;
         }
 
@@ -36,19 +36,19 @@ public:
 class TripleFire : public PowerUp
 {
     inline ~TripleFire() noexcept override = default;
-    void ApplyPowerUp(GameObjPtr player) override;
+    void ApplyPowerUp(GameObjPtr player, PlayField& world) override;
 };
 
 class SpeedBoost : public PowerUp
 {
     inline ~SpeedBoost() noexcept override = default;
-    void ApplyPowerUp(GameObjPtr player) override;
+    void ApplyPowerUp(GameObjPtr player, PlayField& world) override;
 };
 
 class FireBoost : public PowerUp
 {
     inline ~FireBoost() noexcept override = default;
-    void ApplyPowerUp(GameObjPtr player) override;
+    void ApplyPowerUp(GameObjPtr player, PlayField& world) override;
 };
 
 #endif // POWERUP_H

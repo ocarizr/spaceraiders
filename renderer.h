@@ -20,6 +20,8 @@ enum RaiderSprites
     RS_Alien = 'A',
     RS_BetterAlien = 'B',
     RS_PlayerLaser = 0xBA,
+    RS_PlayerLeftLaser = '\\',
+    RS_PlayerRightLaser = '/',
     RS_AlienLaser = '|',
     RS_Explosion = '*',
     RS_PowerUP = 'U',

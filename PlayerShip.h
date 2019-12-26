@@ -1,6 +1,6 @@
 #ifndef PLAYERSHIP_H
 #define PLAYERSHIP_H
-#include "PlayerLaser.h"
+#include "PlayerDiagonalLaser.h"
 
 class PlayerShip : public GameObject
 {
@@ -13,10 +13,13 @@ public:
     PlayerShip() : GameObject("ot_PlayerShip", RS_Player) {}
     inline ~PlayerShip() noexcept override = default;
 
-    void UpdateFireDelay(float rate) noexcept
+    void UpdateFireDelay(float rate, PlayField& world) noexcept
     {
         if(delayTime > .1f)
+        {
             delayTime *= rate;
+            world.PlayerLasers += 2;
+        }
     }
 
     void UpdateMovementSpeed(float rate) noexcept
@@ -29,6 +32,7 @@ public:
     {
         if(!tripleLaser)
             tripleLaser = true;
+
     }
 
     void Update(PlayField& world) override
@@ -43,10 +47,24 @@ public:
         {
             fireDelay = delayTime;
             //Spawn laser
-            GameObjPtr newLaser = tripleLaser ? new PlayerLaser : new PlayerLaser;
+            std::list<GameObjPtr> lasers;
+            lasers.emplace_back(new PlayerLaser);
             Vector2D laserPos(pos.x, pos.y - 1);
-            newLaser->pos = laserPos;
-            world.SpawnLaser(newLaser);
+            lasers.back()->pos = laserPos;
+
+            if(tripleLaser)
+            {
+                lasers.emplace_back(new PlayerDiagonalLaser(-1));
+                laserPos.x -= 1;
+                lasers.back()->pos = laserPos;
+
+                lasers.emplace_back(new PlayerDiagonalLaser(1));
+                laserPos.x += 2;
+                lasers.back()->pos = laserPos;
+            }
+
+            for(const auto& laser : lasers)
+                world.SpawnLaser(laser);
         }
         else
             fireDelay -= world.vsync.DeltaTime();

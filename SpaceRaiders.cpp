@@ -6,6 +6,8 @@
 #include "Alien.h"
 #include "BlockWall.h"
 
+#include "GameMenus.h"
+
 std::default_random_engine rGen;
 
 const int canvasWidth = 80;
@@ -18,7 +20,28 @@ int main()
     Renderer mainRenderer(size);
     PlayField world(size);
 
-    world.SetGameMode(new UntilPlayerDeath);
+    RenderItemList rl;
+    GameMenus::GenerateStartMenu(rl, size);
+    mainRenderer.Update(rl, world);
+    int modeSelected = 0;
+
+    do
+    {
+        modeSelected = GameMenus::SelectOptionFromStartMenu();
+    } while (modeSelected == 0);
+
+    switch (modeSelected)
+    {
+    case 1:
+        world.SetGameMode(new UntilPlayerDeath);
+        break;
+    case 2:
+        world.SetGameMode(new TimeAttack);
+        break;
+    case 3:
+        world.SetGameMode(new DestroyAllAliens);
+        break;
+    }
 
     // Populate aliens
     world.AddAlienWave(size);
@@ -54,10 +77,13 @@ int main()
         // Sleep a bit so updates don't run too fast
         std::this_thread::sleep_for(std::chrono::milliseconds(world.vsync.GetSyncPeriod(convertToMilli)));
     }
-    world.RemoveAllObjects();
-    RenderItemList rl;
-    mainRenderer.Update(rl, world);
 
+    {
+        world.RemoveAllObjects();
+        RenderItemList rl;
+        GameMenus::GenerateGameOverMenu(rl, size, world.GetGameMode()->GetScore(), world.HasPlayer());
+        mainRenderer.Update(rl, world);
+    }
     getchar();
 
     return 0;

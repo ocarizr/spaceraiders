@@ -59,10 +59,17 @@ public:
         return it != GameObjects().end();
     }
 
+    int AlienLaserCount()
+    {
+        auto count = std::count_if(gameObjects.begin(), gameObjects.end(),
+                             [](const GameObjPtr in){ return in->m_objType == "ot_AlienLaser"; });
+        return static_cast<int>(count);
+    }
+
     int AlienCount()
     {
         auto count = std::count_if(gameObjects.begin(), gameObjects.end(),
-                             [](const GameObjPtr in){ return in->m_objType == "ot_AlienShip"; });
+                                   [](const GameObjPtr in){ return in->m_objType == "ot_AlienShip"; });
         return static_cast<int>(count);
     }
 
@@ -79,7 +86,7 @@ public:
     {
         if (newObj->m_objType == "ot_AlienLaser")
         {
-            if(AlienLasers < AlienCount() * 3)
+            if(AlienLaserCount() < AlienCount() * 3)
             {
                 AlienLasers++;
             }

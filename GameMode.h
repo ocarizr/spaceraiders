@@ -19,13 +19,13 @@ public:
 
 class TimeAttack : public GameMode
 {
-    int timer = 30000;
+    int timer = 59000;
 
     void Update(PlayField& world) override
     {
         timer -= world.vsync.GetFramePeriod();
 
-        if(timer <= 0)
+        if(timer <= 0 || !world.HasPlayer())
         {
             gameOver = true;
         }
@@ -47,7 +47,7 @@ class DestroyAllAliens : public GameMode
 {
     void Update(PlayField& world) override
     {
-        gameOver = !world.HasAliens();
+        gameOver = !world.HasAliens() || !world.HasPlayer();
     }
 };
 
