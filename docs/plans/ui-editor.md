@@ -10,7 +10,9 @@ Inputs: native preview surface, UI schema/IR, bundle transactions and Lua enviro
 Exports: Raiders.Tools.Common/Contracts and Raiders.UIEditor.
 First slice: create a button, save XML/Lua members, preview through the native game
 renderer and open its Lua handler at the correct source location in VS Code.
-The frontend may draw authoring overlays, but never redraw the scene/UI itself.
+Editing deserializes source XML and loads source Lua directly through the native
+development provider, without cooking or generated C++ outputs. The frontend may
+draw authoring overlays, but never redraw the scene/UI itself.
 
 ## Planning and integration contract
 

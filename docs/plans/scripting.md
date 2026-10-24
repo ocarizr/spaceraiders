@@ -107,8 +107,11 @@ warm-up, steady-state execution and JIT cache separately.
 [LuaJIT runtime](https://luajit.org/luajit.html),
 [bytecode options](https://luajit.org/running.html).
 
-Development runs source or bytecode retaining line data, with stable chunk names
-and source maps for generated headers/custom regions. Shipping uses validated
+Live editing runs Lua source from the source bundle, with stable chunk names and
+source maps for generated headers/custom regions. VM source compilation/JIT during
+loading/execution is not an offline bytecode-cooking prerequisite. A separate
+packaging-debug profile can retain line data in bytecode for equivalence tests.
+Shipping uses validated
 stripped bytecode records inside bundles; source and debugger agents are excluded.
 Compatibility metadata includes VM bytecode version, build identity and GC/frame
 mode; reject mismatches before loading. Deterministic dumps need explicitly

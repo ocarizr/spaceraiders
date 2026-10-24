@@ -310,16 +310,20 @@ Arquivos (5): `engine/ui/{include/raiders/UiFactory.h,src/UiFactory.cpp}`,
 `engine/ui/CMakeLists.txt`, `tests/ui/factory_tests.cpp`,
 `tests/fixtures/ui_factory.xml`.
 Aceite: IDs, referências Lua e propriedades importadas correspondem à UI criada;
-runtime recebe descritor, não chama parser XML. Fixture XML entra só no teste via autoria.
+the UI factory receives typed descriptors; Development supplies them through shared
+XML deserialization, Shipping through binary/compiled data. The factory itself
+does not own parsing, but XML loading is supported by the development host.
 
-**J07 - Native engine preview host with real renderer.** Depends: J06, I09, G09, R06, D05.
+**J07 - Native engine preview host with real renderer.** Depends: J06, G09, R09, D05.
 Paths (6): `apps/preview_host/{CMakeLists.txt,PreviewApplication.cpp,
 PreviewProtocol.h,PreviewProtocol.cpp}`, `CMakeLists.txt`,
 `tests/integration/preview_host_tests.cpp`.
 Acceptance: same renderer/backend, shaders if ever added, assets, camera, layers,
 animation clock and render settings as standalone. Native offscreen surface or
 native hosted window is exposed to C#; no scene re-rasterization in C#.
-Run/pause/reset and process failure preserve editor documents.
+Editing loads serialized source-bundle XML/Lua through the development source
+provider, without cooked files or content generation. Run/pause/reset and process
+failure preserve editor documents; binary/compiled loading is a separate package path.
 
 
 ## Rendering and physics extensions

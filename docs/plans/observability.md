@@ -75,6 +75,12 @@ arbitrarily assigned wholly to each entity.
 [Python tracemalloc](https://docs.python.org/3/library/tracemalloc.html),
 [LuaJIT statistical profiler](https://luajit.org/ext_profiler.html).
 
+Every capture records its content mode: serialized editing, packaging-debug or
+Shipping binary/compiled. Include parser/deserialized object memory in editing
+measurements and packed/mapped/compiled data in packaged measurements. Equivalent
+content can have different load-time and memory costs; never present an editing
+snapshot as a prediction of the optimized packaged footprint.
+
 Allocation identity, VM/process identity and snapshot epoch drive de-duplication,
 not just equal content hashes. Direct, inclusive unique, shared and incremental
 costs are separate views; retained/reclaimable size is only reported when ownership

@@ -25,8 +25,8 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 | C# scene/level editor and native playtest | [Level editor](plans/level-editor.md) | W | Planned |
 | Authored Space Raiders sample and legacy regression | [Sample game](plans/sample-game.md) | M and N | Planned |
 
-The plans currently define **196 small PR-sized tasks**, including all 131 task IDs
-from the previous plan and 65 additions. Task IDs are unique across projects.
+The plans currently define **197 small PR-sized tasks**, including all 131 task IDs
+from the previous plan and 66 additions. Task IDs are unique across projects.
 Cross-project needs refer to those IDs. The dependency graph must remain acyclic.
 Projects may consume each other's incremental interfaces; this does not require
 completing a whole project before starting a consumer.
@@ -62,7 +62,7 @@ not additional source-controlled trackers.
   and 2D capsule, including rotation. No arbitrary mesh/polygon collision authoring.
   Quadtree broad phase must be checked against brute force and measured.
 - A designer receives tool/game binaries, templates and scripting integration;
-  authoring, debugging, previewing and cooking new compatible content must not require
+  authoring, debugging, previewing and content-only packaging must not require
   Visual Studio, C++/.NET SDKs, a Python installation or rebuilding native code.
   VS Code plus configured Lua extensions is an explicit scripting-workstation prerequisite.
 - No 3D, shader editor, lighting pipeline, terrain system, multiplayer, general Lua IDE
@@ -85,25 +85,43 @@ Console remains a legacy backend; a native window/offscreen 2D backend serves th
 rotated drawings/sprites required by the final sample. Backend choice is a small ADR,
 not an implicit commitment to build shader/lighting infrastructure.
 
-### Data-driven content versus generated C++
+### Two execution paths: editing and packaged runtime
 
-The previous plan required C++ output for every entity/layout. The newer requirement
-that a designer add content without native compilation takes precedence:
-normal cooking writes binary descriptors and LuaJIT bytecode to data bundles, and
-the existing engine instantiates them using already registered native component/
-widget/binding schemas. Asset IDs/catalogs are not frozen into the executable.
+| Mode | Content input | Load path | Cooking/native content build |
+| --- | --- | --- | --- |
+| Editing and playtest | Serialized XML/Lua members of source bundles | Development-only source provider deserializes to live runtime objects/typed descriptors | None: no cooked bundle, bytecode artifact or generated C++ prerequisite |
+| Packaged game | Optimized binary content and packaged LuaJIT bytecode | Shipping binary/compiled provider; same runtime systems and behavior | Packaging validates/cooks serializable data, generates eligible C++ data/bindings and compiles/links them in full-game packaging |
 
-Generated C++ remains available for native schema registration/bindings and optional
-static embedding in developer builds. Static embedding is not the default designer
-path. Adding a new native component/API needs a developer-produced runtime/SDK update;
-adding an entity, UI screen, level, animation or Lua behavior using supported types
-does not. Native-schema/VM compatibility is distinct from the changing content hash.
+Both are required. Deserializing XML and allocating runtime objects in memory is
+normal loading, not an offline cooking pass. Editing may cost more CPU/memory and
+that is acceptable. Save, refresh, reload and Play must work before any packaging,
+even with no cooker outputs or native toolchain present. The same renderer,
+World, physics, UI, animations and gameplay operate after either provider loads data.
 
-Authoring bundles are initially proposed as diffable directories with a manifest;
-cooked bundles are indexed binary containers. The pipeline plan closes versions,
-IDs, dependency kinds and migrations. Manifests/members are committed; generated
-C++, cooked binaries and local backups are not. Runtime logs/traces/snapshots are
-operational outputs, not authored content, and stay outside source/package assets.
+Cooking belongs to explicit packaging. Convert eligible XML/entity/UI/scene/
+animation data into efficient binary representations, with versioned schemas,
+indexes/offsets and appropriate memory layout. Full-game packaging can generate C++
+for serializable descriptors/registrations and compile it into the game's native
+binary; do not remove that route or restrict C++ generation to schemas alone.
+Lua bytecode is produced for packaging, separate from live source debugging.
+
+A separate content-only packaging profile can emit compatible binary data bundles
+for an existing runtime without linking it again. That does not replace full-game
+packaging or imply that the editor should use cooked data. Native toolchains belong
+to developer/CI full-game packaging; designers edit/test using distributed binaries.
+Adding native component types still requires a developer-produced runtime update.
+
+The core instantiation/render/simulation systems do not depend on XML. A development
+source-provider adapter reuses authoring deserializers and is linked/shipped only
+with editing/development hosts; Shipping omits it. A binary/compiled provider serves
+packaged content. Equivalence tests load the same authored scene through both
+paths, including generated-C++ content in full-game packaging, and compare behavior
+and native frames. Profiling/memory reports identify the active mode; costs need
+not be identical between deserialized editing and optimized packaged runtime.
+
+Authoring bundles are diffable directories with manifests; cooked bundles are indexed
+binary containers. Manifests/members are committed; generated C++, cooked binaries,
+local backups and diagnostic captures are not source-controlled content.
 
 ### LuaJIT, bytecode and IDE experience
 
@@ -163,7 +181,7 @@ A side-scroller is a possible engine reuse case, not a second promised sample.
 | --- | --- | --- | --- |
 | Native component/widget schema and handles | Engine + sample registration | Lua, pipeline, inspectors/editors | Versioned types/defaults/constraints; unknown type rejection |
 | Native frame surface and animation clock | Engine/PreviewHost | All editor previews and playtest | D10 frame parity; no C# scene rasterizer |
-| Source/cooked bundles and catalog compatibility | Asset pipeline | Runtime, scripting, all tools | Round-trip, corruption rejection, new content ID in existing runtime |
+| Source/packaged providers and catalog compatibility | Asset pipeline | Runtime, scripting, all tools | Source-only Play; round-trip, corruption rejection, source/binary/generated-C++ parity |
 | Tooling CLI/IPC and SDK manifest | Pipeline + shared C# tooling | Designer tools, preview, CI | Version mismatch/cancel/failure and last-good-state tests |
 | Lua API definitions/debug/source maps | Scripting | C# tools, VS Code, designer SDK | Embedded breakpoint/step/watch and Shipping exclusions |
 | Log/trace/snapshot schemas and allocation semantics | Observability | Every executable; bundle inspector | ON/OFF, queue saturation, measured/estimated/shared accounting |
@@ -182,10 +200,10 @@ authority when an approximate phase list is insufficient.
 | Gate | Required handoffs | Exit evidence |
 | --- | --- | --- |
 | GATE-0: reproducible base | A01, Q01, A04/A05; T01-T04 and native extraction starts | Clean supported build/test; native logging and one trace scope |
-| GATE-1: native vertical slice | B07, C03, D05, E05, G01, R02/R05 | App-independent engine, rotated simple shapes and source bundle in native renderer |
+| GATE-1: native editing slice | B07, C03, D05, E05, G01, R02/R09 | Source XML/Lua deserialized in native renderer before cooking exists |
 | GATE-2: exact tooling preview | J06-J08, D10, K05, L07 | UI/entity/animation preview equals native game output |
 | GATE-3: usable Lua environment | G11-G15 | Completion/lint and breakpoint/step/watch in embedded preview |
-| GATE-4: designer content loop | X02-X06, W03/W04, G16, P07 | Binaries-only authoring, playtest and cooked bytecode content update |
+| GATE-4: designer content loop and packaging | X02-X06, W03/W04, G16, P07, I08 | Source-only editing/Play; explicit packaging to binary/bytecode, including full-game generated-C++ route |
 | GATE-5: performance visibility | T12-T15, G17, S07-S11, W05 | Correlated traces plus player/UI memory graphs with shared/unknown costs |
 | GATE-6: sample and release | N07, E08/E09, O07/O08, W06, X07, P06 | Ship thrust/rotation/wrap, aliens/asteroids, selective CI and clean-machine SDK acceptance |
 
@@ -206,7 +224,8 @@ projects and their dependencies without building unrelated tools.
 Use a small number of workflows: CI with impact-based jobs and a stable mandatory
 gate; release/manual product selection for game, tools/Designer SDK, or both.
 A tools-only build compiles needed native support/PreviewHost, not the unrelated
-sample executable. A content cook compiles neither native nor managed source.
+sample executable. Editing never triggers cooking. Content-only packaging needs
+no native compile; full-game packaging compiles generated eligible C++ content.
 
 Classify changed paths plus transitive contract consumers: diagnostics/surface/schema
 changes can affect several projects; Lua-only, content-only, Python-only or one

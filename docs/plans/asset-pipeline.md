@@ -8,10 +8,10 @@ C++20/Python noninteractive authoring services, schema/IR, bundles, validation,
 cooking, build orchestration, selective CI and binary distributions.
 Inputs: registered component schemas, LuaJIT ABI, rendering/animation schemas,
 observability. Exports: assetc/tooling protocol, source/cooked bundles and Designer SDK.
-First slice: author one bundle, cook it using distributed binaries and load a new
-entity ID in an existing compatible game without any native/managed compilation.
-The native build graph is not the content cooking graph. Generated C++ binds native
-schemas and can optionally embed content; it is not mandatory per authored asset.
+First slice: author one source bundle and deserialize a new entity ID directly
+in Development/PreviewHost, without cooking, packaging or native compilation.
+Editing and packaging are distinct graphs. Full-game packaging generates eligible
+C++ content and compiles it; source-data editing never needs that generation.
 
 ## Planning and integration contract
 
@@ -38,7 +38,7 @@ Arquivos (6): `cmake/Dependencies.cmake`, `tools/authoring/CMakeLists.txt`,
 `tests/assets/entity_xml_tests.cpp`, `tests/fixtures/entity.xml`.
 Entrega: parser fixado, sem resolução externa de entidades/DTD, com diagnósticos
 de arquivo/linha. Aceite: erro de tipo, schema futuro e campo desconhecido seguem
-política explícita; runtime não linka parser XML.
+política explícita; only Shipping omits the XML parser; Development links the shared source-provider adapter.
 
 **F03 - Exportação e round-trip de entidades.** Depende: F02.
 Arquivos (4): `tools/authoring/include/EntityXml.h`,
@@ -95,28 +95,31 @@ Entrega: representações C++ de entidades/UI/cenas, tipos de componente e vers�
 binding, sem dependência do parser. Aceite: tipo/propriedade desconhecida falha com
 diagnóstico; ordem de registro não muda IDs persistidos.
 
-**I02 - Native schema/binding C++ generator and optional entity embedding.** Depends: I01, F06, R02.
+**I02 - Packaging C++ generator for entity data and bindings.** Depends: I01, F06, R02.
 Paths (6): `tools/assetc/{include/CppEmitter.h,src/CppEmitter.cpp}`,
 `tools/assetc/src/main.cpp`, `tools/assetc/CMakeLists.txt`,
 `tests/assets/entity_codegen_tests.cpp`, `tests/fixtures/codegen_entity.xml`.
-Acceptance: generated native registration is deterministic/escaped and compiles;
-per-entity embedded descriptors are an optional developer profile, never a required
-step when a designer authors a new entity using already registered component types.
+Acceptance: full-game packaging converts eligible entity descriptors/registrations
+to deterministic, escaped C++ which compiles into the native binary. Editing loads
+source XML directly and never invokes this generator. Content-only packaging may
+use the binary bundle representation for the same supported data.
 
-**I03 - UI descriptor/binding generation with dynamic-content parity.** Depends: I02, H07, G08.
+**I03 - Packaging UI descriptors and script references.** Depends: I02, H07, G08.
 Paths (4): `tools/assetc/src/CppEmitter.cpp`,
 `engine/assets/include/raiders/AssetDescriptors.h`,
 `tests/assets/ui_codegen_tests.cpp`, `tests/fixtures/codegen_ui.xml`.
-Acceptance: native binding ABI and optional embedded layout match bundle descriptors;
-new widget IDs/layout/handlers do not require rebuilding C++; Lua stays a script record.
+Acceptance: packaging generates eligible UI layout/binding descriptors as C++/
+binary data; instantiated UI matches direct XML loading. Lua stays a source module
+in editing and becomes a bytecode record during packaging, not native behavior.
 
-**I04 - Optional sprite/scene embedding from common IR.** Depends: I03, F08.
+**I04 - Packaging sprites, scenes and animation references.** Depends: I03, F08.
 Paths (6): `tools/assetc/src/CppEmitter.cpp`,
 `engine/assets/include/raiders/AssetDescriptors.h`,
 `tests/assets/{scene_codegen_tests,sprite_codegen_tests}.cpp`,
 `tests/fixtures/{codegen_scene,codegen_sprite}.xml`.
-Acceptance: developer embedding works without machine paths; normal content cooking
-does not invoke this profile; both forms share IDs/schema semantics.
+Acceptance: generate compilable native data/binary payloads for eligible scene/
+sprite records with stable IDs and optimized layout; no machine paths. Editing
+does not invoke the packaging emitter or require its outputs.
 
 **I05 - Manifesto e grafo incremental de cooking.** Depende: I04, F05, R04.
 Arquivos (6): `tools/assetc/{include/CookManifest.h,src/CookManifest.cpp}`,
@@ -126,28 +129,29 @@ Entrega: hashes, versões do gerador/schema, depfile, remoção de saídas órf�
 write-if-different. Aceite: mudar dependência invalida consumidor; apagar/renomear
 asset não deixa registro velho; tocar arquivo sem alterar conteúdo não recompila tudo.
 
-**I06 - Separate native generation from content cooking in the build graph.** Depends: I05.
+**I06 - Separate editing, content packaging and full-game packaging targets.** Depends: I05.
 Paths (5): `cmake/CookAssets.cmake`, `CMakeLists.txt`, `game/CMakeLists.txt`,
 `tools/assetc/CMakeLists.txt`, `tests/assets/build_graph_tests.cmake`.
-Acceptance: native registry output has explicit dependencies/byproducts; a content-only
-cook updates bundles/bytecode without a C++/.NET build. Clean/parallel/incremental
-builds work; normal Shipping accepts compatible data bundles added after compilation.
+Acceptance: Play/refresh loads serialized data and does not invoke cooker/codegen/
+linker. Explicit content-only packaging emits binary bundles/bytecode without native
+compile; full-game packaging cooks eligible data, generates C++ and compiles/links it.
+Dependencies/byproducts support clean/parallel/incremental packaging independently.
 
-**I07 - Factory de entidades e cena compilada.** Depende: I06, E03, G04.
-Arquivos (6): `engine/assets/{include/raiders/EntityFactory.h,
-src/EntityFactory.cpp,include/raiders/SceneDescriptor.h}`,
-`engine/assets/CMakeLists.txt`, `tests/assets/entity_factory_tests.cpp`,
-`tests/fixtures/factory_entity.xml`.
-Entrega: World instancia componentes e scripts pelos registradores; rollback
-se alguma etapa falhar. Aceite: entidade incompleta não fica viva; referências
-entre entidades de uma cena resolvem após criar IDs de todas elas.
+**I07 - Shared entity/scene instantiation from typed descriptors.** Depends: I01, E03, G04, R09.
+Paths (6): `engine/assets/{include/raiders/EntityFactory.h,src/EntityFactory.cpp,
+include/raiders/SceneDescriptor.h}`, `engine/assets/CMakeLists.txt`,
+`tests/assets/entity_factory_tests.cpp`, `tests/fixtures/factory_entity.xml`.
+Acceptance: source deserialization and packaged data feed common instantiation;
+forward references resolve after IDs exist; errors roll back partial entities.
+This factory must work before cooking/C++ content generation is implemented.
 
-**I08 - Comparar autoria e caminho cooked.** Depende: I07, H07.
-Arquivos (5): `tests/integration/cooked_parity_tests.cpp`,
-`tests/fixtures/parity_entity.xml`, `tests/fixtures/parity_ui.xml`,
-`tests/CMakeLists.txt`, `docs/assets.md`.
-Aceite: comparar estado instanciado e sequência de eventos entre IR importada e
-descritores compilados; teste não se limita a procurar texto dentro do C++ gerado.
+**I08 - Editing versus packaged representation equivalence.** Depends: I07, H07, R05, I06.
+Paths (5): `tests/integration/cooked_parity_tests.cpp`,
+`tests/fixtures/{parity_entity,parity_ui}.xml`, `tests/CMakeLists.txt`, `docs/assets.md`.
+Acceptance: load original XML directly, then explicitly package the same content
+as binary bundles and generated/compiled C++; compare IDs, component state, Lua
+events and native frames. Check decoded allocations/loading metrics separately:
+equivalent behavior does not imply identical editing/Shipping memory footprints.
 
 **I09 - Native type registry and loadable bundle catalogs.** Depends: I08.
 Paths (5): `engine/assets/{include/raiders/AssetCatalog.h,src/AssetCatalog.cpp}`,
@@ -203,12 +207,13 @@ fixos; resultados temporários ficam como artefato CI/local, não no fonte.
 Aceite: escolher limites a partir de medidas; execução ampla em release/manual,
 sem teste de tempo frágil bloquear todo PR em runner compartilhado.
 
-**P01 - Perfis Development e Shipping.** Depende: I09, G08, R06.
-Arquivos (5): `CMakePresets.json`, `cmake/BuildProfiles.cmake`,
+**P01 - Development source-data and Shipping binary profiles.** Depends: I09, G08, R06, R09.
+Paths (5): `CMakePresets.json`, `cmake/BuildProfiles.cmake`,
 `CMakeLists.txt`, `game/CMakeLists.txt`, `docs/distribution.md`.
-Entrega: opções explícitas para ferramentas, preview XML, logs e reload; Shipping
-liga catálogo cooked e desliga parser/editores. Aceite: dependências do executável
-Shipping não incluem biblioteca XML nem binários de autoria.
+Acceptance: Development/PreviewHost includes source-provider XML deserializers,
+source Lua/reload/debug and does not require cooking. Shipping includes optimized
+binary/compiled providers and packaged bytecode, omits XML parser/authoring tools.
+Both use the same renderer, simulation and registered component semantics.
 
 **P02 - Install e conteúdo do pacote.** Depende: P01, M07.
 Arquivos (5): `cmake/Install.cmake`, `CMakeLists.txt`, `game/CMakeLists.txt`,
@@ -316,7 +321,7 @@ Paths (6): `tools/assetc/{include/BundleWriter.h,src/BundleWriter.cpp}`,
 `tools/assetc/CMakeLists.txt`, `tools/assetc/src/main.cpp`,
 `tests/assets/bundle_writer_tests.cpp`, `docs/data-bundles.md`.
 Acceptance: deterministic indexed records/hashes/dependencies; development supports
-source/debug metadata, final Shipping uses G16 LuaJIT bytecode; no raw XML.
+packaging-debug metadata when requested; final Shipping uses G16 LuaJIT bytecode; no raw XML.
 Native-schema compatibility and content catalog identity are distinct fields, so
 a changed bundle does not force recompiling an unchanged compatible executable.
 
@@ -389,21 +394,30 @@ da seleção; execuções manuais permitem diagnóstico sem mudar código.
 
 
 
-## Designer content and native compilation boundary
+## Editing and packaging are separate runtime paths
 
-Earlier planning required generated C++ for every authored entity/layout. That
-conflicts with delivering only binaries to a game designer. The newer requirement
-takes precedence: normal content cooking writes validated binary descriptors and
-LuaJIT bytecode records. The runtime instantiates any descriptor using its existing
-component/widget/script bindings. Adding native component types or binding APIs is
-developer work and requires a new compatible runtime/SDK; adding content does not.
+Editing works directly with serialized XML/Lua in source bundles. A development
+source-provider adapter reuses the authoring parser/deserializers and creates
+in-memory typed descriptors/live objects for the normal engine systems.
+Deserialization may cost more CPU and memory; that is an accepted editing tradeoff.
+Do not create temporary cooked bundles, generated C++ or offline bytecode caches
+as a prerequisite to Save/Play/reload. Ordinary in-memory loading is not cooking.
 
-Generated C++ remains useful for native schema/registration and optional statically
-embedded content. The default designer path must not invoke a C++/C#/Python source
-toolchain. Preview reads source bundles via authoring services or transient cooked
-data, without release packaging. Shipping content is validated/cooked, with no XML
-or plain Lua sources in the game artifact. A Designer SDK may include source
-templates/API stubs as authoring resources, separate from Shipping game bundles.
+Packaging is explicit and still mandatory for distribution optimization. Validate
+and convert eligible entity/UI/scene/animation data into efficient versioned binary
+layouts, references and resource payloads. Full-game packaging includes generated
+C++ content where appropriate and compiles/links that into the game's native binary.
+Content-only packaging can emit compatible binary bundles without rebuilding it.
+These are packaging profiles, not reasons to restrict binary generation to schemas
+or to force the editor through cooking.
+
+Use one shared instantiation contract after either provider loads content. Source
+adapters/deserializers are Development/PreviewHost dependencies; Shipping excludes
+them. A packaged data provider handles binary/generated native descriptors, preserving
+semantic parity while allowing more efficient loading, allocation and data layout.
+The designer workstation edits/playtests with binaries only; a full native packaging
+job can run on a developer/CI machine with the necessary native toolchain.
+The Designer SDK includes authoring templates, not a requirement to compile source.
 
 **F09 - Drawing/image resource schema and authoring codec.** Depends: F07, D07.
 Paths (6): `schemas/drawing.schema.json`,
@@ -418,7 +432,8 @@ Paths (6): `tools/authoring/{include/AnimationXml.h,src/AnimationXml.cpp}`,
 `tools/authoring/CMakeLists.txt`, `engine/assets/include/raiders/AssetModel.h`,
 `tools/assetc/src/BundleWriter.cpp`, `tests/assets/animation_roundtrip_tests.cpp`.
 Acceptance: sprite frames, transform keys, loop/duration/events and references
-validate/cook; unknown target/properties fail before preview; no timeline-to-C++ rebuild.
+deserialize/validate for preview; packaging cooks them separately. Unknown targets/
+properties fail before preview; no timeline-to-C++ rebuild during editing.
 
 **X01 - Designer project/SDK compatibility manifest.** Depends: R01, G10, Q02.
 Paths (4): `schemas/designer-project.schema.json`,
@@ -428,13 +443,14 @@ Acceptance: project source bundles, entry scene, native schema, VM/compiler and
 tool protocol versions declared; report required runtime upgrades without attempting
 native compilation on the designer's machine.
 
-**X02 - Runtime factory for newly authored content IDs.** Depends: R06, I07, G10.
+**X02 - Source-data runtime path for newly authored content.** Depends: R09, I07, G10.
 Paths (6): `engine/assets/{include/raiders/EntityFactory.h,src/EntityFactory.cpp,
 src/AssetCatalog.cpp}`, `engine/ui/src/UiFactory.cpp`,
 `tests/assets/dynamic_content_tests.cpp`, `docs/data-bundles.md`.
-Acceptance: an already built runtime loads a previously unseen player/UI/scene ID
-using registered types; reject unknown component/binding versions. Content updates
-do not require a generated translation unit, linker invocation or raw XML parser.
+Acceptance: an existing Development/PreviewHost directly deserializes new XML/
+Lua members into player/UI/scene objects using registered types. No cooked data,
+generated translation unit, bytecode artifact or compiler is present in this test.
+Shipping loads the equivalent packaged representation in its separate path.
 
 **X03 - Tools-only build/test/package entry.** Depends: Q04, W01, S01.
 Paths (5): `tools/pipeline/{build.py,projects.json}`,
@@ -454,21 +470,24 @@ Acceptance: distributed binaries create templates/bundles, paths, LuaLS stubs,
 VS Code tasks/debug settings and instructions; no source repo checkout or compiler
 is needed. Do not silently install VS Code/extensions; licensing/pinning documented.
 
-**X05 - One-command validate/preview/reload for designers.** Depends: X02, J08, G15, R02.
-Paths (5): `tools/dotnet/Raiders.Tools.Common/{ContentBuildClient.cs,
+**X05 - Validate, deserialize and reload for editing.** Depends: X02, J08, G15, R02.
+Paths (5): `tools/dotnet/Raiders.Tools.Common/{SourcePreviewClient.cs,
 ProjectCommands.cs}`, `tools/assetc/src/main.cpp`,
 `tests/integration/designer_preview_tests.py`, `docs/designer-quickstart.md`.
-Acceptance: tools invoke shipped content CLI; errors open asset/Lua source at line;
-failed cook/reload keeps last-good running content; preview never creates a release
-package or compiles native/managed code.
+Acceptance: tools open saved source-bundle XML/Lua and pass validated source/typed
+in-memory data to Development/PreviewHost; validation errors open file/line.
+Failure keeps last-good live state. Assert zero cooker/codegen/linker invocations
+and no cooked outputs/cache on Play/reload; native Lua source loading is not an
+offline bytecode-cooking step.
 
-**X06 - Bundle-only Shipping content update.** Depends: X05, G16, R07.
+**X06 - Explicit packaging profiles for authored content.** Depends: X05, G16, R07, I06.
 Paths (5): `tools/assetc/src/main.cpp`, `tools/assetc/src/BundleWriter.cpp`,
 `tests/integration/content_update_tests.py`, `cmake/Install.cmake`,
 `docs/distribution.md`.
-Acceptance: new entity/UI/level plus Lua behavior cooks to binary bundles/bytecode
-and loads in an existing compatible game; sources/debug agent absent; compiler and
-schema incompatibilities are reported; optional C++ embedding is not used.
+Acceptance: Package triggers validation/cooking of serialized data into binary
+representations and Lua bytecode. Content-only packaging emits bundles for a
+compatible existing executable; full-game packaging additionally generates and
+compiles eligible C++ content. Neither operation is a prerequisite for editing.
 
 **X07 - Clean-machine binary workflow acceptance.** Depends: X04, X06, G14, S11.
 Paths (4): `tests/integration/designer_sdk_tests.py`,
@@ -492,3 +511,15 @@ Paths (4): `.github/workflows/ci.yml`, `tests/pipeline/test_ci_impact.py`,
 Acceptance: source lint/API definitions, embedded debug contract, debug/Shipping
 bytecode parity and tools-only artifacts are selectable jobs; one mandatory gate
 correctly handles necessary skips/failures. No one-workflow-per-component sprawl.
+
+
+**R09 - Development-only serialized source provider.** Depends: R02, F08, I01.
+Paths (6): `tools/authoring/{include/SourceAssetProvider.h,src/SourceAssetProvider.cpp}`,
+`tools/authoring/CMakeLists.txt`,
+`engine/assets/include/raiders/AssetProvider.h`,
+`tests/assets/source_provider_tests.cpp`, `docs/data-bundles.md`.
+Acceptance: reuse XML/Lua authoring deserializers to load entity/UI/scene definitions
+directly for live editing/playtest, resolving source-bundle IDs and dependencies.
+Source and packaged providers implement common lookup/instantiation semantics.
+Works with no cooker/generated/binary outputs; parser is absent from Shipping,
+not banned from the development runtime. Source errors preserve last-good state.

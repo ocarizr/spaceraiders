@@ -76,7 +76,9 @@ Static footprint from bundle metadata is an estimate of known decoded data.
 Runtime snapshots report actual live allocations/capacity and observed dependencies
 for a particular process/VM/session. Compressed disk size, decoded asset bytes,
 per-instance components, shared VM/JIT caches and whole-process RAM are different
-numbers. The UI must label units, coverage, epoch and unknown values.
+numbers. The UI must label units, coverage, epoch, serialized-editing versus packaged-binary
+mode, and unknown values. Source deserialization overhead is not interchangeable
+with cooked runtime memory; compare the same content in both modes explicitly.
 
 For a selected player or UI, show direct/exclusive, inclusive unique, shared and
 incremental costs. Traverse module/asset dependencies with identity-based visited

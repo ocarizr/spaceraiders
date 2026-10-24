@@ -9,7 +9,7 @@ layers, spawn settings, UI references and play/pause/step/stop.
 Inputs: shared C# platform, bundle scenes, authored entity assets, native renderer,
 LuaJIT debugging and runtime snapshots. Exports: scene bundles and reproducible
 playtest sessions. First slice: place two entity assets, press Play and run the real
-engine in the native preview host without packaging or compiling application code.
+engine in the native preview host without cooking, packaging or compiling application code.
 No 3D, terrain system, shader editor, lighting pipeline or general-purpose IDE.
 
 ## Planning and integration contract
@@ -59,8 +59,10 @@ supported fields with undo/redo; new IDs/references survive save/reopen.
 Paths (5): `tools/dotnet/Raiders.LevelEditor/{PlaytestController.cs,
 PlaytestToolbar.cs,SceneDocument.cs}`,
 `tests/dotnet/Raiders.Tools.Tests/PlaytestTests.cs`, `docs/level-editor.md`.
-Acceptance: load source-bundle/IR or temporary cooked data into existing PreviewHost
-without native compilation or release packaging; the same native renderer draws it;
+Acceptance: deserialize original source-bundle XML/Lua directly into PreviewHost;
+no temporary cooked data, offline bytecode or generated C++ is created or required.
+Assert zero cooker/codegen/linker calls and Play works without packaged outputs;
+the same native renderer draws it;
 stop/reset leaves authoring unchanged and Lua breakpoints preserve pause semantics.
 
 **W04 - Spawn configuration and animation preview.** Depends: W03, D08, F10.
