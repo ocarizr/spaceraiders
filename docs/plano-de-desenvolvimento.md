@@ -40,6 +40,8 @@ not additional source-controlled trackers.
 
 ## Confirmed constraints
 
+- Support and validate Windows only. Linux support, Linux CI and portability work
+  are outside this project.
 - Engine and native sample/support code use C++20.
 - Interactive developer applications use C#: UI/entity/level editors and inspectors.
   A native preview process is an engine service, not a C++ authoring frontend.
@@ -264,7 +266,9 @@ a .cpp in the inspected revision; transitively included headers, ownership/timin
 collisions and generated CMake/IDE files are concrete issues. The engine plan retains
 the detailed source/PDF diagnosis and legacy stabilization tasks.
 
-Next implementation slice: A01 and Q01, then A04/A05 and early diagnostics contracts,
-while extracting only the minimal engine interfaces needed for the first vertical
-slice. This roadmap does not authorize a broad rewrite or a native build-system
-migration merely because the planning package is now larger.
+Work on one task at a time. First deliver and review A01's
+[legacy behavior reference](legacy-game.md); only then start Q01's Windows build
+evaluation. Later tasks are separate deliveries, not a combined A04/A05 or engine
+rewrite. Use task branches named `<TASK_ID>_<short_description>`, such as
+`A01_document_reference_behavior`. This roadmap does not authorize a broad rewrite
+or a native build-system migration merely because the planning package is larger.
