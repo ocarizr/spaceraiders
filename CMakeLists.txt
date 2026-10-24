@@ -1,12 +1,14 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.24)
 
-project(GameTest LANGUAGES CXX)
-add_definitions("-Wall -m64 -O3")
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR "In-source builds are not supported. Use a Windows preset.")
+endif()
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
-set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
+project(SpaceRaiders LANGUAGES CXX)
+
+if(NOT WIN32)
+    message(FATAL_ERROR "SpaceRaiders supports Windows only.")
+endif()
 
 set(project_name SpaceRaiders)
 
@@ -27,3 +29,14 @@ set(project_headers
     GameMenus.h)
 
 add_executable(${project_name} ${project_sources} ${project_headers})
+
+set_target_properties(${project_name} PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO)
+
+if(MSVC)
+    target_compile_options(${project_name} PRIVATE /W4)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(${project_name} PRIVATE -Wall -Wextra -Wpedantic)
+endif()
