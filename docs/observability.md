@@ -1,9 +1,90 @@
 # Shared telemetry contract (T01)
 
 Version 1 defines data exchanged by native C++20, C#/.NET 10, Python and Lua
-adapters. T01 defines schemas and terminology; T02 adds the native logging API
-below. Profiling, memory collectors, clock conversion and viewer interoperability
-remain later tasks.
+adapters. T01 defines schemas and terminology; T02 adds native logging and T03
+adds optional elapsed-time scopes. Memory collectors, clock conversion and viewer
+interoperability remain later tasks.
+
+## Native profiling scopes (T03)
+
+The `raiders_diagnostics` target also exposes `raiders/Profile.h`. Profiling is
+independent of `RA_ENABLE_LOGGING` and has no spdlog/JSON dependency of its own.
+`RA_ENABLE_PROFILING` defaults to OFF and is propagated to consumers through
+`cmake/Diagnostics.cmake`. Use a separate build directory when changing modes:
+
+```powershell
+cmake --preset windows-debug -B out/build/profile-debug -DRA_ENABLE_PROFILING=ON
+cmake --build out/build/profile-debug
+ctest --test-dir out/build/profile-debug --output-on-failure --no-tests=error
+
+cmake --preset windows-release -B out/build/profile-only -DRA_ENABLE_PROFILING=ON -DRA_ENABLE_LOGGING=OFF
+cmake --build out/build/profile-only
+ctest --test-dir out/build/profile-only --output-on-failure --no-tests=error
+```
+
+```cpp
+#include "raiders/Profile.h"
+
+raiders::ProfileCapture capture(4096);
+{
+    RA_PROFILE_SCOPE(capture, "runtime", "update");
+    { RA_PROFILE_SCOPE(capture, "physics", "step"); }
+}
+capture.Stop();
+auto completed = capture.Drain();
+auto stats = capture.Stats();
+```
+
+An ON scope copies name/category and optional correlation, asset, entity, widget
+and VM IDs into fixed 129-byte fields (128 UTF-8 bytes plus terminator). Empty
+optional IDs mean unknown/not applicable; exporters must translate them to absent/
+null T01 context fields. Invalid UTF-8, embedded NUL, overlong text, empty names/
+categories and invalid IDs are rejected, not silently truncated. Context views are
+copied at entry and need not outlive the scope. Scopes cannot be copied or moved;
+they must end on their starting thread, including during exception unwinding.
+Cross-thread destruction is rejected and frees the reserved slot.
+
+Each capture preallocates event slots and free/completed index storage. Capacity
+includes both in-flight and completed-but-undrained scopes. A full capture drops
+new scopes and increments `dropped_full`; existing scopes keep their slots. Scope
+entry/exit does not allocate collector memory, format strings, perform I/O or call
+logging. It does use a mutex and reference-counted state; it is not lock-free.
+Caller argument construction is outside the collector bound. Collector storage is
+approximately `capacity * (sizeof(ProfileEvent) + 2 * sizeof(size_t))`, plus vector,
+mutex and shared-state overhead; it is not a measurement of total process RAM.
+
+Start/end readings occur on the producer thread, before collector-lock acquisition,
+using the same truncated steady-clock microsecond epoch as `Log::ClockNowUs()`.
+Durations measure elapsed time, including waits, rather than sampled CPU time.
+Logical thread IDs are assigned once per thread lifetime by a module-local sequence
+and are not reusable OS thread IDs. One linked diagnostics module per process is
+the identity boundary, as with logging. Session/process/clock manifest association
+is supplied by the T04 writer; T03 does not serialize trace events.
+
+`Drain()` returns only completed records in completion order and releases their
+slots for reuse; nested scopes naturally complete inner-first. The returned vector
+is a consumer allocation outside the collector's retained buffer. It may throw on
+allocation failure without discarding buffered records. A writer must preserve
+timestamps/nesting rather than treating completion order as start-time order.
+`Stop()` is idempotent and prevents new registrations; it does not wait for active
+scopes. Existing scopes retain shared capture storage and complete safely even if
+the owner is destroyed. Stop/join producers and end scopes before the final drain
+when events must be exported; destroying a capture is not an implicit export.
+The capture object must remain alive while new scope constructors refer to it.
+
+`accepted` counts reserved scopes; `completed` counts records made drainable.
+`rejected` includes invalid/stopped starts and invalid completions. `in_flight`,
+`buffered` and `capacity` describe the current collector occupancy. Drops/rejections
+must be reflected in partial coverage by a future exporter, not treated as zero
+profiling overhead or complete capture.
+
+In OFF builds the macro removes all argument expressions, declarations and scope
+registration. Collector/scopes are inert stubs with no allocated state. Direct
+constructor calls still evaluate caller arguments; use the macro for compile-out.
+The default native CI executes the OFF checks. Explicit ON Debug/Release checks,
+including logging OFF, exercise nesting, threads, exception unwinding, bounded
+storage and capture lifetime. Persistent CI coverage of the build-mode matrix
+belongs to T14; trace export/viewer checks belong to T04.
 
 ## Native logging API (T02)
 
