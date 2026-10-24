@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spaceraiders.invalid/schemas/v1/trace-session.schema.json",
+  "title": "Space Raiders trace session v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "session_id", "build_id", "content_mode", "clock_domain_id", "clock_domains", "processes", "clock_sync", "collectors", "traceEvents", "samples"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "session_id": { "$ref": "#/$defs/id" },
+    "build_id": { "$ref": "#/$defs/id" },
+    "content_mode": { "$ref": "#/$defs/contentMode" },
+    "clock_domain_id": { "$ref": "#/$defs/id" },
+    "clock_domains": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "source", "monotonic", "resolution_us"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "source": { "type": "string", "minLength": 1 },
+          "monotonic": { "const": true },
+          "resolution_us": { "type": ["number", "null"], "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "processes": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["process_instance_id", "trace_pid", "os_pid", "name", "language", "build_id"],
+        "properties": {
+          "process_instance_id": { "$ref": "#/$defs/id" },
+          "trace_pid": { "$ref": "#/$defs/uint" },
+          "os_pid": { "type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991 },
+          "name": { "type": "string", "minLength": 1 },
+          "language": { "enum": ["cpp", "csharp", "python", "lua"] },
+          "build_id": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "clock_sync": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["source_domain_id", "target_domain_id", "source_us", "target_us", "uncertainty_us"],
+        "properties": {
+          "source_domain_id": { "$ref": "#/$defs/id" },
+          "target_domain_id": { "$ref": "#/$defs/id" },
+          "source_us": { "$ref": "#/$defs/uint" },
+          "target_us": { "$ref": "#/$defs/uint" },
+          "uncertainty_us": { "$ref": "#/$defs/uint" }
+        }
+      }
+    },
+    "collectors": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "process_instance_id", "signal", "method", "coverage"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "process_instance_id": { "$ref": "#/$defs/id" },
+          "signal": { "enum": ["logs", "scopes", "counters", "flows", "samples", "memory"] },
+          "method": { "type": "string", "minLength": 1 },
+          "coverage": { "$ref": "#/$defs/coverage" }
+        }
+      }
+    },
+    "traceEvents": { "type": "array", "items": { "$ref": "#/$defs/traceEvent" } },
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["context", "timestamp_us", "stack", "weight_us"],
+        "properties": {
+          "context": { "$ref": "#/$defs/context" },
+          "timestamp_us": { "$ref": "#/$defs/uint" },
+          "stack": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "weight_us": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$" },
+    "uint": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "contentMode": { "enum": ["serialized-editing", "packaging-debug", "shipping"] },
+    "context": {
+      "type": "object", "additionalProperties": false,
+      "required": ["session_id", "process_instance_id", "thread_id", "clock_domain_id"],
+      "properties": {
+        "session_id": { "$ref": "#/$defs/id" },
+        "process_instance_id": { "$ref": "#/$defs/id" },
+        "thread_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+        "clock_domain_id": { "$ref": "#/$defs/id" },
+        "correlation_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+        "asset_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+        "entity_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+        "widget_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+        "vm_instance_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] }
+      }
+    },
+    "coverage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "scope", "reason", "dropped_records", "capacity_records", "sampling_interval_us"],
+      "properties": {
+        "status": { "enum": ["complete", "partial", "unavailable", "disabled"] },
+        "scope": { "type": "string", "minLength": 1 },
+        "reason": { "type": ["string", "null"], "minLength": 1 },
+        "dropped_records": { "anyOf": [{ "$ref": "#/$defs/uint" }, { "type": "null" }] },
+        "capacity_records": { "anyOf": [{ "$ref": "#/$defs/uint" }, { "type": "null" }] },
+        "sampling_interval_us": { "type": ["integer", "null"], "minimum": 1, "maximum": 9007199254740991 }
+      },
+      "allOf": [
+        { "if": { "properties": { "status": { "enum": ["partial", "unavailable", "disabled"] } } },
+          "then": { "properties": { "reason": { "type": "string", "minLength": 1 } } } },
+        { "if": { "properties": { "status": { "const": "complete" } } },
+          "then": { "properties": { "dropped_records": { "const": 0 } } } }
+      ]
+    },
+    "traceEvent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "cat", "ph", "pid", "tid", "ts", "args"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "cat": { "type": "string", "minLength": 1 },
+        "ph": { "enum": ["X", "M", "C", "b", "n", "e", "s", "t", "f"] },
+        "pid": { "$ref": "#/$defs/uint" },
+        "tid": { "$ref": "#/$defs/uint" },
+        "ts": { "$ref": "#/$defs/uint" },
+        "dur": { "$ref": "#/$defs/uint" },
+        "id": { "$ref": "#/$defs/id" },
+        "args": { "type": "object" }
+      },
+      "allOf": [
+        { "if": { "properties": { "ph": { "const": "X" } } }, "then": { "required": ["dur"] },
+          "else": { "not": { "required": ["dur"] } } },
+        { "if": { "properties": { "ph": { "enum": ["b", "n", "e", "s", "t", "f"] } } }, "then": { "required": ["id"] },
+          "else": { "not": { "required": ["id"] } } },
+        { "if": { "properties": { "ph": { "const": "C" } } },
+          "then": { "properties": { "args": { "minProperties": 1, "additionalProperties": { "type": "number" } } } } },
+        { "if": { "properties": { "ph": { "const": "M" } } },
+          "then": { "properties": { "name": { "enum": ["process_name", "thread_name"] },
+            "args": { "required": ["name"], "properties": { "name": { "type": "string", "minLength": 1 } } } } } }
+      ]
+    }
+  }
+}
