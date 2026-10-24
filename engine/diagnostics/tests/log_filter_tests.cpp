@@ -11,14 +11,35 @@
 #endif
 #include "raiders/Log.h"
 
-#include <cstdlib>
+#include <gtest/gtest.h>
 
-int main() {
+TEST(LoggingMacros, FilteredArgumentsAreNotEvaluated)
+{
     int evaluations = 0;
-    auto logger = [&]() -> raiders::Log& { ++evaluations; throw 1; };
-    auto text = [&]() { ++evaluations; return "unexpected"; };
-    auto context = [&]() { ++evaluations; return raiders::LogContext{}; };
-    auto attributes = [&]() { ++evaluations; return raiders::LogAttributes{}; };
+    auto logger = [&]() -> raiders::Log&
+    {
+        ++evaluations;
+        throw 1;
+    };
+
+    auto text = [&]()
+    {
+        ++evaluations;
+        return "unexpected";
+    };
+
+    auto context = [&]()
+    {
+        ++evaluations;
+        return raiders::LogContext{};
+    };
+
+    auto attributes = [&]()
+    {
+        ++evaluations;
+        return raiders::LogAttributes{};
+    };
+
     RA_LOG_TRACE(logger(), text(), context(), text(), attributes());
     RA_LOG_DEBUG(logger(), text(), context(), text(), attributes());
     RA_LOG_INFO(logger(), text(), context(), text(), attributes());
@@ -30,11 +51,14 @@ int main() {
 #ifdef RA_TEST_LIBRARY_OFF
     raiders::LogConfig config;
     config.path = "disabled-logging-must-not-exist.jsonl";
-    if (std::filesystem::exists(config.path)) return EXIT_FAILURE;
+    ASSERT_FALSE(std::filesystem::exists(config.path));
     raiders::Log disabled(config); // OFF does not validate IDs, open files or start a worker.
-    if (disabled.Write(raiders::LogLevel::Error, "off", {}, "discarded")) return EXIT_FAILURE;
-    disabled.Shutdown(); disabled.Shutdown();
-    if (!disabled.Flush() || disabled.Stats().accepted || std::filesystem::exists(config.path)) return EXIT_FAILURE;
+    EXPECT_FALSE(disabled.Write(raiders::LogLevel::Error, "off", {}, "discarded"));
+    disabled.Shutdown();
+    disabled.Shutdown();
+    EXPECT_TRUE(disabled.Flush());
+    EXPECT_EQ(disabled.Stats().accepted, 0);
+    EXPECT_FALSE(std::filesystem::exists(config.path));
 #endif
-    return evaluations == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+    EXPECT_EQ(evaluations, 0);
 }

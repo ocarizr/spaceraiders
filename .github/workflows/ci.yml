@@ -33,7 +33,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .venv/code-style/Scripts/python.exe -m pip wheel --no-deps --wheel-dir .tools/code-style/wheels tools/pipeline/code_style
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .venv/code-style/Scripts/python.exe -m pip install .tools/code-style/wheels/raiders_code_style-0.1.0-py3-none-any.whl
+          .venv/code-style/Scripts/python.exe -m pip install '.tools/code-style/wheels/raiders_code_style-0.1.0-py3-none-any.whl[test]'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .venv/code-style/Scripts/python.exe -m raiders_code_style --bootstrap-lua
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -43,7 +43,7 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          .venv/code-style/Scripts/python.exe -m unittest discover -s tools/pipeline/code_style/tests -v
+          .venv/code-style/Scripts/python.exe -m pytest -c tools/pipeline/code_style/pyproject.toml tools/pipeline/code_style/tests -v --junitxml=out/test-results/code-style.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not $env:BASE_REF -or $env:BASE_REF -match '^0+$') {
             $env:BASE_REF = 'HEAD^'
@@ -52,13 +52,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   native:
-    name: Native (${{ matrix.preset }})
+    name: Native (${{ matrix.preset }}, profiling ${{ matrix.profiling }})
     runs-on: windows-2022
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         preset: [windows-debug, windows-release]
+        profiling: ['ON', 'OFF']
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,6 +70,7 @@ jobs:
         shell: pwsh
         env:
           BUILD_PRESET: ${{ matrix.preset }}
+          PROFILING: ${{ matrix.profiling }}
         run: |
           $ErrorActionPreference = 'Stop'
           $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
@@ -77,11 +79,11 @@ jobs:
           Import-Module "$installation/Common7/Tools/Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $installation -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
 
-          cmake --preset $env:BUILD_PRESET -DBUILD_TESTING=ON
+          cmake --preset $env:BUILD_PRESET -DBUILD_TESTING=ON "-DRA_ENABLE_PROFILING=$env:PROFILING"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build --preset $env:BUILD_PRESET --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ctest --test-dir "out/build/$env:BUILD_PRESET" --output-on-failure --no-tests=error
+          ctest --test-dir "out/build/$env:BUILD_PRESET" --output-on-failure --no-tests=error --output-junit test-results.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   gate:

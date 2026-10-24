@@ -31,41 +31,72 @@ if(RA_ENABLE_PROFILING)
 endif()
 
 if(BUILD_TESTING)
+    include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
+    raiders_test_dependency()
+    include(GoogleTest)
     add_executable(trace_tests tests/trace_tests.cpp)
-    target_link_libraries(trace_tests PRIVATE raiders_diagnostics)
+    # Custom GoogleTest entry point dispatches the crash-recovery subprocess.
+    target_link_libraries(trace_tests PRIVATE raiders_diagnostics GTest::gtest)
     if(RA_ENABLE_PROFILING)
         target_link_libraries(trace_tests PRIVATE nlohmann_json::nlohmann_json)
     endif()
 
-    add_test(NAME diagnostics.trace_writer COMMAND trace_tests)
-    set_tests_properties(diagnostics.trace_writer PROPERTIES TIMEOUT 30)
+    gtest_discover_tests(
+        trace_tests
+        TEST_PREFIX "diagnostics.trace."
+        DISCOVERY_MODE PRE_TEST
+        PROPERTIES TIMEOUT 30
+    )
 
     add_executable(profile_toggle_tests tests/profile_toggle_tests.cpp)
-    target_link_libraries(profile_toggle_tests PRIVATE raiders_diagnostics)
-    add_test(NAME diagnostics.profiling COMMAND profile_toggle_tests)
-    set_tests_properties(diagnostics.profiling PROPERTIES TIMEOUT 15)
+    target_link_libraries(profile_toggle_tests PRIVATE raiders_diagnostics GTest::gtest_main)
+    gtest_discover_tests(
+        profile_toggle_tests
+        TEST_PREFIX "diagnostics.profile."
+        DISCOVERY_MODE PRE_TEST
+        PROPERTIES TIMEOUT 15
+    )
 
     # Exercise the consumer's disabled macro even in a profiling-enabled build.
     add_executable(profile_disabled_macro_tests tests/profile_toggle_tests.cpp)
     target_compile_definitions(profile_disabled_macro_tests PRIVATE RA_TEST_PROFILE_DISABLED=1)
-    target_link_libraries(profile_disabled_macro_tests PRIVATE raiders_diagnostics)
-    add_test(NAME diagnostics.profiling_disabled_macro COMMAND profile_disabled_macro_tests)
-    set_tests_properties(diagnostics.profiling_disabled_macro PROPERTIES TIMEOUT 15)
+    target_link_libraries(
+        profile_disabled_macro_tests
+        PRIVATE raiders_diagnostics GTest::gtest_main
+    )
+    gtest_discover_tests(
+        profile_disabled_macro_tests
+        TEST_PREFIX "diagnostics.profile_disabled."
+        DISCOVERY_MODE PRE_TEST
+        PROPERTIES TIMEOUT 15
+    )
 
     if(RA_ENABLE_LOGGING)
         add_executable(log_tests tests/log_tests.cpp)
-        target_link_libraries(log_tests PRIVATE raiders_diagnostics nlohmann_json::nlohmann_json)
-        add_test(NAME diagnostics.logging COMMAND log_tests)
-        set_tests_properties(diagnostics.logging PROPERTIES TIMEOUT 30)
+        target_link_libraries(
+            log_tests
+            PRIVATE raiders_diagnostics nlohmann_json::nlohmann_json GTest::gtest_main
+        )
+        gtest_discover_tests(
+            log_tests
+            TEST_PREFIX "diagnostics.log."
+            DISCOVERY_MODE PRE_TEST
+            PROPERTIES TIMEOUT 30
+        )
     endif()
 
     foreach(mode IN ITEMS filtered disabled)
         add_executable(log_${mode}_tests tests/log_filter_tests.cpp)
-        target_link_libraries(log_${mode}_tests PRIVATE raiders_diagnostics)
+        target_link_libraries(log_${mode}_tests PRIVATE raiders_diagnostics GTest::gtest_main)
         if(mode STREQUAL "disabled")
             target_compile_definitions(log_${mode}_tests PRIVATE RA_TEST_DISABLED=1)
         endif()
 
-        add_test(NAME diagnostics.logging_${mode} COMMAND log_${mode}_tests)
+        gtest_discover_tests(
+            log_${mode}_tests
+            TEST_PREFIX "diagnostics.log_${mode}."
+            DISCOVERY_MODE PRE_TEST
+            PROPERTIES TIMEOUT 15
+        )
     endforeach()
 endif()
