@@ -1,0 +1,20 @@
+# Repository environment policy, not an installable root Python package.
+# Each pipeline package owns its own pyproject.toml, src/ and tests/.
+# Setup/check enforcement is implemented by later Q/Y tasks.
+[tool.raiders.environment]
+platform = "windows-x64"
+python-implementation = "CPython"
+python-version = "3.12.14"
+python-requires = ">=3.12,<3.13"
+build-venv = ".venv/build"
+runtime-venv = ".venv/pipeline"
+
+[tool.raiders.environment.native]
+compiler = "MSVC"
+compiler-version = "19.44.35229.0"
+toolset-version = "14.44.35207"
+windows-sdk-version = "10.0.26100.0"
+cmake-version = "3.31.6-msvc6"
+cmake-minimum = "3.24"
+ninja-version = "1.12.1"
+cxx-standard = "20"

@@ -2,9 +2,90 @@
 
 This is the target build contract selected in
 [ADR 0001](decisions/0001-monorepo-build.md), not a list of commands already available
-in this checkout. Q01 evaluated the architecture and a disposable spike; production
-presets, packages, environment recipes and setup tools are future tasks.
-For today's prototype build, use the [A01 reference](legacy-game.md).
+in this checkout. Q01 selected the architecture; A04/A05 implemented native presets,
+tests and CI. Q02 adds the shared environment/package policies below. Package
+implementations, environment recipes and setup tools remain future tasks.
+For the current native build/test commands, use [development](development.md).
+
+## Repository layout and project ownership
+
+The target layout separates products at a glance. Each project owns its source,
+tests, fixtures and build/package definition; a root tests directory is reserved
+for integration checks involving multiple projects.
+
+| Location | Responsibility |
+| --- | --- |
+| `engine/<module>/{include,src,tests}` | Native engine modules, including runtime, renderer, physics, UI and preview services |
+| `game/{include,src,tests}` | Space Raiders application and gameplay-specific native code |
+| `tools/dotnet/<product>/` | C# editors, inspectors, setup manager and shared managed libraries; each has its own source/test projects |
+| `tools/pipeline/<package>/{src,tests}` | Python pipeline packages, each with its own `pyproject.toml` |
+| `tools/native/<product>/{include,src,tests}` | Noninteractive C++ pipeline programs/libraries |
+| `assets/` | Authored game bundles, with separate UI/gameplay Lua namespaces |
+| `tests/integration/` | Cross-project integration checks only |
+| `cmake/`, `.github/`, `docs/` | Shared native build support, CI and documentation |
+| `.tools/`, `.venv/`, `out/`, `artifacts/` | Ignored local environments, caches and generated outputs |
+
+Root `CMakeLists.txt`/presets, `global.json`, `Directory.*.props`, `NuGet.config`
+and this policy-only `pyproject.toml` are deliberately repository-wide. They do
+not make the root a game, engine or Python package. Package/module names should
+describe their owner rather than collect unrelated utilities.
+
+The existing prototype sources and `tests/core` have not yet been relocated.
+Migrate them in small, buildable deliveries, keeping source moves separate from
+behavior changes. Move the coordinate test to the engine core when that module
+is extracted. Do not create empty project trees or an engine dependency on game
+headers merely to make the checkout resemble the final layout. This ownership
+rule supersedes older flat `tests/...`, `tools/authoring` and `tools/assetc` path
+examples in backlog tasks; resolve their owning project when each task starts.
+
+## Q02 environment baseline and package policy
+
+| Environment | Selected policy |
+| --- | --- |
+| .NET SDK | `global.json`: 10.0.402, `latestPatch`, prereleases disabled |
+| Managed targets | .NET 10; default `net10.0`, desktop projects explicitly choose `net10.0-windows` |
+| Native Windows x64 | Verified MSVC 19.44.35229.0 / toolset 14.44.35207, Windows SDK 10.0.26100.0, CMake 3.31.6-msvc6 and Ninja 1.12.1; CMake minimum remains 3.24 |
+| Pipeline Python | CPython 3.12.14 x64; package compatibility `>=3.12,<3.13` |
+
+`latestPatch` accepts installed servicing updates in the same 10.0.4xx feature
+band, at or above the requested SDK. It does not fall back to .NET 9 or advance
+to another feature band/major. SDK selection is separate from target framework
+selection. `Directory.Build.props` rejects non-.NET-10 targets at build time;
+it enables nullable annotations, implicit usings and deterministic builds.
+[SDK selection policy](https://learn.microsoft.com/en-us/dotnet/core/tools/global-json).
+
+Managed projects use central package management through `Directory.Packages.props`.
+Add exact `PackageVersion` entries only when introducing a real dependency;
+project-level version overrides are disabled. `NuGet.config` clears inherited
+package sources, selects nuget.org and keeps downloaded packages under ignored
+`.tools/nuget/packages`. No credentials belong in this file. Add explicit local/
+internal feeds when package producers are implemented; do not reference an absent
+feed directory. Publishing any package is a separate operation.
+
+Normal developer restore creates/updates each project's `packages.lock.json`.
+Commit and review those files, including library lockfiles for reproducible local
+library builds. They do not replace the consuming application's resolved graph.
+`CI=true` or `ContinuousIntegrationBuild=true` enables locked restore; a missing
+lockfile fails before restore, and a changed graph fails NuGet's locked mode.
+Use `dotnet restore <project> --locked-mode` to check the same policy locally.
+[Central packages](https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management),
+[lockfiles](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#locking-dependencies).
+
+The root `pyproject.toml` contains policy metadata under `tool.raiders.environment`;
+it is not an installable Python distribution and must not be passed to `pip install .`.
+Each pipeline package will declare its own build backend, compatible Python range
+and package requirements. Pin actual build/runtime dependencies and hashes when
+those packages are introduced, rather than inventing dependencies in Q02. Build
+the wheel in `.venv/build`, then install it into `.venv/pipeline`; do not copy venvs
+or commit interpreters/wheels. Use a discovered or managed matching interpreter.
+[Tool configuration tables](https://packaging.python.org/en/latest/specifications/pyproject-toml/#arbitrary-tool-configuration-the-tool-table).
+
+The native/Python values are verified policy inputs for the later setup/probe
+recipes, not an implemented environment checker or installer. Existing CMake
+presets still use the selected x64 developer environment. Shared policy files do
+not make native targets invoke .NET or Python; each environment is needed only
+for projects that actually consume it. SDK/interpreter redistribution, checksums,
+repair and managed feed production remain the later Q/Y tasks.
 
 ## Build ownership
 

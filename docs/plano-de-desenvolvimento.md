@@ -41,6 +41,14 @@ not additional source-controlled trackers.
 
 ## Confirmed constraints
 
+- Project-owned layout is defined in [the build contract](build-system.md#repository-layout-and-project-ownership):
+  `engine/`, `game/`, `tools/dotnet/`, `tools/pipeline/` and `tools/native/` are
+  separate areas. Sources, tests and fixtures belong to their project; only
+  cross-project integration checks belong in root `tests/integration/`.
+  This overrides older flat path examples in the individual backlogs. Relocate
+  existing files incrementally in small, buildable tasks; Q02 establishes policies
+  without combining those moves with the environment configuration delivery.
+
 - Support and validate Windows only. Linux support, Linux CI and portability work
   are outside this project.
 - Engine and native sample/support code use C++20.
