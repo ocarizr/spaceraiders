@@ -1,20 +1,20 @@
-## Objetivo
+## Purpose
 
-<!-- Explique o problema e o resultado esperado desta alteração. -->
+<!-- Describe the problem and the expected outcome of this change. -->
 
-## Alterações
+## Changes
 
-<!-- Resuma as principais mudanças. -->
+<!-- Summarize the main changes. -->
 
-## Validação
+## Validation
 
-<!-- Informe os testes/comandos executados e os resultados.
-Se não se aplicar, explique o motivo. Para mudanças visuais, inclua capturas. -->
+<!-- List the tests/commands run and their results.
+If not applicable, explain why. Include screenshots for visual changes. -->
 
 ## Checklist
 
-- [ ] Revisei o diff e mantive as alterações no escopo do trabalho.
-- [ ] Registrei a validação realizada acima.
-- [ ] Atualizei a documentação, quando necessário.
+- [ ] I reviewed the diff and kept changes within scope.
+- [ ] I recorded the validation performed above.
+- [ ] I updated documentation where needed.
 
-<!-- O merge depende da aprovação dos code owners exigida pelas regras do repositório. -->
+<!-- Merging requires code owner approval as enforced by repository rules. -->
