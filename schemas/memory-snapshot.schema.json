@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spaceraiders.invalid/schemas/v1/memory-snapshot.schema.json",
+  "title": "Space Raiders memory snapshot v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "snapshot_id", "epoch", "build_id", "content_mode", "timestamp_us", "context", "coverage", "metrics", "allocations", "owners", "references"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "snapshot_id": { "$ref": "trace-session.schema.json#/$defs/id" },
+    "epoch": { "$ref": "trace-session.schema.json#/$defs/uint" },
+    "build_id": { "$ref": "trace-session.schema.json#/$defs/id" },
+    "content_mode": { "$ref": "trace-session.schema.json#/$defs/contentMode" },
+    "timestamp_us": { "$ref": "trace-session.schema.json#/$defs/uint" },
+    "context": { "$ref": "trace-session.schema.json#/$defs/context" },
+    "coverage": { "$ref": "trace-session.schema.json#/$defs/coverage" },
+    "metrics": { "type": "array", "items": { "$ref": "#/$defs/metric" } },
+    "allocations": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["allocation_id", "vm_instance_id", "category", "owner_ids", "metrics"],
+        "properties": {
+          "allocation_id": { "$ref": "trace-session.schema.json#/$defs/id" },
+          "vm_instance_id": { "anyOf": [{ "$ref": "trace-session.schema.json#/$defs/id" }, { "type": "null" }] },
+          "category": { "enum": ["native", "managed", "lua-heap", "lua-jit", "python", "collector", "unclassified"] },
+          "owner_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "trace-session.schema.json#/$defs/id" } },
+          "metrics": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/metric" } }
+        }
+      }
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["owner_id", "kind", "name"],
+        "properties": {
+          "owner_id": { "$ref": "trace-session.schema.json#/$defs/id" },
+          "kind": { "enum": ["entity", "component", "asset", "widget", "script-module", "vm", "process", "collector"] },
+          "name": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["from_owner_id", "to_owner_id", "kind", "evidence"],
+        "properties": {
+          "from_owner_id": { "$ref": "trace-session.schema.json#/$defs/id" },
+          "to_owner_id": { "$ref": "trace-session.schema.json#/$defs/id" },
+          "kind": { "enum": ["owns", "references", "requires"] },
+          "evidence": { "enum": ["declared", "observed"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "metric": {
+      "type": "object", "additionalProperties": false,
+      "required": ["quantity", "basis", "value_bytes", "reason"],
+      "properties": {
+        "quantity": { "enum": ["stored", "compressed", "decoded", "live-allocated", "reserved-capacity", "peak-live", "process-private", "working-set", "retained", "reclaimable"] },
+        "basis": { "enum": ["measured", "estimated", "unavailable"] },
+        "value_bytes": { "anyOf": [{ "$ref": "trace-session.schema.json#/$defs/uint" }, { "type": "null" }] },
+        "reason": { "type": ["string", "null"], "minLength": 1 }
+      },
+      "allOf": [
+        { "if": { "properties": { "basis": { "const": "unavailable" } } },
+          "then": { "properties": { "value_bytes": { "type": "null" }, "reason": { "type": "string", "minLength": 1 } } },
+          "else": { "properties": { "value_bytes": { "type": "integer" } } } },
+        { "if": { "properties": { "basis": { "const": "estimated" } } },
+          "then": { "properties": { "reason": { "type": "string", "minLength": 1 } } } },
+        { "if": { "properties": { "quantity": { "enum": ["retained", "reclaimable"] } } },
+          "then": { "properties": { "reason": { "type": "string", "minLength": 1 } } } }
+      ]
+    }
+  }
+}

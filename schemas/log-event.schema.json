@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spaceraiders.invalid/schemas/v1/log-event.schema.json",
+  "title": "Space Raiders structured log event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "timestamp_us", "context", "severity", "category", "message", "attributes"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "$ref": "trace-session.schema.json#/$defs/id" },
+    "timestamp_us": { "$ref": "trace-session.schema.json#/$defs/uint" },
+    "context": { "$ref": "trace-session.schema.json#/$defs/context" },
+    "severity": { "enum": ["trace", "debug", "info", "warning", "error", "critical"] },
+    "category": { "type": "string", "minLength": 1 },
+    "message": { "type": "string" },
+    "attributes": { "type": "object" }
+  }
+}
