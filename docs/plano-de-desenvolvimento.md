@@ -22,11 +22,12 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 | C# entity, drawing and animation editor | [Entity editor](plans/entity-editor.md) | L | Planned |
 | C# dependency graph and memory inspector | [Bundle inspector](plans/bundle-inspector.md) | S | Planned |
 | Cross-language diagnostics | [Observability](plans/observability.md) | T | Planned |
+| C#/.NET 10 graphical environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Planned |
 | C# scene/level editor and native playtest | [Level editor](plans/level-editor.md) | W | Planned |
 | Authored Space Raiders sample and legacy regression | [Sample game](plans/sample-game.md) | M and N | Planned |
 
-The plans currently define **197 small PR-sized tasks**, including all 131 task IDs
-from the previous plan and 66 additions. Task IDs are unique across projects.
+The plans currently define **207 small PR-sized tasks**, including all 131 task IDs
+from the previous plan and 76 additions. Task IDs are unique across projects.
 Cross-project needs refer to those IDs. The dependency graph must remain acyclic.
 Projects may consume each other's incremental interfaces; this does not require
 completing a whole project before starting a consumer.
@@ -43,8 +44,12 @@ not additional source-controlled trackers.
 - Support and validate Windows only. Linux support, Linux CI and portability work
   are outside this project.
 - Engine and native sample/support code use C++20.
-- Interactive developer applications use C#: UI/entity/level editors and inspectors.
+- Interactive developer applications use C# with .NET 10: UI/entity/level editors, inspectors
+  and the graphical environment setup manager.
   A native preview process is an engine service, not a C++ authoring frontend.
+- Reusable managed libraries may be NuGet package producers/consumers; Python
+  modules are built as wheels and installed into reproducible build/runtime venvs.
+  Setup detects Ready/Missing/Needs repair states and prepares selected profiles.
 - Gameplay and UI behavior use LuaJIT. UI/gameplay source modules remain in distinct
   namespaces in authoring bundles.
 - Noninteractive pipeline, validation, code/binary generation and orchestration
@@ -215,13 +220,18 @@ All gate delivery states are currently Planned; none is marked complete by this 
 
 ## Build and CI approach
 
-Evaluate CMake + .NET/MSBuild against Bazel in Q01 with a small representative
-C++/C#/generated-content slice. Bazel was suggested, not mandated. Start from CMake
-native targets and SDK-style C# projects/solution filters unless the ADR justifies
-a migration; avoid maintaining two complete build graphs. Build/test individual
-projects and their dependencies without building unrelated tools.
-[Native target selection](https://cmake.org/cmake/help/latest/manual/cmake.1.html#build-a-project),
-[.NET project builds](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build).
+Q01 recommends CMake/Ninja for C++20, SDK-style .NET 10/MSBuild/NuGet for C#,
+and installed Python wheel modules in isolated environments. The
+[ADR and comparative spike](decisions/0001-monorepo-build.md) document the decision:
+both native systems worked, but managed IDE/desktop/package ownership favors the
+standard .NET path here. Bazel remains a future reconsideration option, not a
+second maintained build graph.
+
+The [build/environment contract](build-system.md) defines package handoffs,
+project-level builds and graphical/headless setup responsibilities. Q02-Q07
+implement version pins, package foundations and environments later; Y01-Y07 own
+the independent self-contained C# setup product. No Q01 production build migration
+or setup implementation is claimed. Each is a separate task.
 
 Use a small number of workflows: CI with impact-based jobs and a stable mandatory
 gate; release/manual product selection for game, tools/Designer SDK, or both.
@@ -266,9 +276,10 @@ a .cpp in the inspected revision; transitively included headers, ownership/timin
 collisions and generated CMake/IDE files are concrete issues. The engine plan retains
 the detailed source/PDF diagnosis and legacy stabilization tasks.
 
-Work on one task at a time. First deliver and review A01's
-[legacy behavior reference](legacy-game.md); only then start Q01's Windows build
-evaluation. Later tasks are separate deliveries, not a combined A04/A05 or engine
-rewrite. Use task branches named `<TASK_ID>_<short_description>`, such as
-`A01_document_reference_behavior`. This roadmap does not authorize a broad rewrite
-or a native build-system migration merely because the planning package is larger.
+Work on one task at a time. A01's [reference](legacy-game.md) was merged in
+`bf4bd7c`. Q01's [build ADR](decisions/0001-monorepo-build.md) and
+[build contract](build-system.md) are now ready for review; SDK pins, package
+pipelines and graphical setup remain separate planned tasks. After Q01 review,
+select the next ready task with the maintainer rather than executing adjacent work
+automatically. Use branches named `<TASK_ID>_<short_description>`, such as
+`Q01_evaluate_monorepo_build`. This decision does not authorize a broad rewrite.
