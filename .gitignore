@@ -48,6 +48,8 @@ cmake_install.cmake
 compile_commands.json
 /build/
 /out/
+build/
+dist/
 
 # xemacs temporary files
 *.flc
@@ -61,7 +63,6 @@ compile_commands.json
 *.idb
 *.ilk
 *.pdb
-*.sln
 *.suo
 *.vcproj
 *vcproj.*.*.user
@@ -77,6 +78,27 @@ compile_commands.json
 
 # Python byte code
 *.pyc
+__pycache__/
+
+# Local SDKs, interpreters, package caches and virtual environments
+/.tools/
+/.venv/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+*.whl
+
+# Managed build and package outputs; shared projects and lockfiles stay tracked
+bin/
+obj/
+*.nupkg
+*.snupkg
+*.csproj.user
+/artifacts/
+/dist/
 
 # Binaries
 # --------
