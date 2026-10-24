@@ -46,6 +46,13 @@ examples in backlog tasks; resolve their owning project when each task starts.
 | Managed targets | .NET 10; default `net10.0`, desktop projects explicitly choose `net10.0-windows` |
 | Native Windows x64 | Verified MSVC 19.44.35229.0 / toolset 14.44.35207, Windows SDK 10.0.26100.0, CMake 3.31.6-msvc6 and Ninja 1.12.1; CMake minimum remains 3.24 |
 | Pipeline Python | CPython 3.12.14 x64; package compatibility `>=3.12,<3.13` |
+| Hosted code-style CI | CPython 3.12.10 x64, pinned to an available Windows distribution in `actions/python-versions` |
+
+The hosted Windows job uses 3.12.10 because the
+[setup-python distribution manifest](https://github.com/actions/python-versions/blob/main/versions-manifest.json)
+does not provide Windows x64 builds for 3.12.14. The package compatibility range
+supports both environments. Check platform and architecture availability in that
+manifest before changing the hosted interpreter pin.
 
 `latestPatch` accepts installed servicing updates in the same 10.0.4xx feature
 band, at or above the requested SDK. It does not fall back to .NET 9 or advance
