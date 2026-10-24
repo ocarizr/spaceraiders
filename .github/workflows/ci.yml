@@ -10,14 +10,57 @@ permissions:
   contents: read
 
 jobs:
+  style:
+    name: Code style
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: '3.12.10'
+          architecture: x64
+
+      - name: Build and install formatter wheel
+        shell: pwsh
+        run: |
+          python -m venv .venv/code-style
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .venv/code-style/Scripts/python.exe -m pip wheel --no-deps --wheel-dir .tools/code-style/wheels tools/pipeline/code_style
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .venv/code-style/Scripts/python.exe -m pip install '.tools/code-style/wheels/raiders_code_style-0.1.0-py3-none-any.whl[test]'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .venv/code-style/Scripts/python.exe -m raiders_code_style --bootstrap-lua
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Test formatters and check changed source
+        shell: pwsh
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          .venv/code-style/Scripts/python.exe -m pytest -c tools/pipeline/code_style/pyproject.toml tools/pipeline/code_style/tests -v --junitxml=out/test-results/code-style.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not $env:BASE_REF -or $env:BASE_REF -match '^0+$') {
+            $env:BASE_REF = 'HEAD^'
+          }
+          .venv/code-style/Scripts/python.exe -m raiders_code_style --base $env:BASE_REF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   native:
-    name: Native (${{ matrix.preset }})
+    name: Native (${{ matrix.preset }}, profiling ${{ matrix.profiling }})
     runs-on: windows-2022
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         preset: [windows-debug, windows-release]
+        profiling: ['ON', 'OFF']
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -28,6 +71,7 @@ jobs:
         shell: pwsh
         env:
           BUILD_PRESET: ${{ matrix.preset }}
+          PROFILING: ${{ matrix.profiling }}
         run: |
           $ErrorActionPreference = 'Stop'
           $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
@@ -36,25 +80,29 @@ jobs:
           Import-Module "$installation/Common7/Tools/Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $installation -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
 
-          cmake --preset $env:BUILD_PRESET -DBUILD_TESTING=ON
+          cmake --preset $env:BUILD_PRESET -DBUILD_TESTING=ON "-DRA_ENABLE_PROFILING=$env:PROFILING"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build --preset $env:BUILD_PRESET --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ctest --test-dir "out/build/$env:BUILD_PRESET" --output-on-failure --no-tests=error
+          ctest --test-dir "out/build/$env:BUILD_PRESET" --output-on-failure --no-tests=error --output-junit test-results.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   gate:
     name: CI gate
     if: ${{ always() }}
-    needs: [native]
+    needs: [native, style]
     runs-on: windows-2022
     timeout-minutes: 5
     steps:
-      - name: Require successful native checks
+      - name: Require successful native and formatting checks
         shell: pwsh
         env:
           NATIVE_RESULT: ${{ needs.native.result }}
+          STYLE_RESULT: ${{ needs.style.result }}
         run: |
           if ($env:NATIVE_RESULT -ne 'success') {
             throw "Native checks did not succeed: $env:NATIVE_RESULT"
+          }
+          if ($env:STYLE_RESULT -ne 'success') {
+            throw "Formatting checks did not succeed: $env:STYLE_RESULT"
           }
