@@ -10,9 +10,10 @@ raiders_configure_profiling(raiders_diagnostics)
 target_include_directories(raiders_diagnostics PUBLIC include)
 target_compile_features(raiders_diagnostics PUBLIC cxx_std_20)
 set_target_properties(raiders_diagnostics PROPERTIES CXX_EXTENSIONS NO)
-target_compile_definitions(raiders_diagnostics PUBLIC
-    RA_ENABLE_LOGGING=$<BOOL:${RA_ENABLE_LOGGING}>
-    RA_LOG_ACTIVE_LEVEL=${RA_LOG_ACTIVE_LEVEL})
+target_compile_definitions(
+    raiders_diagnostics
+    PUBLIC RA_ENABLE_LOGGING=$<BOOL:${RA_ENABLE_LOGGING}> RA_LOG_ACTIVE_LEVEL=${RA_LOG_ACTIVE_LEVEL}
+)
 if(MSVC)
     target_compile_options(raiders_diagnostics PRIVATE /W4 /utf-8)
 endif()
@@ -35,6 +36,7 @@ if(BUILD_TESTING)
     if(RA_ENABLE_PROFILING)
         target_link_libraries(trace_tests PRIVATE nlohmann_json::nlohmann_json)
     endif()
+
     add_test(NAME diagnostics.trace_writer COMMAND trace_tests)
     set_tests_properties(diagnostics.trace_writer PROPERTIES TIMEOUT 30)
 
@@ -56,12 +58,14 @@ if(BUILD_TESTING)
         add_test(NAME diagnostics.logging COMMAND log_tests)
         set_tests_properties(diagnostics.logging PROPERTIES TIMEOUT 30)
     endif()
+
     foreach(mode IN ITEMS filtered disabled)
         add_executable(log_${mode}_tests tests/log_filter_tests.cpp)
         target_link_libraries(log_${mode}_tests PRIVATE raiders_diagnostics)
         if(mode STREQUAL "disabled")
             target_compile_definitions(log_${mode}_tests PRIVATE RA_TEST_DISABLED=1)
         endif()
+
         add_test(NAME diagnostics.logging_${mode} COMMAND log_${mode}_tests)
     endforeach()
 endif()
