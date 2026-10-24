@@ -180,8 +180,8 @@ Acceptance: player/UI -> components -> assets -> Lua modules traverses a stable
 snapshot epoch; dynamic imports, shared allocations, cycles and missing tags are
 reported; before/after load/unload identifies deltas without assuming a forced GC.
 
-**T13 - Instrument every shipped application and pipeline stage.** Depends: T05, T06, J06, S01, W01.
-Paths (7): the 4 C# application Program.cs files, `tools/assetc/src/main.cpp`,
+**T13 - Instrument every shipped application and pipeline stage.** Depends: T05, T06, J06, S01, W01, Y04.
+Paths (8): the 5 C# application Program.cs files (including Environment.Setup), `tools/assetc/src/main.cpp`,
 `tools/pipeline/diagnostics/session.py` and `tests/integration/telemetry_apps_tests.py`.
 Acceptance: every executable has session context, errors, CPU scopes and capture
 controls; split by executable if registration or tests exceed the path limit.

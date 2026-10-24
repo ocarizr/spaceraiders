@@ -1,11 +1,14 @@
 # Assets, bundles, build, CI and distribution
 
-Status: Planned. Implementation has not started.
+Status: Production implementation planned. Q01 decision and disposable spike are
+documented in [ADR 0001](../decisions/0001-monorepo-build.md), ready for review.
 
 ## Scope and independent execution
 
 C++20/Python noninteractive authoring services, schema/IR, bundles, validation,
-cooking, build orchestration, selective CI and binary distributions.
+cooking, build orchestration, selective CI and binary distributions. Managed
+projects use .NET 10; reusable libraries support NuGet package boundaries and
+Python modules use wheels/build/runtime environments.
 Inputs: registered component schemas, LuaJIT ABI, rendering/animation schemas,
 observability. Exports: assetc/tooling protocol, source/cooked bundles and Designer SDK.
 First slice: author one source bundle and deserialize a new entity ID directly
@@ -261,21 +264,21 @@ for a tools-only artifact. Python tools ship frozen/runtime-bundled if selected.
 No Visual Studio, native/.NET SDK or Python installation needed on designer machine.
 VS Code is an optional external prerequisite for Lua editing/debugging, with clear setup.
 
-**Q01 - ADR de build: CMake/.NET versus Bazel.** Depende: A01.
-Arquivos (2): `docs/build-system.md`, `docs/decisions/0001-monorepo-build.md`.
-Entrega: comparar C++20, C#/.NET/NuGet, Python, geração, Windows, IDE/debug,
-targets isolados, cache e incrementalidade. Spike pequeno em diretório temporário
-com biblioteca nativa, projeto C# e input gerado; registrar resultados no ADR.
-Aceite: decisão fundamentada, sem dupla manutenção do grafo. A hipótese dos paths
-deste plano é CMake/.NET; escolher Bazel exige ajustar esses PRs antes de implementar,
-não manter duas descrições completas. Nenhuma migração é feita por sugestão apenas.
+**Q01 - Windows monorepo build decision.** Depends: A01.
+Paths (2): `docs/build-system.md`, `docs/decisions/0001-monorepo-build.md`.
+Delivery: C++20/CMake and Bazel native generation/incremental spikes; .NET 10
+NuGet/desktop and Python wheel/venv checks; compare Windows project/IDE/build ownership.
+Acceptance: recommendation, alternatives, primary sources and evidence limits are
+documented without production migration. Implementation of SDK pins/packages/setup
+remains Q02-Q07 and Y01-Y07, one task at a time.
 
-**Q02 - Versões e políticas do SDK .NET/Python.** Depende: Q01.
-Arquivos (6): `global.json`, `Directory.Build.props`, `Directory.Packages.props`,
+**Q02 - Pin .NET 10, native and Python environment policies.** Depends: Q01.
+Paths (6): `global.json`, `Directory.Build.props`, `Directory.Packages.props`,
 `NuGet.config`, `pyproject.toml`, `.gitignore`.
-Entrega: fixar SDKs suportados, política de dependências/locks e análise C#; outputs
-bin/obj e ambientes Python ignorados. Aceite: selecionar versões verificadas na
-implementação, sem forçar .NET para build somente C++; C# não é gerado por CMake.
+Acceptance: .NET major 10 is required; choose verified SDK patch/roll-forward,
+managed package/lock policy and supported Python/native tool versions. Ignore local
+tools, interpreters, package outputs and venvs. Do not require .NET for a native
+target unless it truly consumes a managed artifact. CMake does not generate C# projects.
 
 **Q03 - Solution e filtros por ferramenta.** Depende: J02, K01, L01, S01, W01.
 Arquivos (6): `Raiders.Tools.sln`, `tools/dotnet/{UIEditor,EntityEditor,
@@ -283,7 +286,7 @@ BundleInspector,LevelEditor}.slnf`, `docs/build-system.md`.
 Entrega: workspaces de cada aplicação e dependências reais, sem abrir todo o
 monorepo. Aceite: IDE/debug e build de cada .csproj/filtro funcionam separadamente.
 
-**Q04 - CLI Python do monorepo por projeto.** Depende: Q01, Q02, J02.
+**Q04 - CLI Python do monorepo por projeto.** Depende: Q01, Q02, Q06, J02.
 Arquivos (5): `tools/pipeline/build.py`, `tools/pipeline/projects.json`,
 `tests/pipeline/test_build.py`, `pyproject.toml`, `docs/build-system.md`.
 Entrega: build/test/cook/package por projeto, delegando a CMake ou dotnet; seleção
@@ -523,3 +526,41 @@ directly for live editing/playtest, resolving source-bundle IDs and dependencies
 Source and packaged providers implement common lookup/instantiation semantics.
 Works with no cooker/generated/binary outputs; parser is absent from Shipping,
 not banned from the development runtime. Source errors preserve last-good state.
+
+
+## Package foundations and setup handoff
+
+Q01 selects [CMake/native + .NET 10/MSBuild](../build-system.md), without replacing
+the language-specific graphs. The coordinator builds package producers and restores
+their intended artifact versions for consumers. Python wheels and installed module
+entry points are part of the same developer-facing workflow. The independent
+[environment setup plan](environment-setup.md) owns the C# GUI, probes and repair;
+these follow-up tasks do not implement that UI.
+
+**Q05 - Reusable NuGet library build/restore policy.** Depends: Q02.
+Paths (6): `Directory.Build.targets`, `tools/dotnet/build/PackDependencies.targets`,
+`NuGet.config`, `tests/dotnet/Raiders.Build.Tests/{Raiders.Build.Tests.csproj,
+PackageGraphTests.cs}`, `docs/dependencies.md`.
+Acceptance: selected library producers create local/internal .nupkg artifacts;
+consumers use explicit PackageReference versions, central management and locked
+restore. Test transitive package order and cache invalidation using immutable
+versions; no loose DLL copying, duplicate BUILD graph or public-feed publication.
+Add small fixture projects in sub-deliveries if the total would exceed 10 paths.
+
+**Q06 - Python module wheel and installed entry point.** Depends: Q02.
+Paths (6): `pyproject.toml`, `tools/pipeline/{__init__.py,__main__.py}`,
+`tools/pipeline/build_wheels.py`, `tests/pipeline/test_wheel_install.py`,
+`docs/dependencies.md`.
+Acceptance: reusable pipeline module has proper package metadata/namespace, builds
+a wheel in its prepared build environment and runs from a separate installed-package
+environment without sys.path hacks or dependence on source checkout location.
+Include needed data files/entry points; test the actual wheel, not just source imports.
+
+**Q07 - Reproducible Python environment recipes.** Depends: Q02, Q06.
+Paths (5): `environments/{python-build,python-tools}.lock`,
+`tools/pipeline/create_env.py`, `tests/pipeline/test_environment_recipes.py`,
+`docs/dependencies.md`.
+Acceptance: discover or acquire pinned compatible interpreter, recreate build/runtime
+venvs from locked artifacts/hashes, validate installed package fingerprints and report
+Ready/Needs repair. Source-owned recipes are separate from ignored local environments;
+the C# setup manager can execute them without assuming Python was already installed.

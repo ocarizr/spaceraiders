@@ -4,7 +4,7 @@ Status: Planned. Implementation has not started.
 
 ## Scope and independent execution
 
-C# desktop UI editor plus shared documents, undo/redo, bundle/protocol clients,
+C#/.NET 10 desktop UI editor plus shared documents, undo/redo, bundle/protocol clients,
 preview client and navigation services used by all developer tools.
 Inputs: native preview surface, UI schema/IR, bundle transactions and Lua environment.
 Exports: Raiders.Tools.Common/Contracts and Raiders.UIEditor.
