@@ -42,6 +42,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 include(CTest)
+add_subdirectory(engine/diagnostics)
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
