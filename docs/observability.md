@@ -2,13 +2,137 @@
 
 Version 1 defines data exchanged by native C++20, C#/.NET 10, Python and Lua
 adapters. T01 defines schemas and terminology; T02 adds native logging and T03
-adds optional elapsed-time scopes. Memory collectors, clock conversion and viewer
-interoperability remain later tasks.
+adds optional elapsed-time scopes. T04 adds bounded Chrome JSON export/recovery.
+Memory collectors and cross-process clock conversion remain later tasks.
+
+## Chrome JSON export and recovery (T04)
+
+`raiders/TraceWriter.h` exposes a synchronous consumer-side writer on
+`raiders_diagnostics`. Enable `RA_ENABLE_PROFILING=ON` to build it. The writer uses
+the already pinned nlohmann/json dependency even if logging is OFF; spdlog remains
+logging-only. Profiling/logging both OFF fetch neither dependency. The scope
+collector still performs no JSON serialization or file I/O.
+
+```cpp
+#include "raiders/TraceWriter.h"
+
+std::filesystem::create_directories("out/captures");
+raiders::TraceConfig config;
+config.directory = "out/captures/session-1"; // New directory; parent must exist.
+config.session_id = "capture.1";
+config.process_instance_id = "game.1";
+config.clock_domain_id = "steady.game.1";
+config.build_id = "build.1";
+config.process_name = "Space Raiders";
+raiders::TraceWriter writer(config);
+raiders::ProfileCapture capture;
+{
+    RA_PROFILE_SCOPE(capture, "runtime", "update");
+}
+capture.Stop(); // End/join all scopes/producers before the final drain.
+for (const auto& event : capture.Drain()) writer.AppendScope(event);
+writer.ObserveProfile(capture.Stats());
+writer.Counter(1, "queue", "pending", "queue.count", 7);
+writer.AsyncBegin(1, "assets", "load", "load.1", {"command.1"});
+writer.AsyncEnd(2, "load.1");
+if (!writer.Finalize()) { /* report failure through an independent control path */ }
+```
+
+Call writer methods from a drain/control thread: they allocate, serialize and
+write synchronously. Methods are mutex-serialized; stop/join callers before
+destruction. Scope events retain their producer timestamps and duration.
+Counter/async timestamps are sampled on their calling producer before the writer
+lock. Their thread IDs must use the same logical identity namespace as scope
+events; the numbers in the example are illustrative. Pass only events from the
+configured process and steady-clock domain. Each writer represents one process;
+it does not synchronize or merge other processes' clocks.
+
+Output includes the T01 session envelope, process/clock/collector declarations,
+`X` complete durations, `C` counters, `M` process/thread names and `b/e` nestable
+async pairs. `RegisterThread()` supplies labels; unknown labels are generated as
+`thread.<id>`. Text is UTF-8, limited to 128 bytes and escaped by the serializer.
+Context IDs appear in scope/async args; empty optional IDs are omitted. Counter
+series require `.bytes`, `.count`, `.us` or `.ratio` suffixes and finite values.
+Async IDs must be unique among active operations; ends inherit the begin's name/
+category/context and may arrive from another thread. Unknown ends, duplicate begins,
+malformed fields and regressing/incompatible cumulative profile stats are rejected.
+Flow arrows (`s/t/f`), async instants and CPU sample export are outside this writer's
+implemented subset, although the shared schema reserves those phases.
+
+Observe cumulative stats from exactly one profile collector after each drain.
+Final scope coverage is partial if the collector was not observed, is still
+accepting, has in-flight/undrained records, or its completed count differs from
+the number handed to the writer. Producer drops/rejections and writer losses also
+make coverage partial. Counter/async coverage describes the writer's own calls,
+not all activity in the application. Conservative writer loss counts are shared
+across signal descriptions and must not be summed. Exported counts saturate at
+the schema's exact-integer ceiling; at that ceiling they are lower bounds.
+`Finalize()` success means publication succeeded, not that coverage is complete.
+
+Buffers/storage are bounded by `events_per_chunk` (default 128, maximum 1024),
+`max_chunks` (default 32, maximum 256), 4096 serialized bytes per event,
+`max_threads` and `max_async` (default 128 each, maximum 1024). Metadata consumes
+the same chunk budget. A full capture drops new records; it does not rotate away
+already committed history. Pending JSON DOM/serialization overhead is additional
+to serialized sizes but bounded by those limits. Finalization/recovery materializes
+and sorts the bounded retained history, so it can use substantially more memory
+than the pending chunk. It is not intended to run in a frame's instrumented scope.
+Begin another capture when the configured retention budget is exhausted.
+
+`Checkpoint()` writes a complete `chunk-N.json`, then publishes a checksummed
+`recovery-index.json` via same-directory temporary-file rename. The index records
+version 1, limits, manifest, canonical chunk names and CRC32 checksums. CRC32 detects
+accidental corruption; it is not authentication for hostile captures. A Windows
+exclusive `capture.lock` handle prevents recovery while the writer is alive.
+The constructor refuses any pre-existing capture directory, preserving user files.
+
+`Finalize()` checkpoints, sorts events by time (outer duration first for equal
+start times), preserves async source order at equal timestamps and publishes
+`trace.json`. It is idempotent and refuses to overwrite an existing output.
+Unfinished async begins and overlapping nonnested complete scopes are omitted
+and reported through partial coverage/drop counts, so ambiguous slices are not
+silently presented as valid nesting. Check `TraceStats` and the exported coverage;
+writer `accepted` includes metadata, while `rejected`/`dropped` describe ingress
+loss and do not include the export-time omissions. I/O failures latch the writer
+into a failed state and make subsequent checkpoint/finalization fail. No error
+path logs recursively. Initialization errors throw; other operations report false.
+
+After an interruption, call `TraceWriter::Recover(directory)` from a separate
+control process or after the original writer has been destroyed. Recovery reads
+only the last published index and complete indexed blocks, checks sizes/checksums,
+rejects noncanonical names/reparse-point files and writes `recovered.json` without
+overwriting it. Orphan blocks and `.tmp` files are ignored. All recovered coverage
+is partial: records since the last checkpoint and exact crash-time drop counts
+are unknown. The destructor attempts a checkpoint, but does not finalize a trace;
+the crash test terminates a child process without allowing that destructor to run.
+Filesystem flush/atomic rename is not a promise of durability through power loss,
+storage-device failure or every network filesystem implementation.
+
+With profiling OFF, writer methods return false and create no capture directory.
+The stub still has a small implementation object; only scope macros promise full
+argument removal. Tests live in `engine/diagnostics/tests/trace_tests.cpp` and cover
+the emitted phases, escaping, metadata, limits, producer drops, active-capture
+locking, abrupt child-process recovery, corrupt blocks and I/O failure.
+
+Viewer validation uses Windows Perfetto Trace Processor v58.2
+(`add693d8b338ba9599dbcbc3e300b1ab8c000897`), from the
+[official launcher](https://get.perfetto.dev/trace_processor). Its Windows binary
+SHA-256 is `adfa6bad3d72be3ba9b83fa2b17b69fa13b3ab1cad0f42e52b86188bd5f0f997`.
+Generated normal/recovered files are checked against T01 and imported with
+PerfettoSQL queries for duration/async slices, counter values and process/thread
+names, with no nonzero parser error statistics. This validates the chosen viewer's
+parser; it is not a visual layout review of the web UI. Open `trace.json` or
+`recovered.json` through **Open trace file** at [Perfetto UI](https://ui.perfetto.dev).
+Perfetto's legacy JSON support is
+[best effort](https://perfetto.dev/docs/faq); recheck the exact subset when changing
+exporter/viewer versions. Viewer binaries, captures and verification helpers stay
+local, not in this repository or the shipped game.
 
 ## Native profiling scopes (T03)
 
-The `raiders_diagnostics` target also exposes `raiders/Profile.h`. Profiling is
-independent of `RA_ENABLE_LOGGING` and has no spdlog/JSON dependency of its own.
+The `raiders_diagnostics` target also exposes `raiders/Profile.h`. Scope collection
+is independent of `RA_ENABLE_LOGGING` and uses no spdlog/JSON itself. T04's writer
+adds the JSON dependency to profiling-enabled builds.
 `RA_ENABLE_PROFILING` defaults to OFF and is propagated to consumers through
 `cmake/Diagnostics.cmake`. Use a separate build directory when changing modes:
 
