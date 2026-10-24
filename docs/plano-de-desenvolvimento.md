@@ -3,7 +3,7 @@
 Data: 24 de outubro de 2026. Base inspecionada: `9d87fe4`.
 
 Este documento descreve a evolução do jogo existente para uma engine 2D reutilizável,
-um jogo composto por entidades e scripts, dois editores pequenos e uma cadeia de
+um jogo composto por entidades e scripts, editores e inspetores C# e uma cadeia de
 build, validação, cooking e distribuição. É documentação do projeto destinada ao
 repositório. Evidências temporárias de execução, controles pessoais de progresso e
 instruções de agentes permanecem locais.
@@ -88,22 +88,34 @@ isso sem assumir que o problema lembrado existe nesta versão.
 - O modo de aliens serve de referência de regressão e será preservado. O modo de
   nave com propulsão e meteoros será adicionado separadamente, sem tratar sua ausência
   atual como bug. Não vamos tentar simular propulsão por movimento lateral legado.
-- Engine em C++; gameplay e UI em Lua. Física, renderização, armazenamento e
+- Engine e jogo nativo em C++20; gameplay e UI em Lua. Física, renderização, armazenamento e
   bindings continuam nativos. Não é necessário um ECS de alta complexidade.
-- Dois editores pequenos, compartilhando uma base: autoria de UI e de entidades.
+- Ferramentas interativas de desenvolvedor em C#: editores de UI/entidades e
+  inspetor de data bundles com visualização do grafo de dependências. Compartilham
+  bibliotecas .NET; o preview reutiliza um processo nativo da engine.
   Não fazem parte desta entrega um editor de mundo completo, IDE Lua, multiplayer,
   engine 3D, física de corpos complexos ou port para outros sistemas.
 - Autoria de layout em XML; comportamento em Lua. Entidades e cenas também terão
-  descrição versionada, usando XML inicialmente para compartilhar o pipeline.
+  descrição versionada, usando XML dentro de data bundles de autoria.
+- Todos os dados persistidos do projeto pertencem a data bundles versionados;
+  XML, Lua, sprites, cenas e metadados têm identidade e dependências no manifesto.
+  Bundles de autoria são editáveis/diffáveis; bundles cooked são binários.
 - Release consome descritores compilados a partir de C++ gerado, sem parser XML.
-  Lua continua sendo script e será empacotado separadamente com seus módulos.
+  Lua continua sendo script, armazenado como registros de script no bundle cooked.
+- Ferramentas de pipeline, validação, cooking e geração podem ser C++ ou Python.
+  A versão de Python será fixada quando escolhida, sem restrição prévia a 3.10.
+- Conteúdo do repositório em inglês: código, comentários, mensagens, ferramentas,
+  documentação e PRs. Este plano pode permanecer em português por exceção explícita;
+  seus nomes de arquivos futuros e contratos de API continuam em inglês.
 - Ferramentas, testes e fixtures úteis a qualquer desenvolvedor são versionados.
   Helpers exclusivos de agente, screenshots de conferência e logs pessoais não são.
 
-São decisões iniciais revisáveis: console como backend, C++17 como ponto de partida,
-XML também para entidades e um único módulo nativo de Lua. Versões e dependências
+São decisões iniciais revisáveis: console como backend do jogo, XML também para
+entidades e um único módulo nativo de Lua. C++20, C# para ferramentas interativas e
+Lua para scripting são restrições do projeto. Versões e dependências
 serão escolhidas e fixadas nas tarefas específicas, verificando documentação oficial,
-licença e compatibilidade. Nenhuma troca de stack é pré-requisito para este plano.
+licença e compatibilidade. O build deve permitir trabalhar em um projeto isolado;
+Bazel é uma opção a avaliar, não uma migração aprovada.
 
 ## 3. Arquitetura pretendida
 
@@ -118,13 +130,20 @@ SpaceRaiders (executável)
        -> raiders_assets_cooked (C++ gerado; registros e descritores)
   + raiders_console -> contratos de plataforma/render/input
 
-raiders_asset_model (schema/IR comum, sem XML)
+raiders_asset_model (schema/IR comum, sem XML; C++20)
   <- raiders_assets_cooked e runtime
   <- raiders_authoring (importação/exportação XML, apenas ferramentas)
        <- raiders_assetc (validação/cooking/geração de C++)
-       <- raiders_editor_common
-            <- RaidersUIEditor
-            <- RaidersEntityEditor
+
+Raiders.Tools.Contracts / Raiders.Tools.Common (.NET/C#)
+  <- Raiders.UIEditor (.NET/C#)
+  <- Raiders.EntityEditor (.NET/C#)
+  <- Raiders.BundleInspector (.NET/C#, grafo de dependencias)
+  -> assetc por CLI + DTO/schema; sem depender da ABI interna de C++
+  -> RaidersPreviewHost (processo C++20, protocolo IPC versionado)
+
+data bundles de autoria -> assetc -> C++ gerado + data bundles cooked
+                                      -> jogo e preview nativo
 ```
 
 As setas indicam dependência, não ordem de link literal. A engine nunca inclui
@@ -137,6 +156,37 @@ chegue explicitamente ao executável, sem depender da extração de um símbolo 
 uma biblioteca estática. A biblioteca do jogo fornece `CreateApplication` por
 contrato público; não fornece outro `main`. Um teste com uma segunda aplicação
 mínima comprova que o entry point não está amarrado ao Space Raiders.
+
+As aplicações C# têm entry point e event loop próprios de desktop; não herdam a
+Application C++ da engine. O host de preview nativo usa essa Application e expõe
+um protocolo local de comandos/eventos, com versão, limites e cancelamento. O
+frontend C# nunca precisa portar física, renderer ou VM Lua para simular o jogo.
+
+### Build do monorepo e trabalho por projeto
+
+CMake gera o build nativo e permite escolher targets; .NET/MSBuild compila projetos
+C# e permite solutions/filtros por ferramenta. Bazel pode substituir a orquestração
+por um grafo de targets multilinguagem; não é uma dependência obrigatória de CMake.
+Combinar ambos é possível em fronteiras de dependências, mas manter dois grafos
+completos equivalentes criaria manutenção desnecessária.
+
+Premissa para iniciar: CMake para C++20; SDK .NET/MSBuild para C#; CLI Python
+pequena de uso geral para comandos de monorepo. Avaliar Bazel antes de consolidar
+essa orquestração, com um recorte de C++ + C# + geração. Escolher por isolamento
+de projetos, IDE/debug, NuGet, incrementalidade, dependências geradas, Windows,
+cache e custo de manutenção. Não migrar neste PR de planejamento.
+
+Cada projeto deve ser editável e compilável com suas dependências reais, sem
+construir os demais editores. Prever presets nativos, `.csproj`, uma solution .NET
+e filtros por ferramenta; CMake não gerará os projetos C# do SDK .NET. O CI invoca
+as mesmas entradas usadas por desenvolvedores. Fixar SDKs/dependências em arquivos
+compartilhados, sem exigir toolchains gerenciadas para quem só compila a engine.
+
+Referências oficiais consultadas para esta avaliação (24/10/2026):
+[targets de CMake](https://cmake.org/cmake/help/latest/manual/cmake.1.html#build-a-project),
+[build de projetos .NET](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build),
+[solution filters](https://learn.microsoft.com/en-us/visualstudio/msbuild/solution-filters),
+[modelo de build do Bazel](https://bazel.build/about/intro).
 
 ### Application e execução
 
@@ -162,7 +212,8 @@ callbacks não invalidam a iteração corrente. Pausa não acumula backlog de f�
 - Broad phase simples primeiro, medida antes de otimização. Projéteis precisam de
   consulta de trajetória/sweep, não apenas igualdade de célula no destino.
 - Comandos de desenho carregam layer, ordem e desempate estável. Ordem inicial:
-  background, gameplay, efeitos, UI e overlay do editor. HUD não é parte do renderer.
+  background, gameplay, efeitos e UI. Overlays de autoria ficam no frontend C#;
+  preview pode receber comandos de diagnóstico. HUD não é parte do renderer.
 - Sprites em grade e coordenadas de tela/mundo têm conversão definida; escala,
   clipping e hit testing dos editores usam a mesma convenção.
 
@@ -181,8 +232,8 @@ parte gerada, preservando byte a byte o bloco customizado. Arquivo sem marcadore
 válidos não será sobrescrito; a ferramenta informa o conflito. Renomear widgets
 preserva IDs; remover widgets produz diagnóstico para bindings obsoletos.
 
-Scripts de UI ficam em `assets/ui/scripts/`; scripts de gameplay em
-`assets/gameplay/scripts/`. Ambas as árvores são mantidas no pacote Lua para que
+Scripts de UI ficam em `assets/ui.bundle/scripts/`; scripts de gameplay em
+`assets/gameplay.bundle/scripts/`. Ambas as árvores são preservadas como namespaces de registros nos bundles para que
 `require` e resolução de módulos tenham regras previsíveis. Handlers de UI só
 enxergam gameplay por comandos/eventos públicos. Animações simples trabalham com
 propriedades permitidas, easing e duração; não são uma ferramenta de timeline geral.
@@ -190,16 +241,41 @@ propriedades permitidas, easing e duração; não são uma ferramenta de timelin
 ### Assets, cooking e packaging
 
 ```text
-XML de autoria -> parse/validação -> IR versionada -> C++ determinístico
-                                                    -> compilação -> binário
-Lua de autoria/gerado -> validação de módulos/bindings -------------> pacote Lua
+Authoring bundle (manifest + XML + Lua) -> validation -> versioned IR
+  -> generated C++ descriptors/bindings -> compiler -> executable
+  -> cooked .rdb (payloads + Lua source + dependency index) -> runtime/inspector
 ```
+
+Todos os dados autorados são persistidos em data bundles. Premissa inicial: bundle
+de autoria é um diretório `*.bundle/` com `manifest.json`, IDs, versões, hashes e
+referências. XML e Lua são membros editáveis; nenhum XML isolado é asset sem
+registro no bundle. Esse formato diffável será fechado em R01.
+
+Bundle cooked é um container binário `.rdb`, com header versionado, índice de
+registros tipados, offsets/tamanhos, hashes e referências entre assets/bundles.
+Não persistir ponteiros/padding/estruturas C++ cruas. Lua permanece fonte Lua em
+registros do bundle, sem tradução para código nativo ou bytecode obrigatório.
 
 IR é o modelo intermediário comum. Importadores XML só existem nos targets de
 autoria. O runtime instancia descritores compilados usando registradores de
 componentes e scripts, com IDs estáveis e versão de schema/binding. C++ gerado é
 dado declarativo e registros, sem copiar comportamento Lua para C++ e sem injetar
 texto XML como código arbitrário. Strings e identificadores passam por escaping.
+
+C++ gerado e bundle cooked derivam da mesma IR. Descritores compilados referenciam
+payloads por ID; não há duas fontes de autoria. Build/catalog ID e hashes impedem
+misturar executável e bundles de gerações incompatíveis. Alterar somente Lua não
+recompila C++ quando o contrato de binding permanece igual.
+
+O loader valida versões, limites, offsets, checksums e dependências antes de expor
+dados. Handles/pinning protegem registros em uso durante unload; scripts/cenas não
+guardam ponteiros para memória desmontada. Sem fallback Shipping para XML.
+
+Editores/inspetor em C# acessam serviços de autoria/cooking por protocolo CLI/IPC
+versionado e schemas/DTOs; não portam parser e cooker para outra implementação.
+Inspeção mostra referências diretas/transitivas e reversas ('quem usa?'), tipos,
+tamanhos e origem. Hierarquias cíclicas são inválidas; referências mútuas permitidas
+pelo schema são agrupadas no grafo, sem declarar todo ciclo um erro.
 
 Geração usa uma ferramenta host, manifesta todas as dependências, escreve em
 `build/.../generated/` e substitui saídas atomicamente somente se o conteúdo mudou.
@@ -209,26 +285,33 @@ descarte descritores não referenciados. Arquivos gerados não são versionados.
 
 Development pode carregar XML por serviço de autoria para preview; também precisa
 executar os assets cooked para comparar os dois caminhos. Shipping nunca depende
-de XML, diretórios de fontes ou do editor. Um manifesto informa hashes, versões e
+de XML, diretórios de fontes ou do editor. Recebe bundles cooked, não Lua solto.
+Manifests e membros autorados são versionados; bundles cooked e C++ gerado não são.
+Um manifesto informa hashes, versões e
 dependências dos assets e scripts. Cooking falha antes de compilar se algo faltar.
 
 ### Estrutura de destino, criada aos poucos
 
 ```text
-engine/{core,runtime,platform/console,render,physics,ui,scripting}/
+engine/{core,runtime,platform/console,render,physics,ui,scripting,assets}/
 game/{include,src}/
-apps/                         # composição de executáveis; main pertence à engine
-tools/{assetc,authoring,editor_common,ui_editor,entity_editor}/
-assets/ui/{layouts,scripts}/
-assets/gameplay/{entities,scenes,sprites,scripts}/
-tests/{core,runtime,game,physics,ui,scripting,assets,tools,integration,fixtures}/
+apps/preview_host/             # C++20 preview process; no editor UI
+tools/{assetc,authoring,pipeline}/  # C++20/Python pipeline tools
+tools/dotnet/{Raiders.Tools.Contracts,Raiders.Tools.Common}/
+tools/dotnet/{Raiders.UIEditor,Raiders.EntityEditor,Raiders.BundleInspector}/
+assets/ui.bundle/{manifest.json,layouts/,scripts/}
+assets/gameplay.bundle/{manifest.json,entities/,scenes/,sprites/,scripts/}
+tests/{core,runtime,game,physics,ui,scripting,assets,pipeline,integration,fixtures}/
+tests/dotnet/
+schemas/
 cmake/
 docs/
 .github/workflows/
 ```
 
-Cada biblioteca usa `include/` para sua API pública e `src/` para implementação
-quando necessário. Não criar essa árvore vazia nem mover todos os arquivos num PR.
+Bibliotecas nativas usam `include/` e `src/`; projetos C# usam `.csproj`/namespaces.
+Os manifests de bundle contam no orçamento de arquivos de cada PR que adiciona
+assets. Não criar essa árvore vazia nem mover todos os arquivos num PR.
 
 ## 4. Contrato de execução do plano
 
@@ -255,6 +338,8 @@ submetíveis e mensagem de commit sugerida. Não fazer commit automaticamente.
 `AGENTS.md` e outros arquivos exclusivos do ambiente ficam em exclusões locais.
 
 As seções são agrupamentos de leitura. Dependências por ID determinam a ordem.
+As ferramentas de pipeline têm paths C++ como hipótese inicial; escolher Python
+para alguma delas exige atualizar paths, mantendo contratos, testes e orçamento.
 Sem duração artificial: estimativas de tempo ficam para depois dos primeiros PRs.
 
 ## 5. Backlog de PRs pequenos
@@ -262,7 +347,7 @@ Sem duração artificial: estimativas de tempo ficam para depois dos primeiros P
 ### A. Base reproduzível e proteção do legado
 
 **A01 - Documentar o comportamento de referência.** Depende: nenhum.
-Arquivos (2): `README.md`, `docs/jogo-legado.md`.
+Arquivos (2): `README.md`, `docs/legacy-game.md`.
 Entrega: reproduzir build e execução existentes, registrar controles, modos,
 seed, regras do PDF e diferenças conhecidas. Separar bug de comportamento desejado.
 Aceite: um desenvolvedor identifica como iniciar e encerrar os três modos; não
@@ -279,15 +364,15 @@ Arquivos (5): os 5 caminhos atualmente versionados em `CMakeFiles/`.
 Entrega: retirar metadados gerados do repositório. Aceite: checkout limpo pode ser
 configurado sem os caminhos antigos de Qt/MinGW e sem apagar arquivos do usuário.
 
-**A04 - Corrigir a configuração mínima de build.** Depende: A01.
+**A04 - Corrigir build e adotar C++20.** Depende: A01, Q01.
 Arquivos (4): `CMakeLists.txt`, `CMakePresets.json`, `CMakeSettings.json`, `README.md`.
-Entrega: flags por target/compilador, Debug/Release reais, C++17 explícito e builds
+Entrega: flags por target/compilador, Debug/Release reais, C++20 explícito e builds
 fora da árvore de fontes. Aceite: configurar e compilar nas duas configurações;
 registrar toolchain suportada e remover a configuração de IDE redundante.
 
 **A05 - Introduzir testes e job obrigatório mínimo.** Depende: A04.
 Arquivos (5): `CMakeLists.txt`, `tests/CMakeLists.txt`, `tests/core/vector_tests.cpp`,
-`.github/workflows/ci.yml`, `docs/desenvolvimento.md`.
+`.github/workflows/ci.yml`, `docs/development.md`.
 Entrega: CTest com teste útil de coordenadas; build Windows e agregador de status.
 Aceite: checkout limpo compila/testa em CI; falha de compilação bloqueia o gate.
 
@@ -497,7 +582,7 @@ em callback não deixa contato pendurado; penetração é resolvida em ordem def
 **E04 - Consulta contínua para projéteis.** Depende: E03.
 Arquivos (4): `engine/physics/include/raiders/PhysicsWorld.h`,
 `engine/physics/src/PhysicsWorld.cpp`, `tests/physics/projectile_tests.cpp`,
-`docs/fisica.md`.
+`docs/physics.md`.
 Aceite: projétil que cruza alvo entre ticks acerta o primeiro contato; empate,
 spawn sobreposto e limite de consultas têm tratamento explícito.
 
@@ -537,7 +622,8 @@ Arquivos (6): `tools/authoring/include/UiXml.h`, `tools/authoring/src/UiXml.cpp`
 `tools/authoring/{include/AssetGraph.h,src/AssetGraph.cpp}`,
 `tools/authoring/CMakeLists.txt`, `tests/assets/asset_graph_tests.cpp`.
 Aceite: round-trip UI e resolução relativa à raiz de assets; caminhos que escapam
-da raiz, diferenças de case e ciclos de assets têm erro determinístico.
+da raiz e diferenças de case têm erro; ciclos de ownership são rejeitados e
+referências mútuas permitidas pelo schema são representadas no grafo.
 
 **F06 - CLI de validação de assets.** Depende: F05.
 Arquivos (5): `tools/assetc/{CMakeLists.txt,src/main.cpp}`,
@@ -697,7 +783,7 @@ Entrega: representações C++ de entidades/UI/cenas, tipos de componente e vers�
 binding, sem dependência do parser. Aceite: tipo/propriedade desconhecida falha com
 diagnóstico; ordem de registro não muda IDs persistidos.
 
-**I02 - Gerar C++ de entidades.** Depende: I01, F06.
+**I02 - Gerar C++ de entidades.** Depende: I01, F06, R02.
 Arquivos (6): `tools/assetc/{include/CppEmitter.h,src/CppEmitter.cpp}`,
 `tools/assetc/src/main.cpp`, `tools/assetc/CMakeLists.txt`,
 `tests/assets/entity_codegen_tests.cpp`, `tests/fixtures/codegen_entity.xml`.
@@ -720,7 +806,7 @@ Entrega: buffers de células, instâncias, overrides e referências estáveis no
 catálogo gerado. Aceite: saídas compilam, não contêm caminhos da máquina e
 reconstituem a mesma cena/sprite; nenhuma fonte XML é necessária na instanciação.
 
-**I05 - Manifesto e grafo incremental de cooking.** Depende: I04, F05.
+**I05 - Manifesto e grafo incremental de cooking.** Depende: I04, F05, R04.
 Arquivos (6): `tools/assetc/{include/CookManifest.h,src/CookManifest.cpp}`,
 `tools/assetc/src/main.cpp`, `tools/assetc/CMakeLists.txt`,
 `tests/assets/incremental_cook_tests.cpp`, `docs/assets.md`.
@@ -760,125 +846,142 @@ Entrega: registro central referenciado pelo executável e validação de versõe
 Aceite: Release com otimização mantém todos os assets necessários; schema/API
 incompatível falha cedo; não depende de ordem de inicializadores globais.
 
-### J. Base compartilhada dos editores
+### J. Base C# compartilhada das ferramentas
 
-**J01 - Definir interação mínima dos editores.** Depende: H04, D02, F05.
-Arquivos (2): `docs/editores.md`, `docs/formato-de-entidades.md`.
-Entrega: desenhar fluxos de abrir/criar/salvar, seleção, palette, inspector e preview
-no backend de console. Definir atalhos, grade, diretório do projeto e erros visíveis.
-Aceite: documentar como desenhar uma nave e montar uma tela sem editar XML à mão.
-Se a console não atender uma interação essencial, decidir outro frontend neste PR,
-preservando o modelo/serviços de autoria e reestimando somente os PRs de apresentação.
+**J01 - Definir UX desktop e fronteiras C#/C++.** Depende: F05, Q01, R01.
+Arquivos (3): `docs/editors.md`, `docs/entity-format.md`, `docs/tooling-protocol.md`.
+Entrega: escolher framework desktop .NET para Windows; canvas, árvore, inspector,
+documentos e protocolo de preview. Console continua backend do jogo.
+Aceite: desenhar nave, montar UI e inspecionar dependências são fluxos definidos;
+a ferramenta C# tem entry point/event loop próprios, sem herdar Application C++.
 
-**J02 - Shell de ferramenta e documentos.** Depende: J01, B07, F05.
-Arquivos (6): `tools/editor_common/{CMakeLists.txt,include/EditorApplication.h,
-src/EditorApplication.cpp,include/Document.h,src/Document.cpp}`, `CMakeLists.txt`.
-Entrega: mesma Application da engine, documento ativo, dirty state e serviço de
-paths. Aceite: abrir arquivo inválido preserva documento anterior; fechar com
-alterações oferece salvar/descartar/cancelar.
+**J02 - Shell C# e documentos de bundle.** Depende: J01, Q02, R02.
+Arquivos (7): `tools/dotnet/Raiders.Tools.Common/{Raiders.Tools.Common.csproj,
+EditorDocument.cs,DocumentService.cs,ToolShell.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/{Raiders.Tools.Tests.csproj,DocumentTests.cs}`,
+`Raiders.Tools.sln`.
+Entrega: abrir/criar documento e dirty state. Aceite: bundle inválido preserva
+documento anterior; fechar permite salvar/descartar/cancelar; engine não precisa
+de .NET para compilar. Arquivos extras do framework entram em sub-PR se necessário.
 
-**J03 - Comandos de edição e undo/redo.** Depende: J02.
-Arquivos (5): `tools/editor_common/{include/CommandHistory.h,src/CommandHistory.cpp}`,
-`tools/editor_common/src/Document.cpp`, `tools/editor_common/CMakeLists.txt`,
-`tests/tools/undo_tests.cpp`.
-Aceite: desfazer/refazer preserva IDs; uma interação de drag é uma operação;
-dirty state volta ao ponto salvo; erro de comando não corrompe histórico.
+**J03 - Undo/redo em C#.** Depende: J02.
+Arquivos (4): `tools/dotnet/Raiders.Tools.Common/{CommandHistory.cs,
+EditorCommand.cs,EditorDocument.cs}`, `tests/dotnet/Raiders.Tools.Tests/UndoTests.cs`.
+Aceite: drag é operação única, IDs são preservados e dirty state volta ao ponto salvo.
 
-**J04 - Seleção, viewport e inspector comum.** Depende: J03, H03.
-Arquivos (6): `tools/editor_common/{include/Selection.h,src/Selection.cpp,
-include/Inspector.h,src/Inspector.cpp}`, `tools/editor_common/CMakeLists.txt`,
-`tests/tools/selection_tests.cpp`.
-Aceite: seleção acompanha undo/deleção; inspector valida tipos/faixas e converte
-coordenadas corretamente; valores inválidos não chegam ao documento.
+**J04 - Seleção e inspector compartilhados em C#.** Depende: J03.
+Arquivos (5): `tools/dotnet/Raiders.Tools.Common/{SelectionService.cs,
+PropertyInspector.cs,CanvasTransform.cs,ComponentSchemaClient.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/SelectionTests.cs`.
+Aceite: inspector consome schema do pipeline, valida tipos/faixas e converte
+coordenadas sem depender da implementação Win32 do jogo.
 
-**J05 - Salvar, recuperar e tratar conflitos.** Depende: J04, F03.
-Arquivos (5): `tools/editor_common/{include/DocumentIO.h,src/DocumentIO.cpp}`,
-`tools/editor_common/CMakeLists.txt`, `tests/tools/document_io_tests.cpp`,
-`docs/editores.md`.
-Entrega: escrita temporária+substituição, backup local e detecção de arquivo
-modificado fora do editor. Aceite: falha de disco não destrói original; conflito
-não sobrescreve conteúdo externo silenciosamente; backups não entram no pacote.
+**J05 - Save e recuperação de bundle.** Depende: J04, R02.
+Arquivos (5): `tools/dotnet/Raiders.Tools.Common/{BundleDocumentStore.cs,
+RecoveryJournal.cs,ExternalChangeDetector.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/DocumentSaveTests.cs`, `docs/editors.md`.
+Entrega: transação de autoria com journal para membros/manifest. Aceite: falha
+não destrói original; alteração externa gera conflito; backups não viram assets.
 
-### K. Editor de UI e geração segura de Lua
+**J06 - Protocolo de tooling e cliente CLI C#.** Depende: J02, R03.
+Arquivos (6): `schemas/tooling-protocol.schema.json`,
+`tools/dotnet/Raiders.Tools.Contracts/{Raiders.Tools.Contracts.csproj,AssetDtos.cs}`,
+`tools/dotnet/Raiders.Tools.Common/PipelineClient.cs`,
+`tests/dotnet/Raiders.Tools.Tests/PipelineClientTests.cs`, `docs/tooling-protocol.md`.
+Entrega: schema/DTOs, versão, request IDs, stdout estruturado, stderr diagnóstico,
+cancelamento e limites. Aceite: versões incompatíveis/falha de processo são claras;
+paths são argumentos, não comandos concatenados.
 
-**K01 - Executável do editor e palette de widgets.** Depende: J05, H07.
-Arquivos (6): `tools/ui_editor/{CMakeLists.txt,include/UiEditorApplication.h,
-src/UiEditorApplication.cpp,src/UiPalette.cpp}`, `CMakeLists.txt`,
-`tests/tools/ui_document_tests.cpp`.
-Entrega: criar/abrir tela, adicionar painel/texto/botão e salvar XML.
-Aceite: reabrir mantém árvore/IDs e preview usa o mesmo layout do jogo.
+**J07 - Host nativo de preview.** Depende: J06, I09, G09, R06.
+Arquivos (6): `apps/preview_host/{CMakeLists.txt,PreviewApplication.cpp,
+PreviewProtocol.h,PreviewProtocol.cpp}`, `CMakeLists.txt`,
+`tests/integration/preview_host_tests.cpp`.
+Entrega: processo C++20 com a Application da engine, sem UI de editor, para montar
+bundle, iniciar/pausar/resetar preview. Aceite: falha Lua não encerra frontend;
+IPC tem versão/timeouts; reset invalida handles. Sem reimplementar física/Lua em C#.
 
-**K02 - Edição visual de layout.** Depende: K01.
-Arquivos (5): `tools/ui_editor/{include/UiCanvas.h,src/UiCanvas.cpp,
-src/UiEditorApplication.cpp}`, `tools/ui_editor/CMakeLists.txt`,
-`tests/tools/ui_layout_edit_tests.cpp`.
-Entrega: selecionar, mover, redimensionar, reparent, ordem e anchors com undo.
-Aceite: resize/drag afetam XML esperado; não introduzem ciclo; preview respeita layers.
+**J08 - Cliente C# de preview.** Depende: J07.
+Arquivos (5): `tools/dotnet/Raiders.Tools.Common/{PreviewClient.cs,
+PreviewSession.cs,PreviewSurface.cs}`, `tests/dotnet/Raiders.Tools.Tests/PreviewTests.cs`,
+`docs/editors.md`.
+Entrega: gerenciar processo/input/frames; preview de console pode ser uma grade
+de células do host num canvas C#. Aceite: cancelamento/shutdown não deixam processo
+órfão; backpressure impede bloquear a UI; estado executado não modifica autoria.
 
-**K03 - Gerador de cabeçalho Lua e bloco customizado.** Depende: K01, G08.
+### K. Editor C# de UI e geração segura de Lua
+
+**K01 - Aplicação C# e palette de widgets.** Depende: J05, J06, H07.
+Arquivos (6): `tools/dotnet/Raiders.UIEditor/{Raiders.UIEditor.csproj,Program.cs,
+UiEditorDocument.cs,WidgetPalette.cs}`, `Raiders.Tools.sln`,
+`tests/dotnet/Raiders.Tools.Tests/UiDocumentTests.cs`.
+Entrega: criar/abrir bundle/tela, adicionar painel/texto/botão e salvar XML membro.
+Aceite: IDs persistem; build do editor não exige compilar os demais editores.
+
+**K02 - Canvas de layout em C#.** Depende: K01, J04.
+Arquivos (5): `tools/dotnet/Raiders.UIEditor/{UiCanvas.cs,LayoutCommands.cs,
+WidgetTree.cs,UiEditorDocument.cs}`, `tests/dotnet/Raiders.Tools.Tests/UiLayoutEditTests.cs`.
+Aceite: drag/resize/reparent/ordem/anchors com undo; preview usa layout da engine,
+sem depender de uma segunda implementação C# para comprovar fidelidade.
+
+**K03 - Cabeçalho Lua com preservação de custom code.** Depende: K01, G08, R02.
 Arquivos (6): `tools/authoring/{include/UiLuaGenerator.h,src/UiLuaGenerator.cpp}`,
-`tools/authoring/CMakeLists.txt`, `tests/tools/ui_lua_generation_tests.cpp`,
+`tools/authoring/CMakeLists.txt`, `tests/pipeline/ui_lua_generation_tests.cpp`,
 `tests/fixtures/ui_custom.lua`, `docs/scripting.md`.
-Entrega: versão do gerador, referências de widgets por ID e bloco custom no final.
-Aceite: regeneração repetida é idempotente e preserva bytes customizados, incluindo
-comentários/Unicode; marcador ausente/duplicado tem conflito, não perda de código.
+Entrega: gerador de pipeline C++ ou Python invocado pelo editor C#.
+Aceite: versão, referências por ID e bloco custom final; regeneração idempotente
+preserva bytes do bloco, comentários/Unicode; marcadores inválidos impedem sobrescrita.
 
-**K04 - Salvar XML e Lua como conjunto consistente.** Depende: K02, K03, J05.
-Arquivos (5): `tools/ui_editor/src/UiEditorApplication.cpp`,
-`tools/authoring/src/UiLuaGenerator.cpp`, `tools/editor_common/src/DocumentIO.cpp`,
-`tests/tools/ui_save_tests.cpp`, `docs/editores.md`.
-Entrega: preparar/validar ambos antes de publicar; journal/backup recupera falha
-entre substituições de dois arquivos, pois rename isolado não é transação multi-file.
-Aceite: criar gera Lua; renomear widget mantém ID; falha no segundo arquivo pode ser
-recuperada; custom code não some em rename/deleção de widget.
+**K04 - Save coordenado XML/Lua/manifest.** Depende: K02, K03, J05.
+Arquivos (5): `tools/dotnet/Raiders.UIEditor/UiEditorDocument.cs`,
+`tools/authoring/src/UiLuaGenerator.cpp`,
+`tools/dotnet/Raiders.Tools.Common/BundleDocumentStore.cs`,
+`tests/dotnet/Raiders.Tools.Tests/UiSaveTests.cs`, `docs/editors.md`.
+Aceite: criar tela gera Lua membro; rename mantém ID e custom code; journal
+recupera falha entre arquivos e mantém manifesto coerente com todos os membros.
 
-**K05 - Handlers e preview de comportamento.** Depende: K04, H06, G09.
-Arquivos (5): `tools/ui_editor/{include/UiPreview.h,src/UiPreview.cpp,
-src/UiEditorApplication.cpp}`, `tools/ui_editor/CMakeLists.txt`,
-`tests/tools/ui_preview_tests.cpp`.
-Entrega: vincular handlers no inspector, testar clique/tween e recarregar script.
-Aceite: preview roda numa instância isolada; parar descarta estado de execução e
-mantém documento de autoria; erro de Lua aparece no editor com localização.
+**K05 - Handlers e preview de UI.** Depende: K04, H06, J08.
+Arquivos (4): `tools/dotnet/Raiders.UIEditor/{UiPreviewController.cs,
+EventBindingInspector.cs,UiEditorDocument.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/UiPreviewTests.cs`.
+Aceite: clique/tween/script rodam no host nativo; parar descarta estado de execução;
+erro tem asset/callback/linha e não perde o documento.
 
-### L. Editor de entidades e desenho de sprites
+### L. Editor C# de entidades e sprites
 
-**L01 - Executável e composição de entidades.** Depende: J05, I07.
-Arquivos (6): `tools/entity_editor/{CMakeLists.txt,include/EntityEditorApplication.h,
-src/EntityEditorApplication.cpp,src/ComponentInspector.cpp}`, `CMakeLists.txt`,
-`tests/tools/entity_document_tests.cpp`.
-Entrega: criar entidade, Transform, Sprite e salvar/reabrir XML.
-Aceite: registry fornece schema ao inspector; editor não duplica regras de defaults.
+**L01 - Aplicação C# e composição de entidades.** Depende: J05, J06, I07.
+Arquivos (6): `tools/dotnet/Raiders.EntityEditor/{Raiders.EntityEditor.csproj,
+Program.cs,EntityEditorDocument.cs,ComponentInspector.cs}`, `Raiders.Tools.sln`,
+`tests/dotnet/Raiders.Tools.Tests/EntityDocumentTests.cs`.
+Aceite: criar Transform/Sprite e salvar/reabrir XML membro de bundle; registry
+fornece defaults/constraints ao editor por schema, sem link da ABI C++.
 
-**L02 - Pintura de sprite em grade.** Depende: L01, D02.
-Arquivos (5): `tools/entity_editor/{include/SpriteCanvas.h,src/SpriteCanvas.cpp,
-src/EntityEditorApplication.cpp}`, `tools/entity_editor/CMakeLists.txt`,
-`tests/tools/sprite_edit_tests.cpp`.
-Entrega: desenhar/apagar células, escolher símbolo/cor/origem e salvar sprite
-serializado referenciado pela entidade. Aceite: undo de pintura e clipping; sprite
-salvo aparece igual no runtime; modificar dimensão não corrompe arquivo anterior.
+**L02 - Pintura de sprites em canvas C#.** Depende: L01, F07.
+Arquivos (5): `tools/dotnet/Raiders.EntityEditor/{SpriteCanvas.cs,SpriteCommands.cs,
+SpritePalette.cs,EntityEditorDocument.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/SpriteEditTests.cs`.
+Aceite: pintar/apagar/resize/símbolo/cor/origem com undo; sprite é registro do bundle
+e aparece igualmente no preview nativo; falha no save preserva original.
 
-**L03 - Componentes de física, tiro e script.** Depende: L02, G05, M01.
-Arquivos (5): `tools/entity_editor/src/ComponentInspector.cpp`,
-`tools/entity_editor/src/EntityEditorApplication.cpp`,
-`tools/authoring/src/EntityXml.cpp`, `tests/tools/component_authoring_tests.cpp`,
-`docs/formato-de-entidades.md`.
-Entrega: parâmetros de corpo/collider, referência de Lua e componente de tiro
-registrado pelo jogo, não codificado na engine. Aceite: editor lista extensões do
-projeto por metadados; conflito/componente obrigatório ausente aparece antes do save.
+**L03 - Inspector de física, tiro e script.** Depende: L02, G05, M01.
+Arquivos (5): `tools/dotnet/Raiders.EntityEditor/{ComponentInspector.cs,
+EntityEditorDocument.cs}`, `tools/authoring/src/EntityXml.cpp`,
+`tests/dotnet/Raiders.Tools.Tests/ComponentAuthoringTests.cs`, `docs/entity-format.md`.
+Aceite: extensões do jogo vêm de metadados/protocolo; Weapon não vira tipo fixo
+da engine nem exige linkar o frontend C# à biblioteca nativa do jogo.
 
-**L04 - Preview isolado de entidade.** Depende: L03, I09, G09.
-Arquivos (5): `tools/entity_editor/{include/EntityPreview.h,src/EntityPreview.cpp,
-src/EntityEditorApplication.cpp}`, `tools/entity_editor/CMakeLists.txt`,
-`tests/tools/entity_preview_tests.cpp`.
-Aceite: rodar/pausar/resetar nave ou meteoro com física e Lua; alterações de preview
-não escrevem de volta no documento; handle de preview não sobrevive ao reset.
+**L04 - Preview isolado de entidade.** Depende: L03, J08.
+Arquivos (4): `tools/dotnet/Raiders.EntityEditor/{EntityPreviewController.cs,
+PreviewInspector.cs,EntityEditorDocument.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/EntityPreviewTests.cs`.
+Aceite: run/pause/reset usa física/Lua do host, sem gravar de volta mudanças da
+simulação no documento de autoria.
 
-**L05 - Referências, duplicação e remoção de assets.** Depende: L04, K05, F05.
-Arquivos (6): `tools/editor_common/{include/AssetBrowser.h,src/AssetBrowser.cpp}`,
-`tools/editor_common/CMakeLists.txt`, `tools/authoring/src/AssetGraph.cpp`,
-`tests/tools/asset_reference_tests.cpp`, `docs/editores.md`.
-Aceite: duplicar cria novos IDs, rename mantém referências, remover asset usado
-avisa e permite cancelar; validação continua sendo a mesma do assetc.
+**L05 - Browser de assets e referências.** Depende: L04, K05, R03.
+Arquivos (5): `tools/dotnet/Raiders.Tools.Common/{AssetBrowser.cs,AssetReferenceService.cs}`,
+`tools/authoring/src/AssetGraph.cpp`,
+`tests/dotnet/Raiders.Tools.Tests/AssetReferenceTests.cs`, `docs/editors.md`.
+Aceite: duplicar gera IDs; rename preserva referências; remover membro/bundle
+usado lista consumidores e permite cancelar; abre seleção no inspetor de grafo.
 
 ### M. Migração do jogo para assets e Lua
 
@@ -890,42 +993,42 @@ Entrega: Health, Weapon, score e eventos registrados pelo jogo; bindings públic
 para UI. Aceite: engine não precisa conhecer tipos dessas regras.
 
 **M02 - Jogador legado e projétil autorados.** Depende: M01, L03.
-Arquivos (até 8): `assets/gameplay/entities/{legacy_player,player_laser}.xml`,
-`assets/gameplay/scripts/{legacy_player,projectile}.lua`, aplicação e adapter do
+Arquivos (até 8): `assets/gameplay.bundle/entities/{legacy_player,player_laser}.xml`,
+`assets/gameplay.bundle/scripts/{legacy_player,projectile}.lua`, aplicação e adapter do
 jogo, `game/CMakeLists.txt`, `tests/game/scripted_player_tests.cpp`.
 Aceite: factory cria jogador a partir de asset e script controla input/cadência;
 nenhum assembly C++ do jogador permanece no caminho migrado.
 
 **M03 - Aliens e sua evolução em Lua.** Depende: M02.
-Arquivos (até 8): `assets/gameplay/entities/{alien,alien_laser}.xml`,
-`assets/gameplay/scripts/alien.lua`, adapter/spawner em `game/`, header legado de
+Arquivos (até 8): `assets/gameplay.bundle/entities/{alien,alien_laser}.xml`,
+`assets/gameplay.bundle/scripts/alien.lua`, adapter/spawner em `game/`, header legado de
 alien, `game/CMakeLists.txt`, `tests/game/scripted_alien_tests.cpp`.
 Aceite: movimento, evolução, dano e pontuação correspondem às regras estabilizadas;
 remover classe antiga somente quando não houver consumidor.
 
 **M04 - Paredes, explosões e power-ups por assets.** Depende: M03.
-Arquivos (8): `assets/gameplay/entities/{wall,explosion,powerup}.xml`,
-`assets/gameplay/scripts/{wall,explosion,powerup}.lua`, adapter do jogo,
+Arquivos (8): `assets/gameplay.bundle/entities/{wall,explosion,powerup}.xml`,
+`assets/gameplay.bundle/scripts/{wall,explosion,powerup}.lua`, adapter do jogo,
 `tests/game/scripted_effects_tests.cpp`.
 Aceite: efeitos expiram, paredes absorvem hits, buffs expiram e drops preservam
 política definida; se exclusões legadas excederem orçamento, removê-las em M09.
 
 **M05 - Cena, ondas e modos legados em Lua.** Depende: M04.
-Arquivos (6): `assets/gameplay/scenes/legacy.xml`,
-`assets/gameplay/scripts/{legacy_scene,waves,legacy_modes}.lua`,
+Arquivos (6): `assets/gameplay.bundle/scenes/legacy.xml`,
+`assets/gameplay.bundle/scripts/{legacy_scene,waves,legacy_modes}.lua`,
 aplicação do jogo, `tests/game/scripted_modes_tests.cpp`.
 Aceite: uma nave por partida, seed/configuração injetável, ondas só quando cabem
 no modo; regra de término não depende do editor nem de classes C++ por personagem.
 
 **M06 - Menu inicial e seleção de modo em UI XML/Lua.** Depende: M05, K05.
-Arquivos (5): `assets/ui/layouts/main_menu.xml`, `assets/ui/scripts/main_menu.lua`,
+Arquivos (5): `assets/ui.bundle/layouts/main_menu.xml`, `assets/ui.bundle/scripts/main_menu.lua`,
 aplicação do jogo, `game/CMakeLists.txt`, `tests/game/menu_tests.cpp`.
 Aceite: teclas/botões iniciam modos via comando público; sem polling bloqueante
 ou referências UI -> detalhes internos do World.
 
 **M07 - HUD, pausa e game over em UI XML/Lua.** Depende: M06.
-Arquivos (8): `assets/ui/layouts/{hud,pause,game_over}.xml`,
-`assets/ui/scripts/{hud,pause,game_over}.lua`, aplicação do jogo,
+Arquivos (8): `assets/ui.bundle/layouts/{hud,pause,game_over}.xml`,
+`assets/ui.bundle/scripts/{hud,pause,game_over}.lua`, aplicação do jogo,
 `tests/game/ui_flow_tests.cpp`.
 Aceite: score/tempo por eventos, pausa mantém estado, game over congela cena e
 mostra resultado, navegação não dispara input do jogo por baixo da UI.
@@ -951,38 +1054,38 @@ legados continua funcionando sem classes antigas nem shims de compatibilidade.
 ### N. Modo de nave com propulsão e meteoros
 
 **N01 - Especificar controles e regras do novo modo.** Depende: M01, E04.
-Arquivos (2): `docs/modo-meteoros.md`, `docs/jogo-legado.md`.
+Arquivos (2): `docs/meteor-mode.md`, `docs/legacy-game.md`.
 Entrega: definir orientação inicial, propulsão/reverso, eventual rotação, limites
 ou wrap, massa/damping, dano/vidas, score, tamanhos e limite de meteoros.
 Premissa: manter inércia e permitir frear com impulso oposto; não adicionar rotação
 como requisito silencioso. Aceite: tabela de ações e exemplos jogáveis sem ambiguidade.
 
 **N02 - Nave com propulsão e frenagem em Lua.** Depende: N01, M02, L04.
-Arquivos (5): `assets/gameplay/entities/ship.xml`,
-`assets/gameplay/sprites/ship.xml`, `assets/gameplay/scripts/ship.lua`,
-`tests/game/thrust_tests.cpp`, `docs/modo-meteoros.md`.
+Arquivos (5): `assets/gameplay.bundle/entities/ship.xml`,
+`assets/gameplay.bundle/sprites/ship.xml`, `assets/gameplay.bundle/scripts/ship.lua`,
+`tests/game/thrust_tests.cpp`, `docs/meteor-mode.md`.
 Aceite: acelera por força, mantém inércia e reduz velocidade com reverso, sem
 teletransportar Transform; desenho foi aberto e salvo pelo editor.
 
 **N03 - Tiro e colisão no modo de meteoros.** Depende: N02, E04.
-Arquivos (5): `assets/gameplay/entities/ship_projectile.xml`,
-`assets/gameplay/scripts/{ship,projectile}.lua`,
+Arquivos (5): `assets/gameplay.bundle/entities/ship_projectile.xml`,
+`assets/gameplay.bundle/scripts/{ship,projectile}.lua`,
 `game/src/GameplayComponents.cpp`, `tests/game/meteor_shooting_tests.cpp`.
 Aceite: tiro nasce à frente da nave, respeita cadência/vida útil e não atravessa
 meteoro; comportamento de owner/friendly fire está definido.
 
 **N04 - Meteoros por tamanho e fragmentação.** Depende: N03.
-Arquivos (8): `assets/gameplay/entities/{meteor_large,meteor_medium,meteor_small}.xml`,
-`assets/gameplay/sprites/{meteor_large,meteor_medium,meteor_small}.xml`,
-`assets/gameplay/scripts/meteor.lua`, `tests/game/fragmentation_tests.cpp`.
+Arquivos (8): `assets/gameplay.bundle/entities/{meteor_large,meteor_medium,meteor_small}.xml`,
+`assets/gameplay.bundle/sprites/{meteor_large,meteor_medium,meteor_small}.xml`,
+`assets/gameplay.bundle/scripts/meteor.lua`, `tests/game/fragmentation_tests.cpp`.
 Aceite: grande gera dois médios, médio dois pequenos, pequeno desaparece; ID
 destruído não pontua nem fragmenta duas vezes; filhos têm posições/velocidades
 definidas e não geram cadeia infinita no mesmo tick.
 
 **N05 - Spawner, cena e ciclo completo.** Depende: N04, M07.
-Arquivos (6): `assets/gameplay/scenes/meteors.xml`,
-`assets/gameplay/scripts/{meteor_spawner,meteor_mode}.lua`,
-`assets/ui/scripts/main_menu.lua`, `assets/ui/layouts/main_menu.xml`,
+Arquivos (6): `assets/gameplay.bundle/scenes/meteors.xml`,
+`assets/gameplay.bundle/scripts/{meteor_spawner,meteor_mode}.lua`,
+`assets/ui.bundle/scripts/main_menu.lua`, `assets/ui.bundle/layouts/main_menu.xml`,
 `tests/game/meteor_mode_tests.cpp`.
 Aceite: spawn evita jogador, limita população total inclusive fragmentos, usa RNG
 do mundo e permite iniciar, jogar, morrer/reiniciar e voltar ao menu.
@@ -993,8 +1096,8 @@ O CI mínimo nasce em A05; estes PRs o ampliam quando os respectivos módulos ex
 Não esperar o fim do produto para detectar erros de integração.
 
 **O01 - Classificação de impacto e gate único.** Depende: A05, B07.
-Arquivos (4): `.github/workflows/ci.yml`, `cmake/ClassifyChanges.cmake`,
-`tests/tools/ci_impact_tests.cmake`, `docs/ci.md`.
+Arquivos (4): `.github/workflows/ci.yml`, `tools/pipeline/classify_changes.py`,
+`tests/pipeline/test_ci_impact.py`, `docs/ci.md`.
 Entrega: um workflow de PR sempre iniciado; classificador produz flags por domínio;
 gate com `always()` aceita somente sucesso ou skip legitimado pelo plano de impacto.
 Aceite: docs-only é verde, falha/cancelamento de job necessário bloqueia gate;
@@ -1002,36 +1105,36 @@ evento sem diff conhecido executa conjunto completo por segurança operacional.
 
 **O02 - Jobs de runtime/jogo e matriz enxuta.** Depende: O01, B11.
 Arquivos (4): `.github/workflows/ci.yml`, `CMakePresets.json`,
-`tests/tools/ci_impact_tests.cmake`, `docs/ci.md`.
+`tests/pipeline/test_ci_impact.py`, `docs/ci.md`.
 Entrega: build/test Debug para PR; Release e segundo compilador conforme domínio
 ou integração/release, sem multiplicar todo job por toda configuração.
 Aceite: alteração em engine dispara consumidores afetados, não só unit tests locais.
 
-**O03 - Jobs seletivos de assets, Lua e editores.** Depende: O02, G08, I08, L04.
-Arquivos (4): `.github/workflows/ci.yml`, `cmake/ClassifyChanges.cmake`,
-`tests/tools/ci_impact_tests.cmake`, `docs/ci.md`.
-Entrega: jobs validate-assets, scripting e editors-tools com cache por versão de
-toolchain/dependência. Aceite: edição apenas de gameplay Lua não compila editores;
+**O03 - Jobs seletivos de assets, Lua e ferramentas C#.** Depende: O02, G08, I08, L04, S04, Q04.
+Arquivos (4): `.github/workflows/ci.yml`, `tools/pipeline/classify_changes.py`,
+`tests/pipeline/test_ci_impact.py`, `docs/ci.md`.
+Entrega: jobs validate-assets, scripting e build/test .NET por projeto, incluindo
+inspetor, com restore fixado e cache por SDK/toolchain/locks. Aceite: edição apenas de gameplay Lua não compila editores;
 schema/importador/binding compartilhado valida dependentes transitivos.
 
 **O04 - Checagens estáticas e diagnósticos de memória.** Depende: O02, C03.
-Arquivos (5): `.clang-format`, `cmake/Quality.cmake`, `CMakePresets.json`,
-`.github/workflows/ci.yml`, `docs/desenvolvimento.md`.
-Entrega: formatação por arquivos alterados e análise/sanitizer compatível com a
+Arquivos (6): `.clang-format`, `.editorconfig`, `cmake/Quality.cmake`,
+`CMakePresets.json`, `.github/workflows/ci.yml`, `docs/development.md`.
+Entrega: formatação C++/C# por arquivos alterados, analyzers .NET e análise/sanitizer compatível com a
 toolchain escolhida; warnings por target. Aceite: não aplicar reformat global no
 mesmo PR; adotar por lotes de até 8 fontes, em sub-PRs, se houver legado divergente.
 
 **O05 - Testes do fluxo real de autoria e distribuição.** Depende: O03, K05, L05, P03.
 Arquivos (6): `tests/integration/{ui_authoring_tests.cpp,entity_authoring_tests.cpp,
 packaged_game_tests.cmake}`, `tests/CMakeLists.txt`, `.github/workflows/ci.yml`,
-`docs/testes.md`.
+`docs/testing.md`.
 Aceite: criar/salvar/reabrir asset, customizar Lua, regenerar, cookar e iniciar
 pacote usando serviços reais dos editores; complementar com smoke manual da
 interação visual, sem fingir que teste de serialização valida toda a interface.
 
 **O06 - Desempenho medido e orçamento simples.** Depende: N05, P03.
 Arquivos (5): `tests/integration/performance_scenarios.cpp`,
-`tests/CMakeLists.txt`, `CMakePresets.json`, `docs/desempenho.md`,
+`tests/CMakeLists.txt`, `CMakePresets.json`, `docs/performance.md`,
 `.github/workflows/ci.yml`.
 Entrega: medir tick, apresentação, memória, startup e tamanho do pacote em cenários
 fixos; resultados temporários ficam como artefato CI/local, não no fonte.
@@ -1040,47 +1143,203 @@ sem teste de tempo frágil bloquear todo PR em runner compartilhado.
 
 ### P. Packaging e entrega
 
-**P01 - Perfis Development e Shipping.** Depende: I09, G08.
+**P01 - Perfis Development e Shipping.** Depende: I09, G08, R06.
 Arquivos (5): `CMakePresets.json`, `cmake/BuildProfiles.cmake`,
-`CMakeLists.txt`, `game/CMakeLists.txt`, `docs/distribuicao.md`.
+`CMakeLists.txt`, `game/CMakeLists.txt`, `docs/distribution.md`.
 Entrega: opções explícitas para ferramentas, preview XML, logs e reload; Shipping
 liga catálogo cooked e desliga parser/editores. Aceite: dependências do executável
 Shipping não incluem biblioteca XML nem binários de autoria.
 
 **P02 - Install e conteúdo do pacote.** Depende: P01, M07.
 Arquivos (5): `cmake/Install.cmake`, `CMakeLists.txt`, `game/CMakeLists.txt`,
-`tests/integration/install_tests.cmake`, `docs/distribuicao.md`.
-Entrega: executável, dependências nativas necessárias, Lua, manifesto e licenças;
-install de ferramentas opcional e separado. Aceite: lista permitida exclui XML,
+`tests/integration/install_tests.cmake`, `docs/distribution.md`.
+Entrega: executável, dependências nativas, bundles cooked com registros Lua,
+catálogo/manifesto e licenças;
+distribuição .NET das ferramentas é separada, em P07. Aceite: lista permitida exclui XML,
 fontes C++, caches, logs, backups, fixtures e arquivos exclusivos de agentes.
 
 **P03 - Smoke do pacote fora da árvore de fontes.** Depende: P02, N05.
 Arquivos (5): `tests/integration/package_smoke.cmake`, `tests/CMakeLists.txt`,
-aplicação do jogo, `cmake/Install.cmake`, `docs/distribuicao.md`.
+aplicação do jogo, `cmake/Install.cmake`, `docs/distribution.md`.
 Entrega: modo headless/bounded de uso geral para diagnóstico e CI, com script
 de cenário, seed e ticks explícitos. Aceite: pacote em diretório limpo roda ambos
-os modos sem XML/source tree; módulo Lua ausente falha com erro compreensível.
+os modos sem XML/source tree; registro Lua/bundle ausente ou de geração incompatível falha com erro claro.
 
 **P04 - Empacotamento versionado.** Depende: P03.
 Arquivos (4): `cmake/Packaging.cmake`, `CMakeLists.txt`,
-`tests/integration/package_content_tests.cmake`, `docs/distribuicao.md`.
+`tests/integration/package_content_tests.cmake`, `docs/distribution.md`.
 Entrega: archive de release com versão, manifesto/hash e avisos de dependências.
 Aceite: builds com mesmos inputs têm conteúdo lógico equivalente; timestamps,
 paths e metadados variáveis são controlados antes de prometer ZIP byte a byte idêntico.
 
-**P05 - Workflow de release.** Depende: P04, O03.
-Arquivos (3): `.github/workflows/release.yml`, `docs/distribuicao.md`,
-`tests/tools/ci_impact_tests.cmake`.
+**P05 - Workflow de release.** Depende: P04, O03, P07.
+Arquivos (3): `.github/workflows/release.yml`, `docs/distribution.md`,
+`tests/pipeline/test_ci_impact.py`.
 Entrega: build limpo, validação completa, cooking, testes e pacote em tag/manual.
 Aceite: falha impede publicação; PR não publica release; permissões de escrita
 restritas ao job de publicação. O ato de publicar segue autorização do mantenedor.
 
-**P06 - Guia de desenvolvimento e entrega final.** Depende: O05, O06, P05.
-Arquivos (até 6): `README.md`, `docs/{desenvolvimento,editores,scripting,
-assets,distribuicao}.md`.
+**P06 - Guia de desenvolvimento e entrega final.** Depende: O05, O06, P05, S06, R07, Q03.
+Arquivos (até 6): `README.md`, `docs/{development,editors,scripting,
+assets,distribution}.md`.
 Entrega: caminho completo de checkout a build, autoria, testes, cooking e pacote;
 troubleshooting real e limitações da engine. Aceite: desenvolvedor em ambiente
 limpo reproduz tudo sem configurações pessoais ou instruções locais do agente.
+
+**P07 - Distribuição das ferramentas C#.** Depende: P04, J08, S06, Q03.
+Arquivos (6): `tools/pipeline/package_tools.py`,
+`tests/pipeline/test_tools_package.py`, `tools/dotnet/Directory.Build.targets`,
+`tests/integration/tools_package_smoke.py`, `docs/distribution.md`,
+`.github/workflows/release.yml`.
+Entrega: dotnet publish dos projetos selecionados, host nativo e CLI de pipeline
+compatíveis, versões/contratos e licenças; decidir framework-dependent ou self-contained.
+Aceite: pacote de ferramentas separado do jogo abre bundle e preview em diretório
+limpo; não depende de SDK/compiler no usuário final. P05 habilita publicação depois
+de validar esse pacote; este PR só prepara artefatos/testes.
+
+### Q. Build multilinguagem e isolamento de projetos
+
+**Q01 - ADR de build: CMake/.NET versus Bazel.** Depende: A01.
+Arquivos (2): `docs/build-system.md`, `docs/decisions/0001-monorepo-build.md`.
+Entrega: comparar C++20, C#/.NET/NuGet, Python, geração, Windows, IDE/debug,
+targets isolados, cache e incrementalidade. Spike pequeno em diretório temporário
+com biblioteca nativa, projeto C# e input gerado; registrar resultados no ADR.
+Aceite: decisão fundamentada, sem dupla manutenção do grafo. A hipótese dos paths
+deste plano é CMake/.NET; escolher Bazel exige ajustar esses PRs antes de implementar,
+não manter duas descrições completas. Nenhuma migração é feita por sugestão apenas.
+
+**Q02 - Versões e políticas do SDK .NET/Python.** Depende: Q01.
+Arquivos (6): `global.json`, `Directory.Build.props`, `Directory.Packages.props`,
+`NuGet.config`, `pyproject.toml`, `.gitignore`.
+Entrega: fixar SDKs suportados, política de dependências/locks e análise C#; outputs
+bin/obj e ambientes Python ignorados. Aceite: selecionar versões verificadas na
+implementação, sem forçar .NET para build somente C++; C# não é gerado por CMake.
+
+**Q03 - Solution e filtros por ferramenta.** Depende: J02, K01, L01, S01.
+Arquivos (5): `Raiders.Tools.sln`, `tools/dotnet/{UIEditor,EntityEditor,
+BundleInspector}.slnf`, `docs/build-system.md`.
+Entrega: workspaces de cada aplicação e dependências reais, sem abrir todo o
+monorepo. Aceite: IDE/debug e build de cada .csproj/filtro funcionam separadamente.
+
+**Q04 - CLI Python do monorepo por projeto.** Depende: Q01, Q02, J02.
+Arquivos (5): `tools/pipeline/build.py`, `tools/pipeline/projects.json`,
+`tests/pipeline/test_build.py`, `pyproject.toml`, `docs/build-system.md`.
+Entrega: build/test/cook/package por projeto, delegando a CMake ou dotnet; seleção
+de targets e argumentos, sem reconstruir o grafo que já pertence a esses sistemas.
+Aceite: engine não constrói C#; editor não constrói outros editores; falha nativa
+ou .NET retorna código não zero. É ferramenta de desenvolvedor, não helper de agente.
+
+### R. Data bundles de autoria e runtime
+
+**R01 - Contrato de bundle e identidade.** Depende: F01.
+Arquivos (4): `docs/data-bundles.md`, `schemas/bundle-manifest.schema.json`,
+`engine/assets/include/raiders/BundleId.h`, `tests/fixtures/bundle-manifest.json`.
+Entrega: autoria diffável, IDs persistentes, referências entre bundles, versões,
+tipos, hashes e formato cooked. Definir quais ciclos são válidos; separar ownership
+de referência. Aceite: XML/Lua são membros registrados, formato binário não é dump
+de structs e scripts mantêm identidade nas pastas de UI/gameplay dentro de bundles.
+
+**R02 - Leitura/save transacional de bundle de autoria.** Depende: R01, F08.
+Arquivos (6): `tools/authoring/{include/SourceBundle.h,src/SourceBundle.cpp}`,
+`tools/authoring/CMakeLists.txt`, `tests/assets/source_bundle_tests.cpp`,
+`tests/fixtures/sample.bundle/manifest.json`, `tools/assetc/src/main.cpp`.
+Entrega: membros, manifesto, validação integrada e journal/recovery multi-file.
+Aceite: falha/interrupção não publica bundle parcialmente atualizado; paths relativos,
+case, IDs duplicados e membro não declarado são diagnosticados. Fixtures adicionais
+contam no orçamento; desdobrar testes em sub-PR se necessário.
+
+**R03 - Consultas de metadados/grafo por CLI.** Depende: R02, F05.
+Arquivos (6): `tools/authoring/{include/BundleQueries.h,src/BundleQueries.cpp}`,
+`tools/authoring/CMakeLists.txt`, `tools/assetc/src/main.cpp`,
+`schemas/bundle-query.schema.json`, `tests/assets/bundle_query_tests.cpp`.
+Entrega: list/get/dependencies/referencers com IDs, tipo de aresta e paginação.
+Aceite: resultado determinístico inclui consumidores em outros bundles; consulta
+não carrega/executa Lua nem requer rodar o jogo.
+
+**R04 - Escritor de bundle cooked.** Depende: R02, I04, G08.
+Arquivos (6): `tools/assetc/{include/BundleWriter.h,src/BundleWriter.cpp}`,
+`tools/assetc/CMakeLists.txt`, `tools/assetc/src/main.cpp`,
+`tests/assets/bundle_writer_tests.cpp`, `docs/data-bundles.md`.
+Entrega: header, índice, payloads, Lua fonte, grafo e hashes; descritores C++ e
+bundle compartilham catalog ID. Aceite: saída estável sem paths da máquina,
+offsets/alinhamento definidos e falha não substitui bundle válido.
+
+**R05 - Leitor binário C++20.** Depende: R04, I01.
+Arquivos (6): `engine/assets/{include/raiders/BundleReader.h,src/BundleReader.cpp,
+include/raiders/BundleFormat.h}`, `engine/assets/CMakeLists.txt`,
+`tests/assets/bundle_reader_tests.cpp`, `tests/fixtures/corrupt.rdb`.
+Aceite: rejeitar truncamento, overflow/offset inválido, versão desconhecida,
+hash divergente e ID duplicado antes de acesso; não executar código ao inspecionar.
+
+**R06 - Catálogo montado e ciclo de vida.** Depende: R05, I09.
+Arquivos (6): `engine/assets/{include/raiders/BundleStore.h,src/BundleStore.cpp}`,
+`engine/assets/src/AssetCatalog.cpp`, `engine/assets/CMakeLists.txt`,
+`engine/scripting/src/ScriptResolver.cpp`, `tests/assets/bundle_lifetime_tests.cpp`.
+Entrega: montar dependências, lookup por ID e carregamento de Lua de registros.
+Aceite: unload com assets em uso é adiado/recusado explicitamente; mismatch entre
+binário/bundle falha; cena e scripts não mantêm ponteiros para dados desmontados.
+
+**R07 - Migração de versões e cooking incremental.** Depende: R06, I05.
+Arquivos (5): `tools/authoring/{include/BundleMigration.h,src/BundleMigration.cpp}`,
+`tools/authoring/CMakeLists.txt`, `tests/assets/bundle_migration_tests.cpp`,
+`docs/data-bundles.md`.
+Aceite: migração de autoria tem versão, backup e saída determinística; runtime
+não tenta converter schema desconhecido; dependência modificada invalida somente
+bundles afetados; script sem mudança de binding não força recompilação C++.
+
+**R08 - Inspeção de bundle cooked pelo pipeline.** Depende: R03, R05.
+Arquivos (5): `tools/assetc/src/main.cpp`, `tools/assetc/CMakeLists.txt`,
+`schemas/bundle-query.schema.json`, `tests/assets/cooked_query_tests.cpp`,
+`docs/data-bundles.md`.
+Aceite: mesmas consultas funcionam em autoria/cooked; metadados mostram hash,
+tipo, tamanho, offsets, origem e arestas; bundle inválido gera erro sem executar jogo.
+
+### S. Inspetor C# de bundles e dependências
+
+**S01 - Aplicação C# e browser de bundles.** Depende: J06, R03.
+Arquivos (6): `tools/dotnet/Raiders.BundleInspector/{Raiders.BundleInspector.csproj,
+Program.cs,BundleInspectorDocument.cs,BundleBrowser.cs}`, `Raiders.Tools.sln`,
+`tests/dotnet/Raiders.Tools.Tests/BundleBrowserTests.cs`.
+Aceite: abrir bundle, buscar asset por nome/ID/tipo e listar seus metadados, sem
+carregar scripts; frontend é C# e usa o mesmo cliente de protocolo dos editores.
+
+**S02 - Modelo de grafo e referências reversas.** Depende: S01.
+Arquivos (5): `tools/dotnet/Raiders.BundleInspector/{DependencyGraph.cs,
+GraphNode.cs,GraphEdge.cs,GraphQueryService.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/DependencyGraphTests.cs`.
+Aceite: arestas diretas/reversas, ownership e referências entre bundles são distintas;
+referências mútuas são agrupadas sem recursão infinita.
+
+**S03 - Canvas de grafo navegável em C#.** Depende: S02.
+Arquivos (5): `tools/dotnet/Raiders.BundleInspector/{GraphCanvas.cs,
+GraphLayout.cs,GraphSelection.cs,GraphViewport.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/GraphNavigationTests.cs`.
+Entrega: pan/zoom/seleção, labels, direção, filtro por tipo/bundle e expansão sob
+demanda. Aceite: asset ligado a entidades é visível e selecionável; limitar nós
+renderizados sem truncar silenciosamente resultados; UI não bloqueia em grafo grande.
+
+**S04 - Inspeção de registros cooked e diagnósticos.** Depende: S03, R08.
+Arquivos (5): `tools/dotnet/Raiders.BundleInspector/{RecordInspector.cs,
+BundleComparison.cs,BundleInspectorDocument.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/RecordInspectorTests.cs`, `docs/bundle-inspector.md`.
+Aceite: origem, tipo, versão, tamanho/hash e referência quebrada são exibidos;
+comparar autoria/cooked por IDs; erro/corrupção preserva documento anterior.
+
+**S05 - Caminhos e impacto de alterações.** Depende: S04.
+Arquivos (4): `tools/dotnet/Raiders.BundleInspector/{GraphQueryService.cs,
+DependencyPathView.cs,ImpactView.cs}`,
+`tests/dotnet/Raiders.Tools.Tests/ImpactQueryTests.cs`.
+Aceite: responder 'do que depende?', 'quem usa?' e caminho entre asset e entidade,
+com dependências transitivas; ciclos e páginas incompletas são indicados claramente.
+
+**S06 - Integração com os editores e guia.** Depende: S05, L05.
+Arquivos (5): `tools/dotnet/Raiders.Tools.Common/AssetNavigation.cs`,
+`tools/dotnet/Raiders.BundleInspector/BundleInspectorDocument.cs`,
+`tests/dotnet/Raiders.Tools.Tests/AssetNavigationTests.cs`,
+`docs/bundle-inspector.md`, `docs/editors.md`.
+Aceite: abrir fonte selecionada no editor apropriado, ou diagnóstico se só houver
+bundle cooked; navegação preserva ID e custom code. Inspetor não altera payload
+binário diretamente; edições passam por autoria, validação e novo cooking.
 
 ## 6. Regras de seleção de CI
 
@@ -1098,7 +1357,10 @@ O gate obrigatório deve ter nome estável configurado na proteção da branch.
 | Layout/scripts UI | Validação UI/Lua, cooking de UI e integração de tela | Editor de entidades e física independentes |
 | Entidades/sprites/cenas XML | Validação, cooking e instanciação/cenário consumidor | Compilação de editor não alterado |
 | Authoring, schemas, assetc ou gerador | Testes de tooling, validação de todos os assets afetados, cooking/paridade e consumidores | Nenhum consumidor do contrato alterado |
-| Editor UI ou entidades | Build/test do editor alterado e serviços comuns afetados | Outro editor se contrato comum não mudou; jogo se runtime não mudou |
+| Editor UI, entidades ou inspetor C# | dotnet build/test do projeto alterado e contratos comuns afetados | Outros frontends se contrato comum não mudou; jogo se runtime não mudou |
+| Bundles, grafo persistido ou loader | Validação de manifest/membros, writer/reader, cooking, paridade, inspeção e cenário consumidor | Frontends independentes quando só conteúdo mudou |
+| SDK .NET/NuGet/Directory.Build | Restore/build/test das ferramentas C# afetadas | Build nativo se contrato nativo não mudou |
+| Pipeline Python/pyproject | Testes da CLI/geração/classificação e seus consumidores reais | UI C# se protocolo/outputs não mudaram |
 | CMake/dependências/workflows | Configuração e checks das áreas que o arquivo controla; global implica conjunto amplo | Apenas áreas de independência comprovada |
 | Packaging/install | Build Shipping, conteúdo/install e smoke do pacote | Interação dos editores se ausentes do pacote |
 | Rename/delete, path desconhecido, classificador alterado | Fallback completo e teste do classificador | Nada por suposição |
@@ -1117,21 +1379,23 @@ da seleção; execuções manuais permitem diagnóstico sem mudar código.
 
 ## 7. Pontos de integração e sequência recomendada
 
-1. **Base confiável:** A01-A11; CI mínimo começa em A05. A02/A03 são PRs próprios,
+1. **Base confiável:** A01, Q01 e A02-A11; CI mínimo começa em A05. A02/A03 são PRs próprios,
    não um grande arrasto de exclusões junto da refatoração.
 2. **Engine utilizável:** B01-B11, C01-C05 e D01-D03. O01/O02 entram assim que
    as bibliotecas existirem. O jogo deve continuar iniciando a cada PR.
-3. **Fundação de conteúdo:** E01-E04, F01-F08 e G01-G09, respeitando dependências.
+3. **Fundação de conteúdo:** E01-E04, F01-F08, G01-G09 e R01-R03;
+   decidir SDKs/pipeline em Q02 e respeitar as dependências.
    Não é necessário terminar toda a física para começar a VM Lua ou o schema UI.
-4. **Primeira entrega vertical de assets:** H01-H07 e I01-I09. Uma UI e uma
-   entidade de teste atravessam XML -> IR -> C++ -> runtime, com Lua real.
-5. **Autoria utilizável:** J01-J05, K01-K05 e L01-L05; antecipar M01 para registrar
+4. **Primeira entrega vertical de assets:** H01-H07, I01-I09 e R04-R08. Uma UI
+   e uma entidade atravessam bundle/XML -> IR -> C++ + bundle cooked -> runtime,
+   com Lua real e testes do loader binário.
+5. **Autoria utilizável:** J01-J08, K01-K05, L01-L05, S01-S06 e Q03/Q04; antecipar M01 para registrar
    extensões do jogo no editor. Fazer o fluxo de uma tela
    e uma entidade de ponta a ponta antes de adicionar novas paletas de componentes.
 6. **Jogo por dados:** M02-M10. Migração em fatias, com remoções em PRs próprios.
 7. **Novo gameplay:** N01-N05; ferramentas já devem conseguir produzir seus assets.
 8. **Distribuição:** iniciar P01/P02 quando os descritores estiverem estáveis;
-   completar P03-P06 e O03-O06 com os modos e editores funcionando.
+   completar P03-P07 e O03-O06 com os modos, editores C# e inspetor funcionando.
 
 Esses pontos são demonstrações do produto, não PRs agrupando os arquivos da fase.
 Se uma mudança descobrir problema anterior, abrir uma correção pequena e atualizar
@@ -1147,8 +1411,12 @@ a dependência; não aumentar silenciosamente o escopo do PR corrente.
   geração interrompida e build incremental com dependências reais.
 - Regressão de gameplay: modos de aliens, seed/input, tiros, buffs, score e
   game over; modo de meteoros com propulsão, frenagem e fragmentação finita.
-- Smoke visual manual: jogo e ambos os editores; foco, arrastar, clipping, cores,
+- Smoke visual manual: jogo, editores C# e inspetor de grafo; foco, arrastar, clipping, cores,
   reabrir documento e preview. Guardar capturas temporárias localmente ou em CI.
+- Bundles: corrupção/truncamento, versões, offsets, hashes, referências reversas,
+  montagem/unload, transações de save e compatibilidade executável/catalog ID.
+- Monorepo: abrir/build/test por projeto nativo ou C#, sem construir frontends
+  independentes; contratos CLI/IPC são testados entre processos reais.
 - Distribuição: checkout limpo, build Shipping e execução em diretório sem fontes,
   sem XML e sem dependências acidentais do ambiente de desenvolvimento.
 
@@ -1156,21 +1424,27 @@ O resultado estará completo quando a engine puder rodar uma aplicação sem o j
 o jogo for uma biblioteca ligada ao executável com entry point da engine; entidades
 e UI forem autoradas nos editores e instanciadas por descritores cooked; gameplay
 e UI tiverem comportamento Lua; salvar UI preservar código customizado; e o pacote
-rodar os dois modos com CI seletivo, testes e instruções reproduzíveis.
+rodar os dois modos com CI seletivo, testes e instruções reproduzíveis. Todos os
+dados autorados e distribuídos pertencem a bundles; ferramentas interativas são
+C# e permitem navegar visualmente entre um asset, suas entidades e consumidores.
+Projetos nativos e gerenciados podem ser editados/compilados separadamente.
 
 ## 9. Decisões a fechar durante a implementação
 
 | Decisão | Momento | Premissa até a decisão |
 | --- | --- | --- |
-| Toolchain principal e versões mínimas de CMake | A04 | Windows e C++17; sem assumir caminhos do cache antigo |
+| Toolchain principal e versões mínimas de CMake | A04 | Windows e C++20; sem assumir caminhos do cache antigo |
 | Cadência, duração/stack de buffs e pesos de drops | A11 | Seguir PDF onde explícito e documentar lacunas |
 | IDs, schema e formato de sprites/cenas | F01 | XML versionado com ID estável e IR independente de parser |
 | Biblioteca XML e forma de integrar Lua | F02/G01 | Dependências fixadas por targets, licença e build reproduzível |
-| UX de console ou outro frontend necessário | J01 | Console com mouse/teclado e sprites em grade |
-| Como o editor carrega componentes específicos do jogo | L03/M01 | Módulo de projeto estaticamente ligado; sem DLL obrigatória |
+| Framework desktop C# e SDK .NET | J01/Q02 | Aplicações C# Windows; console apenas no jogo/host |
+| Build do monorepo | Q01 | Comparar CMake + .NET/MSBuild com Bazel antes de consolidar orquestração |
+| Versão/uso de Python no pipeline | Q02/Q04 | Versão suportada fixada; pipeline pode ser C++ ou Python |
+| Layout de autoria e formato binário de bundles | R01 | Diretório diffável + manifesto na autoria; .rdb versionado no runtime |
+| Como o editor conhece componentes do jogo | J06/L03/M01 | Schema/DTO via pipeline; preview em processo nativo, sem ABI C++ no frontend C# |
 | Orientação, eventual rotação e bordas da nave | N01 | Inércia com propulsão/reverso; definir antes de programar controles |
 | Limites de desempenho e tamanho | O06 | Medir baseline antes de impor números |
-| Lua fonte no pacote ou representação futura | P02 | Fonte Lua com módulos/manifesto; nenhum XML no Shipping |
+| Lua e distribuição de ferramentas | P02/P07 | Lua fonte como registros de bundle cooked; ferramentas .NET em pacote separado |
 
 Nenhuma dessas decisões pendentes impede o plano ou autoriza uma reescrita global.
 Cada uma deve resultar em um contrato pequeno e verificável no PR indicado.
