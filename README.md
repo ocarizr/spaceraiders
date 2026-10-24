@@ -43,7 +43,8 @@ builds are rejected. Keep machine-specific overrides in ignored
 the shared [CMake presets](https://learn.microsoft.com/en-us/cpp/build/cmake-presets-vs?view=msvc-170);
 `CMakeSettings.json` has been replaced by those presets. The A01 reference retains
 the historical build failure and diagnostic workaround, rather than current build
-instructions. Automated tests and CI are planned in A05.
+instructions. See [native development and CI](docs/development.md) for test commands
+and the required-check setup.
 
 ## Run
 

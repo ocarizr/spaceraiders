@@ -40,3 +40,8 @@ if(MSVC)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${project_name} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+include(CTest)
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
