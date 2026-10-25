@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spaceraiders.invalid/schemas/v1/environment-health.schema.json",
+  "title": "Raiders environment health report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "session_id", "scan_id", "catalog_id", "catalog_sha256", "visibility", "machine", "started_at", "completed_at", "scan_complete", "selected_profiles", "resolved_profiles", "state", "reason_codes", "profiles"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "session_id": { "$ref": "environment-profile.schema.json#/$defs/id" },
+    "scan_id": { "$ref": "environment-profile.schema.json#/$defs/id" },
+    "catalog_id": { "$ref": "environment-profile.schema.json#/$defs/id" },
+    "catalog_sha256": { "$ref": "environment-profile.schema.json#/$defs/sha256" },
+    "visibility": { "enum": ["local", "shareable"] },
+    "machine": {
+      "type": "object", "additionalProperties": false, "required": ["operating_system", "architecture"],
+      "properties": { "operating_system": { "enum": ["windows", "other"] }, "architecture": { "enum": ["x64", "x86", "arm64", "unknown"] } }
+    },
+    "started_at": { "$ref": "#/$defs/utc" },
+    "completed_at": { "anyOf": [{ "$ref": "#/$defs/utc" }, { "type": "null" }] },
+    "scan_complete": { "type": "boolean" },
+    "selected_profiles": { "allOf": [{ "$ref": "environment-profile.schema.json#/$defs/ids" }, { "minItems": 1 }] },
+    "resolved_profiles": { "allOf": [{ "$ref": "environment-profile.schema.json#/$defs/ids" }, { "minItems": 1 }] },
+    "state": { "$ref": "#/$defs/state" },
+    "reason_codes": { "$ref": "#/$defs/reasons" },
+    "profiles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/profile" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "state": { "const": "Ready" } } },
+      "then": { "properties": { "scan_complete": { "const": true }, "machine": { "properties": { "operating_system": { "const": "windows" }, "architecture": { "const": "x64" } } }, "completed_at": { "$ref": "#/$defs/utc" }, "reason_codes": { "maxItems": 0 }, "profiles": { "items": { "properties": { "state": { "const": "Ready" } } } } } },
+      "else": { "properties": { "reason_codes": { "minItems": 1 } } }
+    },
+    { "if": { "properties": { "scan_complete": { "const": false } } }, "then": { "properties": { "completed_at": { "type": "null" } } }, "else": { "properties": { "completed_at": { "$ref": "#/$defs/utc" } } } },
+    { "if": { "properties": { "state": { "const": "Checking" } } }, "then": { "properties": { "scan_complete": { "const": false } } } },
+    {
+      "if": { "properties": { "visibility": { "const": "shareable" } } },
+      "then": { "properties": { "profiles": { "items": { "properties": { "requirements": { "items": { "properties": { "evidence": { "items": { "properties": { "location": { "properties": { "kind": { "enum": ["managed-relative", "redacted"] } } } } } } } } } } } } } }
+    }
+  ],
+  "$defs": {
+    "utc": { "type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?Z$" },
+    "state": { "enum": ["Ready", "Missing", "Needs repair", "Unsupported", "Checking", "Unknown"] },
+    "reasons": {
+      "type": "array", "uniqueItems": true,
+      "items": { "enum": ["NotFound", "VersionMismatch", "ArchitectureMismatch", "FingerprintMismatch", "UnavailableFeed", "ProbeFailed", "ProbeTimedOut", "NotChecked", "ScanInProgress", "RestartRequired", "PrivilegeRequired", "DependencyNotReady", "UnsupportedPlatform", "UnsupportedArchitecture", "RecipeUnavailable", "StateStale", "IncompleteSetup", "MissingEvidence"] }
+    },
+    "location": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "local-path" }, "value": { "type": "string", "minLength": 1, "maxLength": 1024 } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "managed-relative" }, "value": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[A-Za-z0-9._/-]+$", "not": { "pattern": "(^|/)\\.\\.(/|$)|^/" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "redacted" }, "value": { "type": "null" } } }
+      ]
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["probe_id", "outcome", "complete", "observed_at", "observed_version", "observed_architecture", "configuration_sha256", "location"],
+      "properties": {
+        "probe_id": { "$ref": "environment-profile.schema.json#/$defs/id" },
+        "outcome": { "enum": ["satisfied", "absent", "mismatch", "unsupported", "failed", "not-run", "running"] },
+        "complete": { "type": "boolean" },
+        "observed_at": { "anyOf": [{ "$ref": "#/$defs/utc" }, { "type": "null" }] },
+        "observed_version": { "anyOf": [{ "$ref": "environment-profile.schema.json#/$defs/version" }, { "type": "null" }] },
+        "observed_architecture": { "enum": ["x64", "x86", "arm64", "unknown", "any"] },
+        "configuration_sha256": { "anyOf": [{ "$ref": "environment-profile.schema.json#/$defs/sha256" }, { "type": "null" }] },
+        "location": { "$ref": "#/$defs/location" }
+      },
+      "allOf": [{
+        "if": { "properties": { "complete": { "const": true } } },
+        "then": { "properties": { "observed_at": { "$ref": "#/$defs/utc" }, "outcome": { "enum": ["satisfied", "absent", "mismatch", "unsupported"] } } },
+        "else": { "properties": { "outcome": { "enum": ["failed", "not-run", "running"] } } }
+      }]
+    },
+    "assessment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "required", "state", "reason_codes", "evidence"],
+      "properties": {
+        "id": { "$ref": "environment-profile.schema.json#/$defs/id" },
+        "required": { "type": "boolean" }, "state": { "$ref": "#/$defs/state" },
+        "reason_codes": { "$ref": "#/$defs/reasons" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "Ready" } } },
+          "then": { "properties": { "reason_codes": { "maxItems": 0 }, "evidence": { "minItems": 1, "items": { "properties": { "outcome": { "const": "satisfied" }, "complete": { "const": true }, "observed_at": { "$ref": "#/$defs/utc" } } } } } },
+          "else": { "properties": { "reason_codes": { "minItems": 1 } } }
+        },
+        { "if": { "properties": { "state": { "const": "Missing" } } }, "then": { "properties": { "evidence": { "contains": { "properties": { "outcome": { "const": "absent" }, "complete": { "const": true }, "observed_at": { "$ref": "#/$defs/utc" } } } } } } },
+        { "if": { "properties": { "state": { "const": "Needs repair" } } }, "then": { "properties": { "evidence": { "contains": { "properties": { "outcome": { "const": "mismatch" }, "complete": { "const": true } } } } } } },
+        { "if": { "properties": { "state": { "const": "Unsupported" } } }, "then": { "properties": { "evidence": { "contains": { "properties": { "outcome": { "const": "unsupported" }, "complete": { "const": true } } } } } } }
+      ]
+    },
+    "dependency": {
+      "type": "object", "additionalProperties": false, "required": ["profile_id", "state"],
+      "properties": { "profile_id": { "$ref": "environment-profile.schema.json#/$defs/id" }, "state": { "$ref": "#/$defs/state" } }
+    },
+    "profile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "state", "reason_codes", "dependencies", "requirements"],
+      "properties": {
+        "id": { "$ref": "environment-profile.schema.json#/$defs/id" },
+        "state": { "$ref": "#/$defs/state" }, "reason_codes": { "$ref": "#/$defs/reasons" },
+        "dependencies": { "type": "array", "items": { "$ref": "#/$defs/dependency" } },
+        "requirements": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/assessment" } }
+      },
+      "allOf": [{
+        "if": { "properties": { "state": { "const": "Ready" } } },
+        "then": { "properties": { "reason_codes": { "maxItems": 0 }, "dependencies": { "items": { "properties": { "state": { "const": "Ready" } } } }, "requirements": { "items": { "if": { "properties": { "required": { "const": true } } }, "then": { "properties": { "state": { "const": "Ready" } } } } } } },
+        "else": { "properties": { "reason_codes": { "minItems": 1 } } }
+      }]
+    }
+  }
+}
