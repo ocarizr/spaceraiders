@@ -40,9 +40,10 @@ assertion runner or a `main()` that manually counts failures.
 | C# / .NET 10 | [MSTest](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-mstest-intro) | Test classes/methods, data rows, initialize/cleanup, framework assertions |
 | LuaJIT | [Busted](https://github.com/lunarmodules/busted) | `describe`/`it`, assertions, before/after hooks, spies and mocks |
 
-C++ and Python are integrated now. C# and Lua are the required conventions for
-their first projects; pin their framework dependencies and add Windows runners
-with those projects. No empty C#/Lua suites or placeholder CI jobs are installed.
+C++ and Python are integrated, and the T05 diagnostics library adds MSTest with
+locked restore and a Windows CI job. See the [managed adapter](observability.md#managed-logging-and-profiling-adapter-t05)
+for its ON/OFF test commands. Lua projects must pin Busted and add their Windows
+runner when implemented; there is no placeholder Lua suite.
 
 Keep each test focused on a named behavior and preserve independence from order.
 Use parametrization for the same contract over different inputs and fixtures for
@@ -100,7 +101,7 @@ with an x64 MSVC environment. Native and Python runs produce JUnit XML in their
 build/test output directories; CI logs also identify each individual test.
 There are no caches or generated source prerequisites for this baseline.
 
-The stable **CI gate** check depends on the native matrix and the code-style job
+The stable **CI gate** check depends on the native matrix, managed diagnostics and the code-style job
 (including pytest), and runs even when a dependency fails. Only a `success` result
 passes; failure, cancellation or a skipped
 required job fails the gate. A compilation failure stops the native job before CTest

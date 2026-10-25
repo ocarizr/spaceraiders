@@ -5,6 +5,88 @@ adapters. T01 defines schemas and terminology; T02 adds native logging and T03
 adds optional elapsed-time scopes. T04 adds bounded Chrome JSON export/recovery.
 Memory collectors and cross-process clock conversion remain later tasks.
 
+## Managed logging and profiling adapter (T05)
+
+`tools/dotnet/Raiders.Diagnostics` is a .NET 10 library/NuGet package with no
+third-party runtime dependencies. Its MSTest project lives inside the owning
+project's `tests/` directory. Central package pins and both `packages.lock.json`
+files are committed; CI restores in locked mode and requires managed diagnostics
+alongside native tests and formatting in `CI gate`.
+
+`TelemetrySession` takes the coordinator's session ID. Process and clock-domain
+identities are generated once per process; thread-instance identities and event
+IDs are unique within that process. `PushContext` uses `AsyncLocal` to propagate
+correlation/asset/entity/widget/VM IDs through async work. Dispose context leases
+in reverse order in the flow that created them. Omitted IDs inherit the outer
+context; disposing restores it. For child processes, explicitly pass the session
+and correlation IDs; this library does not launch processes or synchronize clocks.
+
+`Log.Write` emits the v1 JSONL envelope to a caller-owned `TextWriter`. Choose a
+UTF-8 `StreamWriter` for files or `Console.Error` for stderr; it never selects
+stdout implicitly. Message and attribute factories execute only for accepted
+severity/budget checks. Writes are synchronous and serialized per logger; share
+one logger per sink, or explicitly synchronize a sink used by multiple loggers.
+Configure minimum
+severity, lifetime record count and UTF-8 record byte limit (including newline).
+Filtered/full/oversized/unsafe-number records increment `Rejected`; callback,
+serialization and sink errors increment `Failures` and return false without
+recursive logging. A sink failure permanently stops that logger, preventing
+repeated partial writes; create a new logger after repairing the sink. The caller
+owns writer disposal and file retention. Payload construction/serialization has
+temporary allocation cost before the final byte limit can be checked.
+
+Profiling is elapsed time, including waits, measured with `Stopwatch` relative to
+a process-wide origin. Microseconds are truncated from elapsed ticks. Enable the
+MSBuild property `RaidersEnableProfiling=true` in both the library and caller;
+it defines `RA_ENABLE_PROFILING`. A NuGet consumer must define this symbol in its
+own project too: conditional calls are erased by the **caller's compiler**.
+Build/package the library with profiling enabled to retain capture support.
+
+```csharp
+var session = new TelemetrySession("capture.1");
+using var context = session.PushContext(correlationId: "command.1");
+ProfileScope scope = default;
+ProfileScope.Begin(ref scope, session, "editor", BuildExpensiveScopeName());
+using (scope)
+{
+    PerformEditorWork();
+}
+```
+
+Begin the mutable local before entering `using`; do not initialize it inside a
+readonly using declaration. OFF removes the entire `Begin` call and argument
+evaluation; disposing the default value does nothing. ON captures immutable
+context and producer timestamps. Disposal during exception unwinding completes
+the scope; copied handles complete at most once. Scopes are synchronous: do not
+hold them across `await` or dispose them on another thread. For async work,
+propagate context and instrument synchronous segments; cross-thread disposal is
+rejected and releases its reserved slot.
+
+Capacity includes both buffered events and active reservations. Overflow increments
+`Dropped`; `Stop` rejects new scopes while existing scopes can complete. `Drain`
+returns/removes completed events. OFF reports zero collector capacity and no
+acceptance. `Stats` reports capacity, buffered/in-flight counts, completions,
+drops and rejections. These are instrumented scopes, not CPU samples or heap
+measurements. Managed trace manifests, viewer export and capture UI belong to T15;
+the adapter does not claim a complete Chrome trace or cross-process alignment.
+
+From a Windows checkout with the SDK selected by `global.json`:
+
+```powershell
+$project = 'tools/dotnet/Raiders.Diagnostics/tests/Raiders.Diagnostics.Tests.csproj'
+dotnet restore $project --locked-mode
+dotnet test $project --no-restore -c Debug -p:RaidersEnableProfiling=true
+dotnet test $project --no-restore -c Debug -p:RaidersEnableProfiling=false
+dotnet test $project --no-restore -c Release -p:RaidersEnableProfiling=true
+dotnet test $project --no-restore -c Release -p:RaidersEnableProfiling=false
+dotnet pack tools/dotnet/Raiders.Diagnostics/Raiders.Diagnostics.csproj --no-restore -c Release -p:RaidersEnableProfiling=true -o out/packages
+```
+
+Every nonzero exit code fails validation. CI executes the same four combinations
+in one Windows job, adds `-- RunConfiguration.TreatNoTestsAsError=true` to reject
+empty suites, and records TRX results. Packing produces a local NuGet
+artifact; publishing is a separate operation.
+
 ## Chrome JSON export and recovery (T04)
 
 `raiders/TraceWriter.h` exposes a synchronous consumer-side writer on
