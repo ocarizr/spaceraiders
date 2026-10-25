@@ -21,6 +21,17 @@ most about 10 including tests/build registration/manifests. Split before exceedi
 Detailed notes retained from the prior plan use its approved Portuguese planning
 exception; implementation files, diagnostics, API names and shipped docs use English.
 
+## Shared job-system handoff
+
+The [jobs plan](jobs.md) owns the scheduler and language wrappers. Added V
+prerequisites apply to the integration tasks below; synchronous contracts and
+existing completed tasks remain valid. The [task diagram](../task-dependencies.md)
+shows cross-project readiness and must be refreshed after dependency changes.
+
+L07 consumes the V17 common job service for authoring/preview background work
+and document-lifetime cancellation. Workers publish results to the UI owner and
+never replace the native preview renderer.
+
 ## Implementation backlog
 
 **L01 - Aplicação C# e composição de entidades.** Depende: J05, J06, I07.
@@ -74,7 +85,7 @@ Acceptance: pen/stroke and triangle/rectangle/circle draw tools, image import,
 origin and transforms save as bundle records; native preview matches; import is
 undoable and invalid images preserve the old asset.
 
-**L07 - Animation clip authoring and timeline preview.** Depends: L06, D08, F10, J08.
+**L07 - Animation clip authoring and timeline preview.** Depends: L06, D08, F10, J08, V17.
 Paths (5): `tools/dotnet/Raiders.EntityEditor/{AnimationTimeline.cs,
 AnimationCommands.cs,AnimationPreviewController.cs,EntityEditorDocument.cs}`,
 `tests/dotnet/Raiders.Tools.Tests/AnimationEditTests.cs`.

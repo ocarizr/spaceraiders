@@ -1,6 +1,6 @@
 # Cross-language logging, profiling and memory diagnostics
 
-Status: Planned. Implementation has not started.
+Status: T01-T05 merged; Python/Lua adapters and remaining collectors/integration remain planned.
 
 ## Scope and independent execution
 
@@ -21,6 +21,17 @@ requirement to finish every other project. Target 3-8 changed paths per PR, at
 most about 10 including tests/build registration/manifests. Split before exceeding it.
 Detailed notes retained from the prior plan use its approved Portuguese planning
 exception; implementation files, diagnostics, API names and shipped docs use English.
+
+## Shared job-system handoff
+
+The [jobs plan](jobs.md) owns the scheduler and language wrappers. Added V
+prerequisites apply to the integration tasks below; synchronous contracts and
+existing completed tasks remain valid. The [task diagram](../task-dependencies.md)
+shows cross-project readiness and must be refreshed after dependency changes.
+
+T07 traces the V15 native frame graph; T13 propagates context through the V17
+managed tooling and V18 pipeline adapters. T14 includes V19 scheduling acceptance
+and distinguishes dependency wait, worker occupancy and inclusive child lifetime.
 
 ## Implementation backlog
 
@@ -134,7 +145,7 @@ Paths (4): `tools/pipeline/diagnostics/{logging.py,profiling.py,session.py}`,
 Acceptance: CLI stage/child-process timing, structured stderr/file sinks, bounded
 outputs and disabled-collection tests; stdout protocol JSON remains uncontaminated.
 
-**T07 - Instrument native execution and preview.** Depends: T04, B07, J07.
+**T07 - Instrument native execution and preview.** Depends: T04, B07, J07, V15.
 Paths (6): `engine/runtime/src/RunLoop.cpp`, `engine/render/src/WorldRenderer.cpp`,
 `engine/physics/src/PhysicsWorld.cpp`, `apps/preview_host/PreviewApplication.cpp`,
 `game/src/SpaceRaidersApplication.cpp`, `tests/diagnostics/runtime_trace_tests.cpp`.
@@ -180,13 +191,13 @@ Acceptance: player/UI -> components -> assets -> Lua modules traverses a stable
 snapshot epoch; dynamic imports, shared allocations, cycles and missing tags are
 reported; before/after load/unload identifies deltas without assuming a forced GC.
 
-**T13 - Instrument every shipped application and pipeline stage.** Depends: T05, T06, J06, S01, W01, Y04.
+**T13 - Instrument every shipped application and pipeline stage.** Depends: T05, T06, J06, S01, W01, Y04, V17, V18.
 Paths (8): the 5 C# application Program.cs files (including Environment.Setup), `tools/assetc/src/main.cpp`,
 `tools/pipeline/diagnostics/session.py` and `tests/integration/telemetry_apps_tests.py`.
 Acceptance: every executable has session context, errors, CPU scopes and capture
 controls; split by executable if registration or tests exceed the path limit.
 
-**T14 - Coverage, disabled builds and overhead regression checks.** Depends: T07, T08, T12, T13, O03.
+**T14 - Coverage, disabled builds and overhead regression checks.** Depends: T07, T08, T12, T13, O03, V19.
 Paths (5): `tests/integration/{telemetry_coverage_tests.py,telemetry_cost_tests.cpp}`,
 `CMakePresets.json`, `.github/workflows/ci.yml`, `docs/observability.md`.
 Acceptance: logging/profile/memory capabilities tested ON/OFF; bounded-buffer
