@@ -1,9 +1,8 @@
 # Windows development environment manager
 
-Status: Y01/Y02 and Q07 are merged. Y03's selected-profile recipe runner,
-artifact acquisition and process adapter are implemented and locally validated,
-pending review/merge. The setup application, durable repair and distribution
-remain Y04-Y07.
+Status: Y01-Y03 and Q07 are merged. Y04's self-contained GUI is implemented and
+locally validated, pending review/merge. Durable repair/headless/distribution
+remain Y05-Y07; production profile completion is explicitly tracked in Y08-Y14.
 
 ## Scope and independent execution
 
@@ -52,6 +51,26 @@ logs/profiling and machine-readable diagnostics; human logs do not enter a JSON
 result stream. Shareable health reports exclude credentials/machine-local secrets.
 Setup is independent of gameplay source bundles and never triggers content cooking.
 
+## Current production coverage after Y04
+
+Catalog entries and generic probe protocols are not end-to-end support. The GUI
+currently binds .NET SDK, CMake/Ninja and Python executable probes. Its only bound
+installation recipe is the approved CPython interpreter bootstrap. MSVC/toolset/
+Windows SDK, NuGet closure, Python venvs, Lua and Designer payloads are unresolved
+until approved production bindings are supplied. The Q07 venv tools work separately
+but are not wired to this GUI. Fixture-based UI screenshots do not prove installation
+coverage; see [Y04 capabilities](../environment-setup.md#registered-capabilities-in-this-delivery).
+
+Y08-Y14 close these gaps without rolling every language into one PR. Y07 distributes
+the usable approved subset; it does not certify all five profiles. Lua integration
+depends on the real VM/debugger contract and Designer setup on the actual SDK
+artifact. Do not invent a manifest or checksum to bypass those dependencies.
+
+The [addons plan](addons.md) owns extensible profile/probe/recipe contributions
+(U07), including future target SDK providers. Built-in profile completion does not
+wait for addons. The [launcher](launcher.md) opens this independent application
+and consumes doctor results; neither tool duplicates the other's execution logic.
+
 ## Implementation backlog
 
 Each ID is a separate task/PR, normally 3-8 changed paths and at most about 10
@@ -75,8 +94,7 @@ wrong-version/stale states tested with fixtures, not real machine modifications.
 The reusable library supports versioned NuGet packaging.
 
 **Y03 - Selected-profile recipe execution.** Depends: Y02, Q06, Q07.
-Status: implemented and locally validated on `Y03_selected_profile_recipe_execution`,
-pending review/merge. See [execution and validation](../environment-setup.md#selected-profile-preparation-y03).
+Status: merged in PR #23. See [execution and validation](../environment-setup.md#selected-profile-preparation-y03).
 Paths (9): `tools/dotnet/Raiders.Environment.Core/{RecipeRunner.cs,
 EnvironmentState.cs,ArtifactAcquisition.cs,Raiders.Environment.Core.csproj,
 tests/RecipeTests.cs,tests/ArtifactAcquisitionTests.cs}`,
@@ -85,9 +103,9 @@ Acceptance: ordered prerequisites, checksummed artifacts, cancellation/progress 
 post-step validation; healthy state is a no-op. Tests use isolated fake installers.
 
 **Y04 - Self-contained .NET 10 setup GUI.** Depends: Y03.
-Paths (6): `tools/dotnet/Raiders.Environment.Setup/{Raiders.Environment.Setup.csproj,
-Program.cs,SetupWindow.cs,ProfileViewModel.cs}`,
-`tests/dotnet/Raiders.Environment.Tests/SetupViewModelTests.cs`, `docs/environment-setup.md`.
+Status: implemented and locally validated on `Y04_self_contained_setup_gui`,
+pending review/merge. Application and owned MSTest project live under
+`tools/dotnet/Raiders.Environment.Setup/`; the entry point shares `SetupWindow.cs`.
 Acceptance: show health/evidence, select actions and report progress/failures;
 launch without .NET/Python SDK; use shared probes. Split framework-generated files
 into sub-deliveries if the path budget would be exceeded.
@@ -113,6 +131,59 @@ Paths (5): `tools/bootstrap/setup.ps1`, `tools/pipeline/package_setup.py`,
 `tests/integration/environment_bootstrap_tests.py`,
 `docs/environment-setup.md`, `.github/workflows/release.yml`.
 Acceptance: a Windows clone obtains/launches a verified setup artifact without
-Python/.NET SDK; selected setup reaches Ready, reopens without reinstall and repairs
-an isolated incomplete environment. No interpreter/SDK/venv/binary is committed;
-distribution/update ownership is explicit.
+Python/.NET SDK; selected available approved components reach Ready, reopen without
+reinstall and repair an isolated incomplete environment. No interpreter/SDK/venv/binary is committed;
+distribution/update ownership is explicit. Report unavailable profiles honestly;
+complete five-profile acceptance belongs to Y14.
+
+## Production profile completion
+
+Every task includes GUI/doctor registration and meaningful tests within its
+3-8 path target (about 10 maximum). Reuse Y02/Y03 logic, Q05 NuGet and Q07 Python
+recipes; do not create a second setup engine or install real SDKs in unit tests.
+
+**Y08 - Native compiler and SDK production discovery.** Depends: Y04, Q02.
+Deliverable: native discovery adapter, composition bindings, tests and policy docs
+under `tools/dotnet/Raiders.Environment.Core/` and `Raiders.Environment.Setup/`
+(4-7 paths). Discover approved Visual Studio Build Tools/compiler/toolset/Windows
+SDK and bundled CMake/Ninja, including installations absent from PATH. Check actual
+versions/architecture and distinguish conclusive absence from failed discovery.
+
+**Y09 - Approved native toolchain acquisition.** Depends: Y08, Y05.
+Deliverable: reviewed native installer/component manifest, recipe adapter and
+tests (4-8 paths). Show component/version/destination and privilege/restart actions;
+acquire only selected prerequisites, validate them after execution, preserve
+unrelated installations and support documented approved offline artifacts.
+
+**Y10 - Managed SDK and NuGet closure preparation.** Depends: Y04, Q05.
+Deliverable: managed SDK acquisition/restore bindings and tests (4-8 paths).
+Use the pinned SDK policy and locked package closure; verify feed/configuration
+and actual packages, acquire approved SDK artifacts and restore only selected
+projects. Hide credentials in reports; SDK presence alone cannot mean Ready.
+
+**Y11 - Python build and tools venv integration.** Depends: Y04, Q07.
+Deliverable: Q07 recipe adapter, health fingerprints and tests (4-7 paths).
+Wire the existing interpreter/bootstrap and locked build/tools venv commands into
+GUI/doctor with cancellation and postvalidation. Verify installed module entry
+points and wheel hashes. No approved pipeline wheel means unavailable, not a
+fabricated self-hash or successful tools environment.
+
+**Y12 - LuaJIT and VS Code environment integration.** Depends: Y04, G15.
+Deliverable: approved LuaJIT/compiler/editor-extension manifests, probes/recipes
+and tests (4-8 paths). Match the actual runtime/compiler and LuaLS/debug adapter
+versions; prepare completion/lint/format/debug configuration and verify embedded
+breakpoints/locals using G15's workflow. Respect existing user editor settings.
+The standalone setup executable must still launch without Lua or VS Code.
+
+**Y13 - Designer binary toolset preparation.** Depends: Y04, P07, X04.
+Deliverable: Designer SDK manifest binding, acquisition/health adapter and tests
+(4-7 paths). Validate compatible shipped tools/runtime/templates, relocate cleanly
+and expose optional approved Lua authoring setup without developer toolchains.
+Reject incompatible bundles; never require C++/.NET SDKs or installed Python.
+
+**Y14 - Complete environment coverage acceptance.** Depends: Y07, Y09, Y10, Y11, Y12, Y13.
+Deliverable: isolated cross-profile acceptance fixtures, clean-machine procedure
+and CI artifact/result integration (4-8 paths). Each advertised supported profile
+must reach Ready using production bindings, perform a representative build/run/
+debug action, reopen without reinstall and report partial/offline/cancelled states
+truthfully. Unit-test fakes and screenshots are not production coverage evidence.

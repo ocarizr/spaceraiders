@@ -1,10 +1,10 @@
 # Space Raiders: macro development roadmap
 
-Updated: 2026-10-25. Merged progress checked against master `43ade50` (#16).
+Updated: 2026-10-25. Merged progress checked against master `a571e55` (#23).
 The original source/PDF inspection used `9d87fe4`; its legacy findings remain
-historical context. A01-A05, Q01-Q02 and T01-T05 are merged. T06's Python telemetry
-adapter is implemented and locally validated, pending review/merge; job-system
-implementation remains planned.
+historical context. A01-A05, Q01-Q02/Q05-Q07, T01-T06 and Y01-Y03 are merged.
+Y04's GUI is locally validated, pending review/merge. Its production profile
+coverage is partial; job-system, addons and launcher implementation remain planned.
 
 This is the coordination plan for a reusable 2D engine and its developer ecosystem.
 The game is a sample demonstrating the engine, editors, scripting and content
@@ -22,14 +22,17 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 | Shared C# tooling platform and UI editor | [UI editor](plans/ui-editor.md) | J except J07, and K | Planned |
 | C# entity, drawing and animation editor | [Entity editor](plans/entity-editor.md) | L | Planned |
 | C# dependency graph and memory inspector | [Bundle inspector](plans/bundle-inspector.md) | S | Planned |
-| Cross-language diagnostics | [Observability](plans/observability.md) | T | Native/managed merged (T01-T05); Python T06 locally validated, pending merge |
+| Cross-language diagnostics | [Observability](plans/observability.md) | T | Native/managed/Python foundations merged (T01-T06) |
 | Shared native job system and C#/Python packages | [Jobs](plans/jobs.md) | V | Planned |
-| C#/.NET 10 graphical environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Planned |
+| C#/.NET 10 graphical environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Y01-Y03 merged; Y04 GUI locally validated; full profile preparation planned |
+| Engine, tool, setup and pipeline addons | [Addons](plans/addons.md) | U | Planned |
+| C#/.NET 10 central tools and workflow launcher | [Launcher](plans/launcher.md) | Z | Planned |
 | C# scene/level editor and native playtest | [Level editor](plans/level-editor.md) | W | Planned |
 | Authored Space Raiders sample and legacy regression | [Sample game](plans/sample-game.md) | M and N | Planned |
 
-The plans currently define **226 small PR-sized tasks**: the previous 207 plus
-19 job-system tasks (V01-V19). Task IDs are unique across projects.
+The plans currently define **256 small PR-sized tasks**: the previous 226 plus
+14 addon tasks (U01-U14), nine launcher tasks (Z01-Z09) and seven production
+setup coverage tasks (Y08-Y14). Task IDs are unique across projects.
 Cross-project needs refer to those IDs. The dependency graph must remain acyclic.
 Projects may consume each other's incremental interfaces; this does not require
 completing a whole project before starting a consumer.
@@ -57,7 +60,8 @@ definitions and dependency edits stay in their owning project plans.
   without combining those moves with the environment configuration delivery.
 
 - Support and validate Windows only. Linux support, Linux CI and portability work
-  are outside this project.
+  are outside this project. Future target providers are an addon architecture
+  requirement; Android/console examples do not add current platform deliveries.
 - Engine and native sample/support code use C++20.
 - A shared C++20 job library supplies native engine/tools and C#/Python wrappers.
   Game/main and render threads orchestrate a configurable CPU worker pool, initially
@@ -66,7 +70,7 @@ definitions and dependency edits stay in their owning project plans.
   main-thread waits. Wrappers preserve one scheduler implementation; Python GIL
   limits and process/thread budgets are explicit. See the [job contract](plans/jobs.md).
 - Interactive developer applications use C# with .NET 10: UI/entity/level editors, inspectors
-  and the graphical environment setup manager.
+  the graphical environment setup manager and the engine launcher.
   A native preview process is an engine service, not a C++ authoring frontend.
 - Reusable managed libraries may be NuGet package producers/consumers; Python
   modules are built as wheels and installed into reproducible build/runtime venvs.
@@ -75,6 +79,10 @@ definitions and dependency edits stay in their owning project plans.
   namespaces in authoring bundles.
 - Noninteractive pipeline, validation, code/binary generation and orchestration
   may use C++ or Python. Distribute executable/runtime-complete tooling to designers.
+- Public extension functionality is called addons. Engine, desktop tools, setup
+  and pipelines expose versioned registration/lifecycle contracts; manifests and
+  locks describe compatibility and dependencies. Existing interfaces in Y04 are
+  composition seams, not an implemented addon loading/distribution system.
 - Repository code, comments, identifiers, diagnostics, tool UI and shipped developer
   documentation use English. Older detailed planning notes may retain Portuguese
   under the approved exception; new task contracts use English.
@@ -215,6 +223,8 @@ A side-scroller is a possible engine reuse case, not a second promised sample.
 | Log/trace/snapshot schemas and allocation semantics | Observability | Every executable; bundle inspector | ON/OFF, queue saturation, measured/estimated/shared accounting |
 | Scene instances and playtest control | Level editor + runtime | Designers and sample | Play/pause/step/reset without packaging or document mutation |
 | Job handles, dependency/child completion, lanes and native ABI | Shared jobs | Runtime/render/physics, C# tooling, Python pipeline | Same DAG semantics; bounded queues; cancellation/shutdown; trace correlation; GIL/GC and serial-oracle tests |
+| Addon manifest, lifecycle, capabilities and locked dependencies | Addons | Engine, Lua, desktop tools, setup, pipelines and launcher | Compatible loading; conflicts/failure/cleanup; source/cooked parity; future target-provider seam |
+| Workspace actions, tool discovery and execution results | Launcher | Developers, designers, test/pipeline owners | No SDK startup dependency; source/Designer capability filtering; framework results and cancellation |
 
 When changing a shared contract, its producer owns the change; list all consumers
 and update only those affected. Keep compatibility or introduce a versioned migration.
@@ -239,6 +249,26 @@ authority when an approximate phase list is insufficient.
 Observability contracts begin early rather than waiting for the game to become slow.
 A project does not need its full feature set to satisfy an initial handoff.
 All gate delivery states are currently Planned; none is marked complete by this edit.
+
+### Addons, launcher and setup coverage coordination
+
+U01 defines extension contracts independently of native extraction. Native loading
+waits for B07; desktop contributions wait for J02. U07 extends setup profiles and
+U08 pipeline stages without blocking completion of the current built-in Windows
+profiles. U12 validates platform seams with a fake target provider, not an actual
+new target. U14 closes cross-host addon acceptance.
+
+Z01 defines source/Designer action contracts; the launcher shell can precede full
+editors. Later tasks connect tool discovery, framework/functional test descriptors,
+explicit packaging, setup and addons. It delegates existing executors and does not
+turn editing into cooking. Z08 creates an independent launcher artifact; Z09 verifies
+the integrated workflow. A launcher is not needed to run setup or headless tools.
+
+Y08-Y11 bind the missing native, managed and Python production capabilities in
+small deliveries. Y12 waits for working embedded Lua authoring/debugging (G15),
+and Y13 for a real Designer distribution (P07/X04). Y07 can distribute the approved
+subset first; Y14 alone claims complete profile acceptance. P06 now requires
+U14, Z09 and Y14 so final delivery cannot silently omit these requirements.
 
 ## Build and CI approach
 
@@ -300,15 +330,15 @@ the detailed source/PDF diagnosis and legacy stabilization tasks.
 
 Merged foundations include the legacy reference, source/IDE hygiene, C++20 presets,
 native tests/CI, build decision/environment policies and native/managed telemetry.
-The [task diagram](task-dependencies.md) records twelve merged task IDs and their
-PRs, plus the locally validated T06 delivery awaiting review/merge. The pytest
-maintenance PR (#14) is not another task.
-Q05/Q06 remain separate package-foundation tasks despite earlier reusable slices.
+The [task diagram](task-dependencies.md) records nineteen merged task IDs and their
+PRs, plus the locally validated Y04 delivery awaiting review/merge. The pytest
+maintenance PR (#14) is not another task. Q05-Q07's package foundations are merged;
+they are not yet all integrated into the setup GUI.
 
 The [diagram's green frontier](task-dependencies.md#available-now) lists the current
-ready choices. Completing T06 unlocks no new task until its consumers' other
-prerequisites are satisfied. V01 is an
-independent design-contract option, followed by future V implementation tasks.
+ready choices. Y05/Y06, native discovery Y08, managed preparation Y10 and Python
+integration Y11 are environment options. U01/Z01 define addons/launcher contracts
+independently; A06 and V01 remain available in their own project branches.
 Choose one ready task with the maintainer; never execute adjacent work automatically.
 Use branches named `<TASK_ID>_<short_description>`. Completion must update the task
 diagram and newly unlocked green nodes as part of the same reviewed delivery.
