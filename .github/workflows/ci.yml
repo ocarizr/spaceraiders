@@ -87,22 +87,58 @@ jobs:
           ctest --test-dir "out/build/$env:BUILD_PRESET" --output-on-failure --no-tests=error --output-junit test-results.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+  managed:
+    name: Managed diagnostics
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore locked dependencies, test both profiling modes and pack
+        shell: pwsh
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        run: |
+          $project = 'tools/dotnet/Raiders.Diagnostics/tests/Raiders.Diagnostics.Tests.csproj'
+          dotnet restore $project --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($configuration in @('Debug', 'Release')) {
+            foreach ($profiling in @('true', 'false')) {
+              dotnet test $project --no-restore -c $configuration "-p:RaidersEnableProfiling=$profiling" --logger "trx;LogFileName=$configuration-$profiling.trx" --results-directory out/test-results/managed -- RunConfiguration.TreatNoTestsAsError=true
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
+          dotnet pack tools/dotnet/Raiders.Diagnostics/Raiders.Diagnostics.csproj --no-restore -c Release -p:RaidersEnableProfiling=true -o out/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   gate:
     name: CI gate
     if: ${{ always() }}
-    needs: [native, style]
+    needs: [native, style, managed]
     runs-on: windows-2022
     timeout-minutes: 5
     steps:
-      - name: Require successful native and formatting checks
+      - name: Require successful native, managed and formatting checks
         shell: pwsh
         env:
           NATIVE_RESULT: ${{ needs.native.result }}
           STYLE_RESULT: ${{ needs.style.result }}
+          MANAGED_RESULT: ${{ needs.managed.result }}
         run: |
           if ($env:NATIVE_RESULT -ne 'success') {
             throw "Native checks did not succeed: $env:NATIVE_RESULT"
           }
           if ($env:STYLE_RESULT -ne 'success') {
             throw "Formatting checks did not succeed: $env:STYLE_RESULT"
+          }
+          if ($env:MANAGED_RESULT -ne 'success') {
+            throw "Managed checks did not succeed: $env:MANAGED_RESULT"
           }
