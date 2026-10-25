@@ -1,8 +1,9 @@
 # Windows development environment manager
 
-Status: Y01 contract implemented and locally validated, pending review/merge.
-Q07's Python recipes are merged; the C# probe library, setup application and
-remaining native acquisition/execution adapters are planned.
+Status: Y01/Y02 and Q07 are merged. Y03's selected-profile recipe runner,
+artifact acquisition and process adapter are implemented and locally validated,
+pending review/merge. The setup application, durable repair and distribution
+remain Y04-Y07.
 
 ## Scope and independent execution
 
@@ -58,8 +59,7 @@ including project registration/tests. Q01 only adds this plan. Bootstrap UI
 framework selection must not depend on completion of the engine's editor shell.
 
 **Y01 - Setup profiles and health contract.** Depends: Q01, T01.
-Status: implemented and locally validated on `Y01_setup_profiles_and_health_contract`,
-pending review/merge. See [contract and validation](../environment-setup.md).
+Status: merged in PR #21. See [contract and validation](../environment-setup.md).
 Paths: `schemas/environment-profile.schema.json`,
 `schemas/environment-health.schema.json`, `docs/environment-setup.md`,
 `tests/integration/environment_setup/{fixtures/environment-profile.json,fixtures/environment-health.json,test_contract.py,requirements.lock}`;
@@ -68,17 +68,19 @@ Acceptance: roles/profiles, Windows architecture, version constraints, probe
 evidence and all health states are specified; no game/Python startup dependency.
 
 **Y02 - C# probe library.** Depends: Y01, Q02, Q05, T05.
-Paths (6): `tools/dotnet/Raiders.Environment.Core/{Raiders.Environment.Core.csproj,
-EnvironmentProbe.cs,ProfileHealth.cs,ToolDiscovery.cs}`,
-`tests/dotnet/Raiders.Environment.Tests/{Raiders.Environment.Tests.csproj,ProbeTests.cs}`.
+Status: merged in PR #22. Implementation and MSTest tests live under
+`tools/dotnet/Raiders.Environment.Core/`; DTOs are in `EnvironmentProbe.cs`.
 Acceptance: explicit native/.NET 10/Python/Lua/package probes; complete/missing/
 wrong-version/stale states tested with fixtures, not real machine modifications.
 The reusable library supports versioned NuGet packaging.
 
 **Y03 - Selected-profile recipe execution.** Depends: Y02, Q06, Q07.
-Paths (5): `tools/dotnet/Raiders.Environment.Core/{RecipeRunner.cs,
-EnvironmentState.cs,ArtifactAcquisition.cs}`,
-`tests/dotnet/Raiders.Environment.Tests/RecipeTests.cs`, `docs/environment-setup.md`.
+Status: implemented and locally validated on `Y03_selected_profile_recipe_execution`,
+pending review/merge. See [execution and validation](../environment-setup.md#selected-profile-preparation-y03).
+Paths (9): `tools/dotnet/Raiders.Environment.Core/{RecipeRunner.cs,
+EnvironmentState.cs,ArtifactAcquisition.cs,Raiders.Environment.Core.csproj,
+tests/RecipeTests.cs,tests/ArtifactAcquisitionTests.cs}`,
+`docs/environment-setup.md`, this plan and `docs/task-dependencies.md`.
 Acceptance: ordered prerequisites, checksummed artifacts, cancellation/progress and
 post-step validation; healthy state is a no-op. Tests use isolated fake installers.
 
