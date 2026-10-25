@@ -8,6 +8,10 @@ C#/.NET 10 desktop UI editor plus shared documents, undo/redo, bundle/protocol c
 preview client and navigation services used by all developer tools.
 Inputs: native preview surface, UI schema/IR, bundle transactions and Lua environment.
 Exports: Raiders.Tools.Common/Contracts and Raiders.UIEditor.
+The [addons plan](addons.md) owns managed addon loading (U05) and shared menu/tab
+contributions (U06) for UI/entity/level editors and inspectors. Reuse one host;
+do not create an independent extension loader per editor. The [launcher](launcher.md)
+discovers these applications through Z03, without becoming their document shell.
 First slice: create a button, save XML/Lua members, preview through the native game
 renderer and open its Lua handler at the correct source location in VS Code.
 Editing deserializes source XML and loads source Lua directly through the native

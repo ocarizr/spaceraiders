@@ -200,6 +200,20 @@ jobs:
           dotnet msbuild tools/dotnet/Raiders.Environment.Core/Raiders.Environment.Core.csproj -t:RaidersPackLocal -p:Configuration=Release -p:RaidersEnableProfiling=true -p:RestoreLockedMode=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Publish and test self-contained Windows setup
+        shell: pwsh
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        run: |
+          $project = 'tools/dotnet/Raiders.Environment.Setup/tests/Raiders.Environment.Setup.Tests.csproj'
+          dotnet restore $project --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet publish tools/dotnet/Raiders.Environment.Setup/Raiders.Environment.Setup.csproj --no-restore -c Release -p:RaidersEnableProfiling=true -o out/setup/win-x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:RAIDERS_SETUP_PUBLISHED_EXE = (Resolve-Path out/setup/win-x64/Raiders.Environment.Setup.exe).Path
+          dotnet test $project --no-restore -c Release -p:RaidersEnableProfiling=true --logger 'trx;LogFileName=setup.trx' --results-directory out/test-results/setup -- RunConfiguration.TreatNoTestsAsError=true
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   gate:
     name: CI gate
     if: ${{ always() }}

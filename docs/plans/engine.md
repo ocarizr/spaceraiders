@@ -4,6 +4,12 @@ Status: A01-A05 baseline merged; engine extraction and runtime extensions remain
 
 ## Scope and independent execution
 
+The [addons plan](addons.md) owns native lifecycle/loading (U03), service/event
+registration (U04) and addon asset/Lua integration (U09/U10). Native APIs must
+permit these hooks without game-specific core edits; existing native tasks remain
+incremental foundations. U12 tests future platform-provider seams using a fake
+provider, while Windows remains the only supported real platform.
+
 C++20 reusable runtime, Application entry point, World/components, native rendering,
 2D physics, native UI and the preview host. No gameplay-specific types belong here.
 Inputs: observability contracts; asset/schema contracts; Lua runtime interfaces.

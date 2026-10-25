@@ -1,18 +1,19 @@
 # Task dependency diagram
 
-Updated: 2026-10-25. Merged baseline: master `132582e` (PR #22).
-Includes Y03's locally validated delivery, pending review/merge.
+Updated: 2026-10-25. Merged baseline: master `a571e55` (PR #23).
+Includes Y04's locally validated delivery, pending review/merge.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
 
-**226 tasks · 510 prerequisite edges · 19 completed · 4 ready · 203 waiting.**
+**256 tasks · 596 prerequisite edges · 20 completed · 9 ready · 227 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
-task at a time. Y03 is complete locally and awaits review/merge; Y04 and Y06 are now ready.
+task at a time. Y04 is complete locally and awaits review/merge; the green frontier
+also includes the newly planned independent contracts and setup adapters.
 
 The graphs are split by task family so GitHub can render and readers can inspect
-them without a single 510-edge canvas. Every task has exactly one primary node.
+them without a single large canvas. Every task has exactly one primary node.
 Cross-family prerequisites appear again as labeled reference rectangles, with the
 same status color. An arrow always means **prerequisite -> consumer**. Dependencies
 in the owning plans define readiness; graph layout and nearby nodes do not imply
@@ -23,9 +24,14 @@ additional ordering. Original task titles retain the approved planning language.
 ```mermaid
 flowchart TD
     ready_A06["A06<br/>Tornar includes e unidades de compilação explícitos"]:::ready
+    ready_U01["U01<br/>Addon manifest and host extension ADR"]:::ready
     ready_V01["V01<br/>Scheduler contract and design decision"]:::ready
-    ready_Y04["Y04<br/>Self-contained .NET 10 setup GUI"]:::ready
+    ready_Y05["Y05<br/>Repair and interrupted setup"]:::ready
     ready_Y06["Y06<br/>Headless setup/doctor and CI"]:::ready
+    ready_Y08["Y08<br/>Native compiler and SDK production discovery"]:::ready
+    ready_Y10["Y10<br/>Managed SDK and NuGet closure preparation"]:::ready
+    ready_Y11["Y11<br/>Python build and tools venv integration"]:::ready
+    ready_Z01["Z01<br/>Launcher workspace and action contract"]:::ready
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -34,15 +40,20 @@ flowchart TD
 | Task | Authoritative plan | Prerequisites |
 | --- | --- | --- |
 | **A06** - Tornar includes e unidades de compilação explícitos | [engine](plans/engine.md) | A05 |
+| **U01** - Addon manifest and host extension ADR | [addons](plans/addons.md) | Q02, T01 |
 | **V01** - Scheduler contract and design decision | [jobs](plans/jobs.md) | Q02, T01 |
-| **Y04** - Self-contained .NET 10 setup GUI | [environment-setup](plans/environment-setup.md) | Y03 |
+| **Y05** - Repair and interrupted setup | [environment-setup](plans/environment-setup.md) | Y04 |
 | **Y06** - Headless setup/doctor and CI | [environment-setup](plans/environment-setup.md) | Y03 |
+| **Y08** - Native compiler and SDK production discovery | [environment-setup](plans/environment-setup.md) | Y04, Q02 |
+| **Y10** - Managed SDK and NuGet closure preparation | [environment-setup](plans/environment-setup.md) | Y04, Q05 |
+| **Y11** - Python build and tools venv integration | [environment-setup](plans/environment-setup.md) | Y04, Q07 |
+| **Z01** - Launcher workspace and action contract | [launcher](plans/launcher.md) | Q02, Y01 |
 
 ## Completion evidence
 
-Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03.
+Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04.
 
-The merged baseline is grounded in first-parent task merges on master. Y03 is
+The merged baseline is grounded in first-parent task merges on master. Y04 is
 the current locally validated branch delivery, not a claimed merge. A maintenance
 change or a partial reusable slice does not complete a separate task. PR #14
 is pytest maintenance rather than a task ID.
@@ -67,11 +78,12 @@ is pytest maintenance rather than a task ID.
 | Q07 | [#20](https://github.com/ocarizr/spaceraiders/pull/20) | `667b838` |
 | Y01 | [#21](https://github.com/ocarizr/spaceraiders/pull/21) | `73e8a5f` |
 | Y02 | [#22](https://github.com/ocarizr/spaceraiders/pull/22) | `132582e` |
-| Y03 | 102 MSTest cases in Debug/Release with profiling on/off; locked restore, NuGet 0.2.0, pending-action report conformance, code style and graph validation passed; pending review/merge | `Y03_selected_profile_recipe_execution` |
+| Y03 | [#23](https://github.com/ocarizr/spaceraiders/pull/23) | `a571e55` |
+| Y04 | 14 MSTest cases in Release/Debug, self-contained EXE launch with developer runtimes unavailable, visual/catalog checks, locked restore and 102 core regression cases passed; pending review/merge | `Y04_self_contained_setup_gui` |
 
 ## Reading the task families
 
-[A: Legacy stabilization](#a-legacy-stabilization) | [B: Engine extraction](#b-engine-extraction) | [C: World and components](#c-world-and-components) | [D: Rendering](#d-rendering) | [E: Physics](#e-physics) | [F: Asset models and validation](#f-asset-models-and-validation) | [G: Lua runtime and development](#g-lua-runtime-and-development) | [H: Native UI](#h-native-ui) | [I: Cooking and generated data](#i-cooking-and-generated-data) | [J: Shared tooling and native preview](#j-shared-tooling-and-native-preview) | [K: UI editor](#k-ui-editor) | [L: Entity editor](#l-entity-editor) | [M: Sample migration](#m-sample-migration) | [N: Sample gameplay and regression](#n-sample-gameplay-and-regression) | [O: CI and quality](#o-ci-and-quality) | [P: Packaging and release](#p-packaging-and-release) | [Q: Build and package foundations](#q-build-and-package-foundations) | [R: Bundles and providers](#r-bundles-and-providers) | [S: Bundle and memory inspector](#s-bundle-and-memory-inspector) | [T: Observability](#t-observability) | [V: Shared job system](#v-shared-job-system) | [W: Level editor](#w-level-editor) | [X: Designer workflow](#x-designer-workflow) | [Y: Environment setup](#y-environment-setup)
+[A: Legacy stabilization](#a-legacy-stabilization) | [B: Engine extraction](#b-engine-extraction) | [C: World and components](#c-world-and-components) | [D: Rendering](#d-rendering) | [E: Physics](#e-physics) | [F: Asset models and validation](#f-asset-models-and-validation) | [G: Lua runtime and development](#g-lua-runtime-and-development) | [H: Native UI](#h-native-ui) | [I: Cooking and generated data](#i-cooking-and-generated-data) | [J: Shared tooling and native preview](#j-shared-tooling-and-native-preview) | [K: UI editor](#k-ui-editor) | [L: Entity editor](#l-entity-editor) | [M: Sample migration](#m-sample-migration) | [N: Sample gameplay and regression](#n-sample-gameplay-and-regression) | [O: CI and quality](#o-ci-and-quality) | [P: Packaging and release](#p-packaging-and-release) | [Q: Build and package foundations](#q-build-and-package-foundations) | [R: Bundles and providers](#r-bundles-and-providers) | [S: Bundle and memory inspector](#s-bundle-and-memory-inspector) | [T: Observability](#t-observability) | [U: Addons](#u-addons) | [V: Shared job system](#v-shared-job-system) | [W: Level editor](#w-level-editor) | [X: Designer workflow](#x-designer-workflow) | [Y: Environment setup](#y-environment-setup) | [Z: Launcher](#z-launcher)
 
 Primary node titles come from the owning plans. For complete deliverables, file
 budgets and acceptance, open the linked plan above each diagram.
@@ -827,10 +839,13 @@ flowchart TD
     ref_P_S06["S06<br/>prerequisite reference"]:::pending
     ref_P_S11["S11<br/>prerequisite reference"]:::pending
     ref_P_T14["T14<br/>prerequisite reference"]:::pending
+    ref_P_U14["U14<br/>prerequisite reference"]:::pending
     ref_P_W01["W01<br/>prerequisite reference"]:::pending
     ref_P_W06["W06<br/>prerequisite reference"]:::pending
     ref_P_X03["X03<br/>prerequisite reference"]:::pending
     ref_P_X07["X07<br/>prerequisite reference"]:::pending
+    ref_P_Y14["Y14<br/>prerequisite reference"]:::pending
+    ref_P_Z09["Z09<br/>prerequisite reference"]:::pending
     P01["P01<br/>Development source-data and Shipping binary profiles"]:::pending
     P02["P02<br/>Install e conteúdo do pacote"]:::pending
     P03["P03<br/>Smoke do pacote fora da árvore de fontes"]:::pending
@@ -863,6 +878,9 @@ flowchart TD
     ref_P_L08 --> P06
     ref_P_K07 --> P06
     ref_P_X07 --> P06
+    ref_P_U14 --> P06
+    ref_P_Z09 --> P06
+    ref_P_Y14 --> P06
     ref_P_J08 --> P07
     ref_P_S06 --> P07
     ref_P_Q03 --> P07
@@ -1032,7 +1050,7 @@ flowchart TD
     ref_T_V18["V18<br/>prerequisite reference"]:::pending
     ref_T_V19["V19<br/>prerequisite reference"]:::pending
     ref_T_W01["W01<br/>prerequisite reference"]:::pending
-    ref_T_Y04["Y04<br/>prerequisite reference"]:::ready
+    ref_T_Y04["Y04<br/>prerequisite reference"]:::done
     T01["T01<br/>Shared telemetry schemas and cost terminology"]:::done
     T02["T02<br/>Native logging API with spdlog"]:::done
     T03["T03<br/>Optional native profiling scopes"]:::done
@@ -1091,6 +1109,88 @@ flowchart TD
     T04 --> T15
     T05 --> T15
     T12 --> T15
+    classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
+    classDef ready fill:#86efac,stroke:#166534,color:#111827
+    classDef done fill:#f87171,stroke:#991b1b,color:#111827
+```
+
+### U: Addons
+
+Plans: [addons](plans/addons.md).
+
+```mermaid
+flowchart TD
+    ref_U_B02["B02<br/>prerequisite reference"]:::pending
+    ref_U_B07["B07<br/>prerequisite reference"]:::pending
+    ref_U_C04["C04<br/>prerequisite reference"]:::pending
+    ref_U_G11["G11<br/>prerequisite reference"]:::pending
+    ref_U_I09["I09<br/>prerequisite reference"]:::pending
+    ref_U_J02["J02<br/>prerequisite reference"]:::pending
+    ref_U_Q02["Q02<br/>prerequisite reference"]:::done
+    ref_U_Q04["Q04<br/>prerequisite reference"]:::pending
+    ref_U_Q05["Q05<br/>prerequisite reference"]:::done
+    ref_U_R09["R09<br/>prerequisite reference"]:::pending
+    ref_U_T01["T01<br/>prerequisite reference"]:::done
+    ref_U_T03["T03<br/>prerequisite reference"]:::done
+    ref_U_T05["T05<br/>prerequisite reference"]:::done
+    ref_U_T06["T06<br/>prerequisite reference"]:::done
+    ref_U_V09["V09<br/>prerequisite reference"]:::pending
+    ref_U_Y05["Y05<br/>prerequisite reference"]:::ready
+    ref_U_Y06["Y06<br/>prerequisite reference"]:::ready
+    U01["U01<br/>Addon manifest and host extension ADR"]:::ready
+    U02["U02<br/>Addon dependency resolver and lock contract"]:::pending
+    U03["U03<br/>Native addon loading and lifecycle"]:::pending
+    U04["U04<br/>Native service and event extension points"]:::pending
+    U05["U05<br/>Managed addon host library"]:::pending
+    U06["U06<br/>Shared desktop menu and tab contributions"]:::pending
+    U07["U07<br/>Environment setup addon contributions"]:::pending
+    U08["U08<br/>Python pipeline addon stages"]:::pending
+    U09["U09<br/>Addon Lua modules and API definitions"]:::pending
+    U10["U10<br/>Addon asset types and cooking registration"]:::pending
+    U11["U11<br/>Addon artifact installation and distribution"]:::pending
+    U12["U12<br/>Platform provider extension acceptance"]:::pending
+    U13["U13<br/>Addon diagnostics and contribution inspection"]:::pending
+    U14["U14<br/>Cross-host addon compatibility acceptance"]:::pending
+    ref_U_Q02 --> U01
+    ref_U_T01 --> U01
+    U01 --> U02
+    U01 --> U03
+    ref_U_B07 --> U03
+    ref_U_T03 --> U03
+    U03 --> U04
+    ref_U_C04 --> U04
+    ref_U_B02 --> U04
+    ref_U_V09 --> U04
+    U02 --> U05
+    ref_U_Q05 --> U05
+    ref_U_T05 --> U05
+    U05 --> U06
+    ref_U_J02 --> U06
+    U05 --> U07
+    ref_U_Y06 --> U07
+    U02 --> U08
+    ref_U_Q04 --> U08
+    ref_U_T06 --> U08
+    U04 --> U09
+    ref_U_G11 --> U09
+    U04 --> U10
+    U08 --> U10
+    ref_U_I09 --> U10
+    ref_U_R09 --> U10
+    U02 --> U11
+    U05 --> U11
+    ref_U_Y05 --> U11
+    U04 --> U12
+    U07 --> U12
+    U08 --> U12
+    U06 --> U13
+    U07 --> U13
+    U08 --> U13
+    U09 --> U13
+    U10 --> U13
+    U11 --> U13
+    U12 --> U14
+    U13 --> U14
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -1301,6 +1401,8 @@ Plans: [environment-setup](plans/environment-setup.md).
 
 ```mermaid
 flowchart TD
+    ref_Y_G15["G15<br/>prerequisite reference"]:::pending
+    ref_Y_P07["P07<br/>prerequisite reference"]:::pending
     ref_Y_Q01["Q01<br/>prerequisite reference"]:::done
     ref_Y_Q02["Q02<br/>prerequisite reference"]:::done
     ref_Y_Q05["Q05<br/>prerequisite reference"]:::done
@@ -1308,13 +1410,21 @@ flowchart TD
     ref_Y_Q07["Q07<br/>prerequisite reference"]:::done
     ref_Y_T01["T01<br/>prerequisite reference"]:::done
     ref_Y_T05["T05<br/>prerequisite reference"]:::done
+    ref_Y_X04["X04<br/>prerequisite reference"]:::pending
     Y01["Y01<br/>Setup profiles and health contract"]:::done
     Y02["Y02<br/>C# probe library"]:::done
     Y03["Y03<br/>Selected-profile recipe execution"]:::done
-    Y04["Y04<br/>Self-contained .NET 10 setup GUI"]:::ready
-    Y05["Y05<br/>Repair and interrupted setup"]:::pending
+    Y04["Y04<br/>Self-contained .NET 10 setup GUI"]:::done
+    Y05["Y05<br/>Repair and interrupted setup"]:::ready
     Y06["Y06<br/>Headless setup/doctor and CI"]:::ready
     Y07["Y07<br/>Bootstrap distribution and acceptance"]:::pending
+    Y08["Y08<br/>Native compiler and SDK production discovery"]:::ready
+    Y09["Y09<br/>Approved native toolchain acquisition"]:::pending
+    Y10["Y10<br/>Managed SDK and NuGet closure preparation"]:::ready
+    Y11["Y11<br/>Python build and tools venv integration"]:::ready
+    Y12["Y12<br/>LuaJIT and VS Code environment integration"]:::pending
+    Y13["Y13<br/>Designer binary toolset preparation"]:::pending
+    Y14["Y14<br/>Complete environment coverage acceptance"]:::pending
     ref_Y_Q01 --> Y01
     ref_Y_T01 --> Y01
     Y01 --> Y02
@@ -1329,6 +1439,81 @@ flowchart TD
     Y03 --> Y06
     Y05 --> Y07
     Y06 --> Y07
+    Y04 --> Y08
+    ref_Y_Q02 --> Y08
+    Y08 --> Y09
+    Y05 --> Y09
+    Y04 --> Y10
+    ref_Y_Q05 --> Y10
+    Y04 --> Y11
+    ref_Y_Q07 --> Y11
+    Y04 --> Y12
+    ref_Y_G15 --> Y12
+    Y04 --> Y13
+    ref_Y_P07 --> Y13
+    ref_Y_X04 --> Y13
+    Y07 --> Y14
+    Y09 --> Y14
+    Y10 --> Y14
+    Y11 --> Y14
+    Y12 --> Y14
+    Y13 --> Y14
+    classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
+    classDef ready fill:#86efac,stroke:#166534,color:#111827
+    classDef done fill:#f87171,stroke:#991b1b,color:#111827
+```
+
+### Z: Launcher
+
+Plans: [launcher](plans/launcher.md).
+
+```mermaid
+flowchart TD
+    ref_Z_J02["J02<br/>prerequisite reference"]:::pending
+    ref_Z_Q02["Q02<br/>prerequisite reference"]:::done
+    ref_Z_Q04["Q04<br/>prerequisite reference"]:::pending
+    ref_Z_Q05["Q05<br/>prerequisite reference"]:::done
+    ref_Z_T05["T05<br/>prerequisite reference"]:::done
+    ref_Z_U06["U06<br/>prerequisite reference"]:::pending
+    ref_Z_U11["U11<br/>prerequisite reference"]:::pending
+    ref_Z_X03["X03<br/>prerequisite reference"]:::pending
+    ref_Z_X06["X06<br/>prerequisite reference"]:::pending
+    ref_Z_Y01["Y01<br/>prerequisite reference"]:::done
+    ref_Z_Y06["Y06<br/>prerequisite reference"]:::ready
+    ref_Z_Y07["Y07<br/>prerequisite reference"]:::pending
+    Z01["Z01<br/>Launcher workspace and action contract"]:::ready
+    Z02["Z02<br/>Self-contained launcher shell"]:::pending
+    Z03["Z03<br/>Tool discovery and launch lifecycle"]:::pending
+    Z04["Z04<br/>Test suite execution and results"]:::pending
+    Z05["Z05<br/>Build validation and packaging actions"]:::pending
+    Z06["Z06<br/>Environment setup entry and health summary"]:::pending
+    Z07["Z07<br/>Addon management and launcher contributions"]:::pending
+    Z08["Z08<br/>Launcher artifact and workspace distribution"]:::pending
+    Z09["Z09<br/>Launcher workflow acceptance"]:::pending
+    ref_Z_Q02 --> Z01
+    ref_Z_Y01 --> Z01
+    Z01 --> Z02
+    ref_Z_Q05 --> Z02
+    ref_Z_T05 --> Z02
+    Z02 --> Z03
+    ref_Z_J02 --> Z03
+    Z02 --> Z04
+    ref_Z_Y06 --> Z04
+    Z02 --> Z05
+    ref_Z_Q04 --> Z05
+    ref_Z_X06 --> Z05
+    Z02 --> Z06
+    ref_Z_Y07 --> Z06
+    Z03 --> Z07
+    ref_Z_U06 --> Z07
+    ref_Z_U11 --> Z07
+    Z03 --> Z08
+    Z06 --> Z08
+    ref_Z_X03 --> Z08
+    Z04 --> Z09
+    Z05 --> Z09
+    Z07 --> Z09
+    Z08 --> Z09
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827

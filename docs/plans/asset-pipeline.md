@@ -260,7 +260,7 @@ Entrega: build limpo, validação completa, cooking, testes e pacote em tag/manu
 Aceite: falha impede publicação; PR não publica release; permissões de escrita
 restritas ao job de publicação. O ato de publicar segue autorização do mantenedor.
 
-**P06 - Guia de desenvolvimento e entrega final.** Depende: O05, O06, P05, S11, R07, Q03, W06, T14, G17, N07, L08, K07, X07.
+**P06 - Guia de desenvolvimento e entrega final.** Depende: O05, O06, P05, S11, R07, Q03, W06, T14, G17, N07, L08, K07, X07, U14, Z09, Y14.
 Arquivos (até 6): `README.md`, `docs/{development,editors,scripting,
 assets,distribution}.md`.
 Entrega: caminho completo de checkout a build, autoria, testes, cooking e pacote;
