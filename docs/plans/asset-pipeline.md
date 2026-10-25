@@ -1,8 +1,9 @@
 # Assets, bundles, build, CI and distribution
 
-Status: Q01-Q02 merged. The [build decision](../decisions/0001-monorepo-build.md)
-and environment policies are established; asset processing, package foundations
-and selective orchestration remain planned.
+Status: Q01-Q02 and Q05 merged; Q06 implemented and locally validated, pending
+review/merge. The [build decision](../decisions/0001-monorepo-build.md), environment
+policies and managed package policy are established; remaining asset processing,
+environment recipes and selective orchestration remain planned.
 
 ## Scope and independent execution
 
@@ -560,9 +561,11 @@ versions; no loose DLL copying, duplicate BUILD graph or public-feed publication
 Add small fixture projects in sub-deliveries if the total would exceed 10 paths.
 
 **Q06 - Python module wheel and installed entry point.** Depends: Q02.
-Paths (6): `pyproject.toml`, `tools/pipeline/{__init__.py,__main__.py}`,
-`tools/pipeline/build_wheels.py`, `tests/pipeline/test_wheel_install.py`,
-`docs/dependencies.md`.
+Status: implemented and locally validated on `Q06_python_wheel_build_and_entry_point`,
+pending review/merge. See [wheel module usage](../dependencies.md#python-wheel-module-and-installed-entry-point-q06).
+Paths (6 implementation/package/test files): `tools/pipeline/wheel_build/pyproject.toml`,
+`tools/pipeline/wheel_build/src/raiders_pipeline/{__init__.py,__main__.py,build_wheels.py,wheel_policy.json}`,
+`tools/pipeline/wheel_build/tests/test_wheel_install.py`; CI/docs complete the delivery.
 Acceptance: reusable pipeline module has proper package metadata/namespace, builds
 a wheel in its prepared build environment and runs from a separate installed-package
 environment without sys.path hacks or dependence on source checkout location.

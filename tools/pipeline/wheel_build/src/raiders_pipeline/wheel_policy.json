@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "backend": "setuptools.build_meta",
+  "build_requirements": {
+    "setuptools": "84.2.1",
+    "wheel": "0.48.0"
+  }
+}
