@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "session_id": "session.fixture",
+  "scan_id": "scan.fixture",
+  "catalog_id": "raiders.setup.windows",
+  "catalog_sha256": "6db01b9c8627d176377bfa238b7ae707c1bbd81c52493b79737f09bb4a9f31ee",
+  "visibility": "shareable",
+  "machine": {
+    "operating_system": "windows",
+    "architecture": "x64"
+  },
+  "started_at": "2026-10-25T12:00:00Z",
+  "completed_at": "2026-10-25T12:00:02Z",
+  "scan_complete": true,
+  "selected_profiles": [
+    "python-pipeline"
+  ],
+  "resolved_profiles": [
+    "python-pipeline"
+  ],
+  "state": "Ready",
+  "reason_codes": [],
+  "profiles": [
+    {
+      "id": "python-pipeline",
+      "state": "Ready",
+      "reason_codes": [],
+      "dependencies": [],
+      "requirements": [
+        {
+          "id": "python.interpreter",
+          "required": true,
+          "state": "Ready",
+          "reason_codes": [],
+          "evidence": [
+            {
+              "probe_id": "python.interpreter",
+              "outcome": "satisfied",
+              "complete": true,
+              "observed_at": "2026-10-25T12:00:01Z",
+              "observed_version": "3.12.14",
+              "observed_architecture": "x64",
+              "configuration_sha256": null,
+              "location": {
+                "kind": "managed-relative",
+                "value": "python/interpreter"
+              }
+            }
+          ]
+        },
+        {
+          "id": "python.build",
+          "required": true,
+          "state": "Ready",
+          "reason_codes": [],
+          "evidence": [
+            {
+              "probe_id": "python.build",
+              "outcome": "satisfied",
+              "complete": true,
+              "observed_at": "2026-10-25T12:00:01Z",
+              "observed_version": null,
+              "observed_architecture": "x64",
+              "configuration_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "location": {
+                "kind": "managed-relative",
+                "value": "python/build"
+              }
+            }
+          ]
+        },
+        {
+          "id": "python.tools",
+          "required": true,
+          "state": "Ready",
+          "reason_codes": [],
+          "evidence": [
+            {
+              "probe_id": "python.tools",
+              "outcome": "satisfied",
+              "complete": true,
+              "observed_at": "2026-10-25T12:00:01Z",
+              "observed_version": null,
+              "observed_architecture": "x64",
+              "configuration_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "location": {
+                "kind": "managed-relative",
+                "value": "python/tools"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

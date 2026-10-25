@@ -1,7 +1,8 @@
 # Windows development environment manager
 
-Status: Planned. Q01 defines this project; no setup application or production
-environment recipe has been implemented.
+Status: Y01 contract implemented and locally validated, pending review/merge.
+Q07's Python recipes are merged; the C# probe library, setup application and
+remaining native acquisition/execution adapters are planned.
 
 ## Scope and independent execution
 
@@ -57,9 +58,12 @@ including project registration/tests. Q01 only adds this plan. Bootstrap UI
 framework selection must not depend on completion of the engine's editor shell.
 
 **Y01 - Setup profiles and health contract.** Depends: Q01, T01.
-Paths (4): `schemas/environment-profile.schema.json`,
+Status: implemented and locally validated on `Y01_setup_profiles_and_health_contract`,
+pending review/merge. See [contract and validation](../environment-setup.md).
+Paths: `schemas/environment-profile.schema.json`,
 `schemas/environment-health.schema.json`, `docs/environment-setup.md`,
-`tests/fixtures/environment-profile.json`.
+`tests/integration/environment_setup/{fixtures/environment-profile.json,fixtures/environment-health.json,test_contract.py,requirements.lock}`;
+CI and plan/diagram updates complete the ten-path delivery.
 Acceptance: roles/profiles, Windows architecture, version constraints, probe
 evidence and all health states are specified; no game/Python startup dependency.
 

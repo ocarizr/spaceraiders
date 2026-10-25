@@ -1,16 +1,15 @@
 # Task dependency diagram
 
-Updated: 2026-10-25. Merged baseline: master `60a2a09` (PR #19).
-Includes Q07's locally validated delivery, pending review/merge.
+Updated: 2026-10-25. Merged baseline: master `667b838` (PR #20).
+Includes Y01's locally validated delivery, pending review/merge.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
 
-**226 tasks · 510 prerequisite edges · 16 completed · 3 ready · 207 waiting.**
+**226 tasks · 510 prerequisite edges · 17 completed · 3 ready · 206 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
-task at a time. Q07 is complete locally and awaits review/merge; it unlocks no
-additional task because its consumers still have other unmet prerequisites.
+task at a time. Y01 is complete locally and awaits review/merge; Y02 is now ready.
 
 The graphs are split by task family so GitHub can render and readers can inspect
 them without a single 510-edge canvas. Every task has exactly one primary node.
@@ -25,7 +24,7 @@ additional ordering. Original task titles retain the approved planning language.
 flowchart TD
     ready_A06["A06<br/>Tornar includes e unidades de compilação explícitos"]:::ready
     ready_V01["V01<br/>Scheduler contract and design decision"]:::ready
-    ready_Y01["Y01<br/>Setup profiles and health contract"]:::ready
+    ready_Y02["Y02<br/>C# probe library"]:::ready
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -35,13 +34,13 @@ flowchart TD
 | --- | --- | --- |
 | **A06** - Tornar includes e unidades de compilação explícitos | [engine](plans/engine.md) | A05 |
 | **V01** - Scheduler contract and design decision | [jobs](plans/jobs.md) | Q02, T01 |
-| **Y01** - Setup profiles and health contract | [environment-setup](plans/environment-setup.md) | Q01, T01 |
+| **Y02** - C# probe library | [environment-setup](plans/environment-setup.md) | Y01, Q02, Q05, T05 |
 
 ## Completion evidence
 
-Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06.
+Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01.
 
-The merged baseline is grounded in first-parent task merges on master. Q07 is
+The merged baseline is grounded in first-parent task merges on master. Y01 is
 the current locally validated branch delivery, not a claimed merge. A maintenance
 change or a partial reusable slice does not complete a separate task. PR #14
 is pytest maintenance rather than a task ID.
@@ -63,7 +62,8 @@ is pytest maintenance rather than a task ID.
 | T06 | [#17](https://github.com/ocarizr/spaceraiders/pull/17) | `f563de4` |
 | Q05 | [#18](https://github.com/ocarizr/spaceraiders/pull/18) | `66b1442` |
 | Q06 | [#19](https://github.com/ocarizr/spaceraiders/pull/19) | `60a2a09` |
-| Q07 | Installed Q06/Q07 pytest acceptance, offline creation/repair, verified artifact hashes and code style passed; pending review/merge | `Q07_reproducible_python_environments` |
+| Q07 | [#20](https://github.com/ocarizr/spaceraiders/pull/20) | `667b838` |
+| Y01 | Schema/fixture conformance, all health states, privacy/closure checks and code style passed; pending review/merge | `Y01_setup_profiles_and_health_contract` |
 
 ## Reading the task families
 
@@ -1304,8 +1304,8 @@ flowchart TD
     ref_Y_Q07["Q07<br/>prerequisite reference"]:::done
     ref_Y_T01["T01<br/>prerequisite reference"]:::done
     ref_Y_T05["T05<br/>prerequisite reference"]:::done
-    Y01["Y01<br/>Setup profiles and health contract"]:::ready
-    Y02["Y02<br/>C# probe library"]:::pending
+    Y01["Y01<br/>Setup profiles and health contract"]:::done
+    Y02["Y02<br/>C# probe library"]:::ready
     Y03["Y03<br/>Selected-profile recipe execution"]:::pending
     Y04["Y04<br/>Self-contained .NET 10 setup GUI"]:::pending
     Y05["Y05<br/>Repair and interrupted setup"]:::pending

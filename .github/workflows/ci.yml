@@ -71,6 +71,16 @@ jobs:
           .venv/python/tools/Scripts/python.exe -m pytest -c tools/pipeline/wheel_build/pyproject.toml tools/pipeline/wheel_build/tests -v --junitxml=out/test-results/python-environments.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Validate environment setup schemas and fixtures
+        shell: pwsh
+        run: |
+          python -m venv .venv/environment-contract
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .venv/environment-contract/Scripts/python.exe -m pip install --only-binary=:all: --no-deps --require-hashes -r tests/integration/environment_setup/requirements.lock
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .venv/environment-contract/Scripts/python.exe -m pytest -o strict_config=true -o strict_markers=true tests/integration/environment_setup -v --junitxml=out/test-results/environment-contract.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Test formatters and check changed source
         shell: pwsh
         env:

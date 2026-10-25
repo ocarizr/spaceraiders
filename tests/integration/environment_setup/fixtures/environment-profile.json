@@ -1,0 +1,280 @@
+{
+  "schema_version": 1,
+  "catalog_id": "raiders.setup.windows",
+  "revision": 1,
+  "setup_host": {
+    "language": "csharp",
+    "framework": "net10.0-windows",
+    "runtime_identifier": "win-x64",
+    "deployment": "self-contained",
+    "requires_installed_sdk": false,
+    "requires_python": false,
+    "requires_game": false
+  },
+  "profiles": [
+    {
+      "id": "native-development",
+      "title": "Native development",
+      "roles": [
+        "native-developer"
+      ],
+      "target": {
+        "operating_system": "windows",
+        "architecture": "x64"
+      },
+      "depends_on": [],
+      "requirements": [
+        {
+          "id": "native.msvc",
+          "kind": "native-toolchain",
+          "required": true,
+          "probe_id": "native.msvc",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "exact",
+            "value": "19.44.35229.0"
+          },
+          "depends_on": [],
+          "recipe_ref": "native-toolchain-v1"
+        },
+        {
+          "id": "native.toolset",
+          "kind": "native-toolchain",
+          "required": true,
+          "probe_id": "native.toolset",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "exact",
+            "value": "14.44.35207"
+          },
+          "depends_on": [],
+          "recipe_ref": "native-toolchain-v1"
+        },
+        {
+          "id": "native.windows-sdk",
+          "kind": "native-sdk",
+          "required": true,
+          "probe_id": "native.windows-sdk",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "exact",
+            "value": "10.0.26100.0"
+          },
+          "depends_on": [],
+          "recipe_ref": "native-toolchain-v1"
+        },
+        {
+          "id": "native.cmake",
+          "kind": "build-tool",
+          "required": true,
+          "probe_id": "native.cmake",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "exact",
+            "value": "3.31.6-msvc6"
+          },
+          "depends_on": [],
+          "recipe_ref": "native-build-tools-v1"
+        },
+        {
+          "id": "native.ninja",
+          "kind": "build-tool",
+          "required": true,
+          "probe_id": "native.ninja",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "exact",
+            "value": "1.12.1"
+          },
+          "depends_on": [],
+          "recipe_ref": "native-build-tools-v1"
+        }
+      ]
+    },
+    {
+      "id": "managed-tooling",
+      "title": ".NET 10 tooling",
+      "roles": [
+        "tooling-developer"
+      ],
+      "target": {
+        "operating_system": "windows",
+        "architecture": "x64"
+      },
+      "depends_on": [],
+      "requirements": [
+        {
+          "id": "managed.sdk",
+          "kind": "managed-sdk",
+          "required": true,
+          "probe_id": "managed.sdk",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "sdk-feature-band",
+            "value": "10.0.402",
+            "roll_forward": "latestPatch",
+            "allow_prerelease": false
+          },
+          "depends_on": [],
+          "recipe_ref": "dotnet-sdk-v1"
+        },
+        {
+          "id": "managed.packages",
+          "kind": "package-feed",
+          "required": true,
+          "probe_id": "managed.packages",
+          "architecture": "any",
+          "constraint": {
+            "kind": "configuration",
+            "reference": "nuget-config-v1"
+          },
+          "depends_on": [
+            "managed.sdk"
+          ],
+          "recipe_ref": "nuget-restore-v1"
+        }
+      ]
+    },
+    {
+      "id": "python-pipeline",
+      "title": "Python pipeline",
+      "roles": [
+        "pipeline-developer"
+      ],
+      "target": {
+        "operating_system": "windows",
+        "architecture": "x64"
+      },
+      "depends_on": [],
+      "requirements": [
+        {
+          "id": "python.interpreter",
+          "kind": "python-interpreter",
+          "required": true,
+          "probe_id": "python.interpreter",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "one-of",
+            "values": [
+              "3.12.14",
+              "3.12.10"
+            ]
+          },
+          "depends_on": [],
+          "recipe_ref": "python-interpreter-v1"
+        },
+        {
+          "id": "python.build",
+          "kind": "python-environment",
+          "required": true,
+          "probe_id": "python.build",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "configuration",
+            "reference": "python-build-v1"
+          },
+          "depends_on": [
+            "python.interpreter"
+          ],
+          "recipe_ref": "python-build-v1"
+        },
+        {
+          "id": "python.tools",
+          "kind": "python-environment",
+          "required": true,
+          "probe_id": "python.tools",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "configuration",
+            "reference": "python-tools-v1"
+          },
+          "depends_on": [
+            "python.interpreter",
+            "python.build"
+          ],
+          "recipe_ref": "python-tools-v1"
+        }
+      ]
+    },
+    {
+      "id": "lua-development",
+      "title": "Lua development",
+      "roles": [
+        "lua-developer"
+      ],
+      "target": {
+        "operating_system": "windows",
+        "architecture": "x64"
+      },
+      "depends_on": [],
+      "requirements": [
+        {
+          "id": "lua.runtime",
+          "kind": "lua-toolchain",
+          "required": true,
+          "probe_id": "lua.runtime",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "manifest",
+            "reference": "luajit-development-v1"
+          },
+          "depends_on": [],
+          "recipe_ref": "luajit-development-v1"
+        },
+        {
+          "id": "lua.editor",
+          "kind": "code-editor",
+          "required": true,
+          "probe_id": "lua.editor",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "manifest",
+            "reference": "vscode-lua-v1"
+          },
+          "depends_on": [],
+          "recipe_ref": "vscode-lua-v1"
+        }
+      ]
+    },
+    {
+      "id": "designer-tools",
+      "title": "Designer tools",
+      "roles": [
+        "designer"
+      ],
+      "target": {
+        "operating_system": "windows",
+        "architecture": "x64"
+      },
+      "depends_on": [],
+      "requirements": [
+        {
+          "id": "designer.sdk",
+          "kind": "artifact-bundle",
+          "required": true,
+          "probe_id": "designer.sdk",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "manifest",
+            "reference": "designer-sdk-v1"
+          },
+          "depends_on": [],
+          "recipe_ref": "designer-sdk-v1"
+        },
+        {
+          "id": "designer.lua-editor",
+          "kind": "code-editor",
+          "required": false,
+          "probe_id": "lua.editor",
+          "architecture": "x64",
+          "constraint": {
+            "kind": "manifest",
+            "reference": "vscode-lua-v1"
+          },
+          "depends_on": [],
+          "recipe_ref": "vscode-lua-v1"
+        }
+      ]
+    }
+  ]
+}
