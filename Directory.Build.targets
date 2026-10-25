@@ -1,0 +1,7 @@
+<Project>
+    <PropertyGroup>
+        <RaidersLocalPackageFeed Condition="'$(RaidersLocalPackageFeed)' == ''">$(MSBuildThisFileDirectory)out/packages</RaidersLocalPackageFeed>
+    </PropertyGroup>
+
+    <Import Project="$(MSBuildThisFileDirectory)tools/dotnet/package_build/PackDependencies.targets" />
+</Project>

@@ -1,0 +1,71 @@
+<Project>
+    <!-- SDK project files and PackageReference remain the build and dependency graph. -->
+    <UsingTask TaskName="RaidersPackageArtifacts" TaskFactory="RoslynCodeTaskFactory"
+               AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+        <ParameterGroup>
+            <Candidate ParameterType="System.String" />
+            <Destination ParameterType="System.String" />
+            <Producers ParameterType="Microsoft.Build.Framework.ITaskItem[]" />
+            <References ParameterType="Microsoft.Build.Framework.ITaskItem[]" />
+            <Versions ParameterType="Microsoft.Build.Framework.ITaskItem[]" />
+        </ParameterGroup>
+        <Task>
+            <Code Type="Class" Language="cs" Source="$(MSBuildThisFileDirectory)PackageArtifacts.cs" />
+        </Task>
+    </UsingTask>
+
+    <Target Name="RaidersPreparePackageRestore" BeforeTargets="Restore">
+        <MakeDir Directories="$(RaidersLocalPackageFeed)" />
+        <ItemGroup>
+            <_RaidersInternalPin Include="@(PackageVersion)"
+                                Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', '(?i)^Raiders\.'))" />
+            <_RaidersInternalReference Include="@(PackageReference)"
+                                      Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', '(?i)^Raiders\.'))" />
+        </ItemGroup>
+        <Error Condition="'@(_RaidersInternalReference)' != '' and '$(ManagePackageVersionsCentrally)' != 'true'"
+               Text="Raiders packages require central package management." />
+        <Error Condition="'%(_RaidersInternalReference.Version)' != '' or '%(_RaidersInternalReference.VersionOverride)' != ''"
+               Text="Use central PackageVersion entries for Raiders packages; inline versions/overrides are forbidden." />
+        <Error Condition="'@(_RaidersInternalPin)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('%(_RaidersInternalPin.Version)', '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'))"
+               Text="Raiders package versions must be explicit immutable versions, without ranges or wildcards." />
+    </Target>
+
+    <!-- Explicit entry point: ordinary restore never builds producers implicitly. -->
+    <Target Name="RaidersRestore">
+        <MSBuild Projects="@(RaidersPackageProject)" Targets="RaidersPackLocal" BuildInParallel="false"
+                 Properties="Configuration=$(Configuration);RaidersLocalPackageFeed=$(RaidersLocalPackageFeed)">
+            <Output TaskParameter="TargetOutputs" ItemName="_RaidersProducerPackages" />
+        </MSBuild>
+        <RaidersPackageArtifacts Producers="@(_RaidersProducerPackages)" References="@(PackageReference)"
+                                Versions="@(PackageVersion)" Condition="'@(_RaidersProducerPackages)' != ''" />
+        <CallTarget Targets="Restore" />
+    </Target>
+
+    <Target Name="RaidersValidateProducer">
+        <Error Condition="'$(IsPackable)' != 'true' or '$(OutputType)' != 'Library' or '$(IsTestProject)' == 'true'"
+               Text="RaidersPackLocal selects packable libraries only." />
+        <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(PackageId)', '(?i)^Raiders\.[A-Za-z0-9_.-]+$'))"
+               Text="Local library package IDs must use the Raiders. namespace." />
+        <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(PackageVersion)', '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'))"
+               Text="Local libraries require an explicit immutable package version." />
+    </Target>
+
+    <Target Name="RaidersPackLocal" DependsOnTargets="RaidersValidateProducer;RaidersRestore"
+            Returns="@(_RaidersPublishedPackage)">
+        <PropertyGroup>
+            <_RaidersPackDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/obj/raiders-pack/$([System.Guid]::NewGuid())'))</_RaidersPackDirectory>
+            <_RaidersPackageFile>$(PackageId).$(PackageVersion).nupkg</_RaidersPackageFile>
+        </PropertyGroup>
+        <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Pack"
+                 Properties="PackageOutputPath=$(_RaidersPackDirectory)" />
+        <RaidersPackageArtifacts Candidate="$(_RaidersPackDirectory)/$(_RaidersPackageFile)"
+                                Destination="$(RaidersLocalPackageFeed)/$(_RaidersPackageFile)" />
+        <ItemGroup>
+            <_RaidersPublishedPackage Include="$(RaidersLocalPackageFeed)/$(_RaidersPackageFile)">
+                <PackageId>$(PackageId)</PackageId>
+                <PackageVersion>$(PackageVersion)</PackageVersion>
+            </_RaidersPublishedPackage>
+        </ItemGroup>
+        <RemoveDir Directories="$(_RaidersPackDirectory)" />
+    </Target>
+</Project>

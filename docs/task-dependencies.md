@@ -1,15 +1,15 @@
 # Task dependency diagram
 
-Updated: 2026-10-25. Merged baseline: master `43ade50` (PR #16).
-Includes T06's locally validated delivery, pending review/merge.
+Updated: 2026-10-25. Merged baseline: master `f563de4` (PR #17).
+Includes Q05's locally validated delivery, pending review/merge.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
 
-**226 tasks · 510 prerequisite edges · 13 completed · 5 ready · 208 waiting.**
+**226 tasks · 510 prerequisite edges · 14 completed · 4 ready · 208 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
-task at a time. T06 is complete locally and awaits review/merge; it unlocks no
+task at a time. Q05 is complete locally and awaits review/merge; it unlocks no
 additional task because its consumers still have other unmet prerequisites.
 
 The graphs are split by task family so GitHub can render and readers can inspect
@@ -24,7 +24,6 @@ additional ordering. Original task titles retain the approved planning language.
 ```mermaid
 flowchart TD
     ready_A06["A06<br/>Tornar includes e unidades de compilação explícitos"]:::ready
-    ready_Q05["Q05<br/>Reusable NuGet library build/restore policy"]:::ready
     ready_Q06["Q06<br/>Python module wheel and installed entry point"]:::ready
     ready_V01["V01<br/>Scheduler contract and design decision"]:::ready
     ready_Y01["Y01<br/>Setup profiles and health contract"]:::ready
@@ -36,19 +35,18 @@ flowchart TD
 | Task | Authoritative plan | Prerequisites |
 | --- | --- | --- |
 | **A06** - Tornar includes e unidades de compilação explícitos | [engine](plans/engine.md) | A05 |
-| **Q05** - Reusable NuGet library build/restore policy | [asset-pipeline](plans/asset-pipeline.md) | Q02 |
 | **Q06** - Python module wheel and installed entry point | [asset-pipeline](plans/asset-pipeline.md) | Q02 |
 | **V01** - Scheduler contract and design decision | [jobs](plans/jobs.md) | Q02, T01 |
 | **Y01** - Setup profiles and health contract | [environment-setup](plans/environment-setup.md) | Q01, T01 |
 
 ## Completion evidence
 
-Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, T01, T02, T03, T04, T05, T06.
+Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, T01, T02, T03, T04, T05, T06.
 
-The merged baseline is grounded in first-parent task merges on master. T06 is
+The merged baseline is grounded in first-parent task merges on master. Q05 is
 the current locally validated branch delivery, not a claimed merge. A maintenance
-change or a partial reusable slice does not complete a separate task: Q05/Q06
-remain planned, and PR #14 is pytest maintenance rather than a task ID.
+change or a partial reusable slice does not complete a separate task: Q06
+remains planned, and PR #14 is pytest maintenance rather than a task ID.
 
 | Task | Delivery evidence | Commit or branch |
 | --- | --- | --- |
@@ -64,7 +62,8 @@ remain planned, and PR #14 is pytest maintenance rather than a task ID.
 | T03 | [#12](https://github.com/ocarizr/spaceraiders/pull/12) | `87bba9d` |
 | T04 | [#13](https://github.com/ocarizr/spaceraiders/pull/13) | `f3d9834` |
 | T05 | [#15](https://github.com/ocarizr/spaceraiders/pull/15) | `849b4b8` |
-| T06 | Installed wheel/CLI pytest acceptance and code style passed; pending review/merge | `T06_python_pipeline_telemetry_adapter` |
+| T06 | [#17](https://github.com/ocarizr/spaceraiders/pull/17) | `f563de4` |
+| Q05 | Eight MSTest package-graph cases, thirteen managed regression tests, real producer packaging and code style passed; pending review/merge | `Q05_nuget_library_build_restore_policy` |
 
 ## Reading the task families
 
@@ -886,7 +885,7 @@ flowchart TD
     Q02["Q02<br/>Pin .NET 10, native and Python environment policies"]:::done
     Q03["Q03<br/>Solution e filtros por ferramenta"]:::pending
     Q04["Q04<br/>CLI Python do monorepo por projeto"]:::pending
-    Q05["Q05<br/>Reusable NuGet library build/restore policy"]:::ready
+    Q05["Q05<br/>Reusable NuGet library build/restore policy"]:::done
     Q06["Q06<br/>Python module wheel and installed entry point"]:::ready
     Q07["Q07<br/>Reproducible Python environment recipes"]:::pending
     ref_Q_A01 --> Q01
@@ -1111,7 +1110,7 @@ flowchart TD
     ref_V_J06["J06<br/>prerequisite reference"]:::pending
     ref_V_Q02["Q02<br/>prerequisite reference"]:::done
     ref_V_Q04["Q04<br/>prerequisite reference"]:::pending
-    ref_V_Q05["Q05<br/>prerequisite reference"]:::ready
+    ref_V_Q05["Q05<br/>prerequisite reference"]:::done
     ref_V_Q06["Q06<br/>prerequisite reference"]:::ready
     ref_V_Q07["Q07<br/>prerequisite reference"]:::pending
     ref_V_T01["T01<br/>prerequisite reference"]:::done
@@ -1300,7 +1299,7 @@ Plans: [environment-setup](plans/environment-setup.md).
 flowchart TD
     ref_Y_Q01["Q01<br/>prerequisite reference"]:::done
     ref_Y_Q02["Q02<br/>prerequisite reference"]:::done
-    ref_Y_Q05["Q05<br/>prerequisite reference"]:::ready
+    ref_Y_Q05["Q05<br/>prerequisite reference"]:::done
     ref_Y_Q06["Q06<br/>prerequisite reference"]:::ready
     ref_Y_Q07["Q07<br/>prerequisite reference"]:::pending
     ref_Y_T01["T01<br/>prerequisite reference"]:::done

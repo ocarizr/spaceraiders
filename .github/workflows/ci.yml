@@ -130,7 +130,18 @@ jobs:
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             }
           }
-          dotnet pack tools/dotnet/Raiders.Diagnostics/Raiders.Diagnostics.csproj --no-restore -c Release -p:RaidersEnableProfiling=true -o out/packages
+          dotnet msbuild tools/dotnet/Raiders.Diagnostics/Raiders.Diagnostics.csproj -t:RaidersPackLocal -p:Configuration=Release -p:RaidersEnableProfiling=true -p:RestoreLockedMode=true
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Test local NuGet package graph policy
+        shell: pwsh
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        run: |
+          $project = 'tools/dotnet/package_build/tests/Raiders.Build.Tests.csproj'
+          dotnet restore $project --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test $project --no-restore -c Release --logger 'trx;LogFileName=package-graph.trx' --results-directory out/test-results/package-build -- RunConfiguration.TreatNoTestsAsError=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   gate:
