@@ -1,15 +1,15 @@
 # Task dependency diagram
 
-Updated: 2026-10-25. Merged baseline: master `667b838` (PR #20).
-Includes Y01's locally validated delivery, pending review/merge.
+Updated: 2026-10-25. Merged baseline: master `73e8a5f` (PR #21).
+Includes Y02's locally validated delivery, pending review/merge.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
 
-**226 tasks · 510 prerequisite edges · 17 completed · 3 ready · 206 waiting.**
+**226 tasks · 510 prerequisite edges · 18 completed · 3 ready · 205 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
-task at a time. Y01 is complete locally and awaits review/merge; Y02 is now ready.
+task at a time. Y02 is complete locally and awaits review/merge; Y03 is now ready.
 
 The graphs are split by task family so GitHub can render and readers can inspect
 them without a single 510-edge canvas. Every task has exactly one primary node.
@@ -24,7 +24,7 @@ additional ordering. Original task titles retain the approved planning language.
 flowchart TD
     ready_A06["A06<br/>Tornar includes e unidades de compilação explícitos"]:::ready
     ready_V01["V01<br/>Scheduler contract and design decision"]:::ready
-    ready_Y02["Y02<br/>C# probe library"]:::ready
+    ready_Y03["Y03<br/>Selected-profile recipe execution"]:::ready
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -34,13 +34,13 @@ flowchart TD
 | --- | --- | --- |
 | **A06** - Tornar includes e unidades de compilação explícitos | [engine](plans/engine.md) | A05 |
 | **V01** - Scheduler contract and design decision | [jobs](plans/jobs.md) | Q02, T01 |
-| **Y02** - C# probe library | [environment-setup](plans/environment-setup.md) | Y01, Q02, Q05, T05 |
+| **Y03** - Selected-profile recipe execution | [environment-setup](plans/environment-setup.md) | Y02, Q06, Q07 |
 
 ## Completion evidence
 
-Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01.
+Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02.
 
-The merged baseline is grounded in first-parent task merges on master. Y01 is
+The merged baseline is grounded in first-parent task merges on master. Y02 is
 the current locally validated branch delivery, not a claimed merge. A maintenance
 change or a partial reusable slice does not complete a separate task. PR #14
 is pytest maintenance rather than a task ID.
@@ -63,7 +63,8 @@ is pytest maintenance rather than a task ID.
 | Q05 | [#18](https://github.com/ocarizr/spaceraiders/pull/18) | `66b1442` |
 | Q06 | [#19](https://github.com/ocarizr/spaceraiders/pull/19) | `60a2a09` |
 | Q07 | [#20](https://github.com/ocarizr/spaceraiders/pull/20) | `667b838` |
-| Y01 | Schema/fixture conformance, all health states, privacy/closure checks and code style passed; pending review/merge | `Y01_setup_profiles_and_health_contract` |
+| Y01 | [#21](https://github.com/ocarizr/spaceraiders/pull/21) | `73e8a5f` |
+| Y02 | 60 MSTest cases in Debug/Release with profiling on/off; locked restore, NuGet pack, Y01 report conformance and code style passed; pending review/merge | `Y02_csharp_environment_probe_library` |
 
 ## Reading the task families
 
@@ -1305,8 +1306,8 @@ flowchart TD
     ref_Y_T01["T01<br/>prerequisite reference"]:::done
     ref_Y_T05["T05<br/>prerequisite reference"]:::done
     Y01["Y01<br/>Setup profiles and health contract"]:::done
-    Y02["Y02<br/>C# probe library"]:::ready
-    Y03["Y03<br/>Selected-profile recipe execution"]:::pending
+    Y02["Y02<br/>C# probe library"]:::done
+    Y03["Y03<br/>Selected-profile recipe execution"]:::ready
     Y04["Y04<br/>Self-contained .NET 10 setup GUI"]:::pending
     Y05["Y05<br/>Repair and interrupted setup"]:::pending
     Y06["Y06<br/>Headless setup/doctor and CI"]:::pending

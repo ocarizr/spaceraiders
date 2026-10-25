@@ -106,3 +106,6 @@ obj/
 *.dll
 *.exe
 
+# Custom Paths
+!Raiders.Environment.Core/
+
