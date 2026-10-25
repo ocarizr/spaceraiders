@@ -53,21 +53,22 @@ jobs:
           .venv/diagnostics/Scripts/python.exe -m pytest -c tools/pipeline/diagnostics/pyproject.toml tools/pipeline/diagnostics/tests -v --junitxml=out/test-results/python-diagnostics.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Build and test installed pipeline wheel coordinator
+      - name: Recreate locked Python environments and test installed pipeline wheel
         shell: pwsh
         run: |
-          python -m venv .venv/wheel-build
+          $recipe = 'tools/pipeline/wheel_build/src/raiders_pipeline/create_env.py'
+          python -I $recipe create --profile build --root .venv/python --wheelhouse .tools/environments/wheels --download
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m venv .venv/pipeline
+          .venv/python/build/Scripts/python.exe -I -m pip --isolated wheel --no-deps --no-build-isolation --no-index --wheel-dir .tools/pipeline/wheels tools/pipeline/wheel_build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .venv/wheel-build/Scripts/python.exe -m pip install setuptools==84.2.1 wheel==0.48.0 packaging==24.2
+          $wheel = (Resolve-Path .tools/pipeline/wheels/raiders_pipeline-0.2.0-py3-none-any.whl).Path
+          $sha256 = (Get-FileHash -LiteralPath $wheel -Algorithm SHA256).Hash.ToLowerInvariant()
+          python -I $recipe create --profile tools --root .venv/python --wheelhouse .tools/environments/wheels --download --local-wheel $wheel --local-sha256 $sha256
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .venv/wheel-build/Scripts/python.exe -I -m pip --isolated wheel --no-deps --no-build-isolation --no-index --wheel-dir .tools/pipeline/wheels tools/pipeline/wheel_build
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .venv/pipeline/Scripts/python.exe -m pip install '.tools/pipeline/wheels/raiders_pipeline-0.1.0-py3-none-any.whl[test]'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:RAIDERS_TEST_BUILD_PYTHON = (Resolve-Path .venv/wheel-build/Scripts/python.exe).Path
-          .venv/pipeline/Scripts/python.exe -m pytest -c tools/pipeline/wheel_build/pyproject.toml tools/pipeline/wheel_build/tests -v --junitxml=out/test-results/python-wheel-build.xml
+          $env:RAIDERS_TEST_BUILD_PYTHON = (Resolve-Path .venv/python/build/Scripts/python.exe).Path
+          $env:RAIDERS_TEST_WHEELHOUSE = (Resolve-Path .tools/environments/wheels).Path
+          $env:RAIDERS_TEST_PIPELINE_WHEEL = $wheel
+          .venv/python/tools/Scripts/python.exe -m pytest -c tools/pipeline/wheel_build/pyproject.toml tools/pipeline/wheel_build/tests -v --junitxml=out/test-results/python-environments.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Test formatters and check changed source

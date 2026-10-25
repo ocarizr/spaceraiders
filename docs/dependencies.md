@@ -138,26 +138,13 @@ directory. This first builder supports projects declaring those exact backend
 requirements and `setuptools.build_meta`, without `backend-path` hooks. Other
 backends/additional build requirements need an explicit policy extension.
 
-Prepare separate Windows x64 Python 3.12 venvs, then bootstrap the coordinator:
+Use the [Q07 recipes](#reproducible-python-environments-q07) below to prepare
+separate Windows x64 Python 3.12 venvs and bootstrap the coordinator. Interpreters,
+venvs, wheels and fixture projects remain ignored. Subsequent selected package
+builds use the installed command. For example, from any working directory:
 
 ```powershell
-python -m venv .venv/wheel-build
-python -m venv .venv/pipeline
-.venv/wheel-build/Scripts/python.exe -m pip install setuptools==84.2.1 wheel==0.48.0 packaging==24.2
-.venv/wheel-build/Scripts/python.exe -I -m pip --isolated wheel --no-deps --no-build-isolation --no-index --wheel-dir .tools/pipeline/wheels tools/pipeline/wheel_build
-.venv/pipeline/Scripts/python.exe -m pip install '.tools/pipeline/wheels/raiders_pipeline-0.1.0-py3-none-any.whl[test]'
-$env:RAIDERS_TEST_BUILD_PYTHON = (Resolve-Path .venv/wheel-build/Scripts/python.exe).Path
-.venv/pipeline/Scripts/python.exe -m pytest -c tools/pipeline/wheel_build/pyproject.toml tools/pipeline/wheel_build/tests -v
-```
-
-Check each exit code before continuing. The `test` extra is for validation, not
-normal deployment. Install just the wheel in an execution environment that does
-not need pytest. Interpreters, venvs, wheels and fixture projects remain ignored.
-The bootstrap builds the coordinator itself once; subsequent selected package
-builds can use its installed command. For example, from any working directory:
-
-```powershell
-D:/Projects/spaceraiders/.venv/pipeline/Scripts/python.exe -I -m raiders_pipeline build-wheel --project D:/Projects/spaceraiders/tools/pipeline/diagnostics --build-python D:/Projects/spaceraiders/.venv/wheel-build/Scripts/python.exe --wheel-dir D:/Projects/spaceraiders/out/python-wheels
+D:/Projects/spaceraiders/.venv/python/tools/Scripts/python.exe -I -m raiders_pipeline build-wheel --project D:/Projects/spaceraiders/tools/pipeline/diagnostics --build-python D:/Projects/spaceraiders/.venv/python/build/Scripts/python.exe --wheel-dir D:/Projects/spaceraiders/out/python-wheels
 ```
 
 Replace the example checkout paths with your own. Source is an explicit build
@@ -187,6 +174,114 @@ the fixture source and run its installed entry points successfully. They also
 cover backend/build failures, invalid projects/interpreters and environment
 separation. The existing Code style job carries these checks into CI gate.
 
-Interpreter acquisition, complete dependency locks/hashes, environment health and
-repair are Q07/Y tasks. Whole-monorepo project orchestration is Q04, selective CI
-is O01-O03, and native/binary Python wrappers remain their owning project tasks.
+Locked environment creation and health checks are implemented below (Q07).
+Whole-monorepo project orchestration is Q04, selective CI is O01-O03, and
+native/binary Python wrappers remain their owning project tasks.
+
+## Reproducible Python environments (Q07)
+
+`raiders-pipeline` 0.2.0 packages two JSON recipes alongside its stdlib-only
+`create_env.py` runner. They are developer/distribution inputs, not local state:
+
+| Recipe | Installed graph |
+| --- | --- |
+| [python-build.lock](../tools/pipeline/wheel_build/src/raiders_pipeline/environments/python-build.lock) | pip, setuptools, wheel and packaging |
+| [python-tools.lock](../tools/pipeline/wheel_build/src/raiders_pipeline/environments/python-tools.lock) | pip, pytest and its complete Windows dependency graph, plus the explicitly supplied raiders-pipeline 0.2.0 wheel |
+
+Each external artifact has an exact version, wheel filename, official PyPI file
+URL and SHA-256. The local package's identity/version is fixed in the tools
+recipe; its wheel SHA-256 comes from the build/release manifest because a package
+cannot contain the hash of its own complete wheel. CI calculates that hash after
+building. A distributed SDK must supply the approved hash with its artifact.
+
+Interpreter discovery checks an explicit `--python` first, or the running base
+interpreter and Python candidates on PATH. It accepts only Windows x64 CPython
+3.12.14 (Q02 development baseline) or 3.12.10 (Q02 hosted Windows baseline).
+Store aliases are skipped. No compatible candidate is an actionable failure;
+the runner does not silently change Python versions or install an interpreter.
+
+For a machine without Python, the recipes also contain a native bootstrap
+contract under `interpreter.bootstrap`: the official CPython 3.12.10 x64 installer
+URL/SHA-256, per-user silent arguments, `{interpreter_root}` substitution,
+executable path and accepted installer exit codes. The future C# setup manager
+can read this JSON, verify/download/run the native installer and then invoke
+the stdlib runner, without needing Python to read or execute the installer
+contract. Interpreter installation/registration, restart handling (exit 3010),
+distribution/licensing and GUI consent belong to Y02/Y03. Q07 verified the
+downloaded installer against the digest in its official Sigstore bundle; it did
+not install Python or perform Sigstore signature verification.
+[Official release files](https://www.python.org/downloads/release/python-31210/).
+
+From an existing compatible CPython checkout, check each exit code:
+
+```powershell
+$recipe = 'tools/pipeline/wheel_build/src/raiders_pipeline/create_env.py'
+python -I $recipe create --profile build --root .venv/python --wheelhouse .tools/environments/wheels --download
+.venv/python/build/Scripts/python.exe -I -m pip --isolated wheel --no-deps --no-build-isolation --no-index --wheel-dir .tools/pipeline/wheels tools/pipeline/wheel_build
+$wheel = (Resolve-Path .tools/pipeline/wheels/raiders_pipeline-0.2.0-py3-none-any.whl).Path
+$sha256 = (Get-FileHash -LiteralPath $wheel -Algorithm SHA256).Hash.ToLowerInvariant()
+python -I $recipe create --profile tools --root .venv/python --wheelhouse .tools/environments/wheels --download --local-wheel $wheel --local-sha256 $sha256
+.venv/python/tools/Scripts/python.exe -I -m raiders_pipeline env check --profile tools --root .venv/python --local-sha256 $sha256
+```
+
+The source runner deliberately needs no installed pipeline package or third-party
+Python modules; its lock files travel beside it. Once installed, `raiders-pipeline
+env ...` and `python -m raiders_pipeline env ...` use the same implementation and
+bundled recipes. All paths are explicit or relative to the chosen managed root;
+installed commands work outside the checkout. The graphical setup manager
+remains a C# project in the Y plan, not a Python user interface.
+
+`--download` fetches missing wheels only from locked URLs, verifies SHA-256 before
+caching and removes failed partial downloads. Omit it for offline creation with
+a prepared wheelhouse. Existing corrupt cache entries fail with their filename;
+remove that specific artifact and explicitly download it again. All input hashes
+are verified before replacing an environment. Pip then installs only those wheels
+with `--no-index --no-deps --only-binary=:all: --require-hashes`; `pip check` and an
+exact installed inventory check reject incomplete dependency graphs. The venv's
+bootstrap pip is replaced by the locked pip wheel. No floating dependency
+resolution occurs during recipe installation.
+[Pip hash-checking mode](https://pip.pypa.io/en/stable/topics/secure-installs/).
+
+`create` and `check` emit one JSON object on stdout; installation diagnostics go
+to stderr. Results contain `profile`, `path` on normal checks, `status` and
+`reasons`; operational errors can omit `path`. `Ready` returns zero; `Missing`
+(no environment directory) or `Needs repair` return one. Argument errors return
+two. `check` never creates or repairs anything. A healthy environment is reused
+without needing cached wheels or the local artifact, although tools checks still
+require the expected local SHA-256 to identify the desired release.
+
+The ignored `.raiders-environment.json` receipt records the recipe fingerprint,
+base interpreter identity, local wheel hash and installed distribution versions/
+file fingerprints. Health rehashes distribution-owned files, including RECORD
+and generated scripts, rather than trusting version strings or edited RECORD
+hash columns alone. It detects changed/missing files, unexpected distributions,
+recipe changes and disabled site isolation. Ephemeral `.pyc` files, arbitrary
+unowned files and the standard library are outside this distribution fingerprint.
+This checks installed package drift; it is not an operating-system integrity scan.
+
+`create` repairs only an owned `<root>/build` or `<root>/tools` directory at its
+original absolute path; venvs are not relocated. It rejects unowned directories,
+linked targets, active/bootstrap environments and artifact inputs inside the
+target. An OS file lock prevents concurrent creators and releases on process
+exit. An incomplete creation retains a repairable receipt; rerunning `create`
+can rebuild it after fixing the cause. A failed recreation may leave that
+environment incomplete. Existing manually created Q06 venvs are not adopted or
+deleted; use a fresh managed root such as `.venv/python`.
+
+The installed pytest suite covers both profiles and all Q06 wheel/entry-point
+acceptance, plus offline recreation, idempotence without a cache, drift/repair,
+recipe changes, bad hashes/downloads, extra distributions, concurrent creators
+and ownership/active-environment guards. CI bootstraps with the recipes, then
+executes the suite from the installed tools environment:
+
+```powershell
+$env:RAIDERS_TEST_BUILD_PYTHON = (Resolve-Path .venv/python/build/Scripts/python.exe).Path
+$env:RAIDERS_TEST_WHEELHOUSE = (Resolve-Path .tools/environments/wheels).Path
+$env:RAIDERS_TEST_PIPELINE_WHEEL = $wheel
+.venv/python/tools/Scripts/python.exe -m pytest -c tools/pipeline/wheel_build/pyproject.toml tools/pipeline/wheel_build/tests -v
+```
+
+The tools profile currently owns the wheel coordinator and its pytest suite;
+formatter and diagnostics environments retain their existing project workflows.
+Add profiles only when their owning work needs them. CI impact classification
+continues to belong to O01-O03.

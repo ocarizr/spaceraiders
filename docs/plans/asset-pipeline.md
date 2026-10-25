@@ -1,9 +1,9 @@
 # Assets, bundles, build, CI and distribution
 
-Status: Q01-Q02 and Q05 merged; Q06 implemented and locally validated, pending
+Status: Q01-Q02 and Q05-Q06 merged; Q07 implemented and locally validated, pending
 review/merge. The [build decision](../decisions/0001-monorepo-build.md), environment
-policies and managed package policy are established; remaining asset processing,
-environment recipes and selective orchestration remain planned.
+policies, package policies and Python environment recipes are established;
+remaining asset processing and selective orchestration remain planned.
 
 ## Scope and independent execution
 
@@ -572,9 +572,14 @@ environment without sys.path hacks or dependence on source checkout location.
 Include needed data files/entry points; test the actual wheel, not just source imports.
 
 **Q07 - Reproducible Python environment recipes.** Depends: Q02, Q06.
-Paths (5): `environments/{python-build,python-tools}.lock`,
-`tools/pipeline/create_env.py`, `tests/pipeline/test_environment_recipes.py`,
-`docs/dependencies.md`.
+Status: implemented and locally validated on `Q07_reproducible_python_environments`,
+pending review/merge. See [recipes and bootstrap contract](../dependencies.md#reproducible-python-environments-q07).
+Paths (4 implementation/recipe/test files):
+`tools/pipeline/wheel_build/src/raiders_pipeline/environments/{python-build,python-tools}.lock`,
+`tools/pipeline/wheel_build/src/raiders_pipeline/create_env.py`,
+`tools/pipeline/wheel_build/tests/test_environment_recipes.py`; CLI/package metadata,
+CI/docs complete the delivery. Native installer acquisition metadata is available
+to the future C# setup manager; Q07 discovers existing compatible interpreters.
 Acceptance: discover or acquire pinned compatible interpreter, recreate build/runtime
 venvs from locked artifacts/hashes, validate installed package fingerprints and report
 Ready/Needs repair. Source-owned recipes are separate from ignored local environments;

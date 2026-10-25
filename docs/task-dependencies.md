@@ -1,16 +1,16 @@
 # Task dependency diagram
 
-Updated: 2026-10-25. Merged baseline: master `66b1442` (PR #18).
-Includes Q06's locally validated delivery, pending review/merge.
+Updated: 2026-10-25. Merged baseline: master `60a2a09` (PR #19).
+Includes Q07's locally validated delivery, pending review/merge.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
 
-**226 tasks · 510 prerequisite edges · 15 completed · 4 ready · 207 waiting.**
+**226 tasks · 510 prerequisite edges · 16 completed · 3 ready · 207 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
-task at a time. Q06 is complete locally and awaits review/merge; Q07 is now ready.
-Other Q06 consumers still have additional unmet prerequisites.
+task at a time. Q07 is complete locally and awaits review/merge; it unlocks no
+additional task because its consumers still have other unmet prerequisites.
 
 The graphs are split by task family so GitHub can render and readers can inspect
 them without a single 510-edge canvas. Every task has exactly one primary node.
@@ -24,7 +24,6 @@ additional ordering. Original task titles retain the approved planning language.
 ```mermaid
 flowchart TD
     ready_A06["A06<br/>Tornar includes e unidades de compilação explícitos"]:::ready
-    ready_Q07["Q07<br/>Reproducible Python environment recipes"]:::ready
     ready_V01["V01<br/>Scheduler contract and design decision"]:::ready
     ready_Y01["Y01<br/>Setup profiles and health contract"]:::ready
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
@@ -35,18 +34,17 @@ flowchart TD
 | Task | Authoritative plan | Prerequisites |
 | --- | --- | --- |
 | **A06** - Tornar includes e unidades de compilação explícitos | [engine](plans/engine.md) | A05 |
-| **Q07** - Reproducible Python environment recipes | [asset-pipeline](plans/asset-pipeline.md) | Q02, Q06 |
 | **V01** - Scheduler contract and design decision | [jobs](plans/jobs.md) | Q02, T01 |
 | **Y01** - Setup profiles and health contract | [environment-setup](plans/environment-setup.md) | Q01, T01 |
 
 ## Completion evidence
 
-Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, T01, T02, T03, T04, T05, T06.
+Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06.
 
-The merged baseline is grounded in first-parent task merges on master. Q06 is
+The merged baseline is grounded in first-parent task merges on master. Q07 is
 the current locally validated branch delivery, not a claimed merge. A maintenance
-change or a partial reusable slice does not complete a separate task: Q07
-remains planned, and PR #14 is pytest maintenance rather than a task ID.
+change or a partial reusable slice does not complete a separate task. PR #14
+is pytest maintenance rather than a task ID.
 
 | Task | Delivery evidence | Commit or branch |
 | --- | --- | --- |
@@ -64,7 +62,8 @@ remains planned, and PR #14 is pytest maintenance rather than a task ID.
 | T05 | [#15](https://github.com/ocarizr/spaceraiders/pull/15) | `849b4b8` |
 | T06 | [#17](https://github.com/ocarizr/spaceraiders/pull/17) | `f563de4` |
 | Q05 | [#18](https://github.com/ocarizr/spaceraiders/pull/18) | `66b1442` |
-| Q06 | Installed wheel/API/CLI pytest acceptance, source relocation and code style passed; pending review/merge | `Q06_python_wheel_build_and_entry_point` |
+| Q06 | [#19](https://github.com/ocarizr/spaceraiders/pull/19) | `60a2a09` |
+| Q07 | Installed Q06/Q07 pytest acceptance, offline creation/repair, verified artifact hashes and code style passed; pending review/merge | `Q07_reproducible_python_environments` |
 
 ## Reading the task families
 
@@ -888,7 +887,7 @@ flowchart TD
     Q04["Q04<br/>CLI Python do monorepo por projeto"]:::pending
     Q05["Q05<br/>Reusable NuGet library build/restore policy"]:::done
     Q06["Q06<br/>Python module wheel and installed entry point"]:::done
-    Q07["Q07<br/>Reproducible Python environment recipes"]:::ready
+    Q07["Q07<br/>Reproducible Python environment recipes"]:::done
     ref_Q_A01 --> Q01
     Q01 --> Q02
     ref_Q_J02 --> Q03
@@ -1113,7 +1112,7 @@ flowchart TD
     ref_V_Q04["Q04<br/>prerequisite reference"]:::pending
     ref_V_Q05["Q05<br/>prerequisite reference"]:::done
     ref_V_Q06["Q06<br/>prerequisite reference"]:::done
-    ref_V_Q07["Q07<br/>prerequisite reference"]:::ready
+    ref_V_Q07["Q07<br/>prerequisite reference"]:::done
     ref_V_T01["T01<br/>prerequisite reference"]:::done
     ref_V_T04["T04<br/>prerequisite reference"]:::done
     ref_V_T05["T05<br/>prerequisite reference"]:::done
@@ -1302,7 +1301,7 @@ flowchart TD
     ref_Y_Q02["Q02<br/>prerequisite reference"]:::done
     ref_Y_Q05["Q05<br/>prerequisite reference"]:::done
     ref_Y_Q06["Q06<br/>prerequisite reference"]:::done
-    ref_Y_Q07["Q07<br/>prerequisite reference"]:::ready
+    ref_Y_Q07["Q07<br/>prerequisite reference"]:::done
     ref_Y_T01["T01<br/>prerequisite reference"]:::done
     ref_Y_T05["T05<br/>prerequisite reference"]:::done
     Y01["Y01<br/>Setup profiles and health contract"]:::ready
