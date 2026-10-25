@@ -139,10 +139,21 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Read pinned .NET SDK version
+        id: dotnet-sdk
+        shell: pwsh
+        run: |
+          $sdkVersion = (Get-Content -Raw global.json | ConvertFrom-Json).sdk.version
+          if ($sdkVersion -notmatch '^10\.\d+\.\d{3}$') {
+            throw 'global.json must declare an exact .NET 10 SDK version.'
+          }
+          "version=$sdkVersion" >> $env:GITHUB_OUTPUT
+
       - name: Set up .NET
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          global-json-file: global.json
+          # Keep installation exact; global.json still controls SDK selection at build time.
+          dotnet-version: ${{ steps.dotnet-sdk.outputs.version }}
 
       - name: Restore locked dependencies, test both profiling modes and pack
         shell: pwsh
