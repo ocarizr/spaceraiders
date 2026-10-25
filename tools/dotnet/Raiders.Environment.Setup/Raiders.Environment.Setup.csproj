@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0-windows</TargetFramework>
+        <UseWindowsForms>true</UseWindowsForms>
+        <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <SelfContained>true</SelfContained>
+        <PublishSingleFile>true</PublishSingleFile>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+        <PublishTrimmed>false</PublishTrimmed>
+        <IsPackable>false</IsPackable>
+        <Version>0.1.0</Version>
+        <Description>Windows environment setup for Raiders Engine developers and designers.</Description>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Remove="tests/**/*.cs" />
+        <ProjectReference Include="../Raiders.Environment.Core/Raiders.Environment.Core.csproj" />
+        <EmbeddedResource Include="../../../global.json" LogicalName="Raiders.Setup.SdkPolicy" />
+        <EmbeddedResource Include="../../pipeline/wheel_build/src/raiders_pipeline/environments/python-build.lock" LogicalName="Raiders.Setup.PythonPolicy" />
+    </ItemGroup>
+</Project>

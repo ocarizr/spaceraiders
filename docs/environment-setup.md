@@ -3,14 +3,14 @@
 Version 1 defines the inputs and diagnostic results shared by the Windows setup
 GUI and headless doctor. Y01 supplies schemas and conformance tests; Y02 supplies
 the C# probe library. Y03 adds selected-profile recipe execution in
-`Raiders.Environment.Core` 0.2.0. The self-contained GUI remains Y04,
-interrupted-operation repair Y05, headless commands Y06 and bootstrap distribution
-Y07. No real installer runs as part of automated validation.
+`Raiders.Environment.Core` 0.2.0. Y04 supplies the self-contained Windows setup
+GUI. Interrupted-operation repair remains Y05, headless commands Y06 and bootstrap
+distribution Y07. No real installer runs as part of automated validation.
 
 The application is C#/.NET 10, `net10.0-windows`, self-contained `win-x64`. Launch
 requires no installed .NET SDK, Python, game executable, renderer, asset bundle or
 Python build coordinator. Preparing a selected developer profile can install its
-SDK later. The UI framework remains a Y04 choice. Windows x64 is the supported
+SDK later. The GUI uses Windows Forms. Windows x64 is the supported
 host; other architectures/platforms can be reported as unsupported, not prepared.
 
 ## Documents and ownership
@@ -317,3 +317,94 @@ Check every command's exit code. Machines retaining a different 0.2.0 developmen
 package must use an isolated feed for local validation; immutable published
 versions must not be overwritten. The package retains its versioned
 `Raiders.Diagnostics` dependency; test assemblies and generated state are excluded.
+
+## Windows setup application (Y04)
+
+[`Raiders.Environment.Setup`](../tools/dotnet/Raiders.Environment.Setup) is a
+Windows Forms `net10.0-windows` application, published for `win-x64` with its .NET
+runtime and native runtime libraries bundled. Windows Forms fits this
+Windows-only utility and permits a small code-based UI without generated XAML or
+designer files. Trimming is disabled. DPI scaling uses PerMonitorV2.
+[Windows Forms](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/overview/),
+[single-file deployment](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview).
+
+To use a published build, open `Raiders.Environment.Setup.exe`. No SDK, Python,
+game executable, source checkout or current-directory layout is needed to open
+the window. The application starts without scanning or installing anything.
+The production profile catalog is compiled from reviewed Y01/Q02 requirements;
+`global.json` and Q07's Python lock are embedded policy inputs. Tests compare the
+requirements against the reviewed Y01 catalog. No test fixture is a production
+runtime dependency. Source and binaries remain separate; publishing into ignored
+`out/setup/win-x64` does not add executables to Git.
+
+1. Check the profiles needed for your role. Unselected profiles are not scanned.
+2. Click **Scan selected**. Required profile prerequisites are included by the core.
+3. Review component states and actions. Selecting a row shows required/detected
+   versions, architecture, observation time, configured location and reasons.
+   Optional components are labeled and are not installed implicitly.
+4. Click **Prepare available actions** and review the confirmation, including the
+   proposed CPython version and per-user target when applicable. Only registered
+   recipes can execute; unavailable components remain unresolved.
+5. Observe phase/step progress or cancel. Closing a busy window requests
+   cancellation and waits for the operation before disposing controls. Re-scan
+   after cancellation or failure. Healthy components do not reinstall.
+
+Selection is locked during work. Changing it invalidates old health and action
+availability; preparation requires a fresh scan. Probes/recipes run off the UI
+thread, using the same `EnvironmentProbe` and `RecipeRunner` as other consumers.
+The UI shows real failures and pending restart/privilege actions, even when a
+subsequent version check succeeds. Pending actions are retained across selection
+changes during the current app session. Durable reconciliation remains Y05;
+headless commands remain Y06 and bootstrap/release acquisition remains Y07.
+
+### Registered capabilities in this delivery
+
+The default host probes the .NET SDK from its standard installation/PATH, Python
+from its managed/per-user/PATH locations, and CMake/Ninja executables on PATH.
+Store execution aliases are excluded from Python candidate discovery. Detection
+requires actual version/architecture checks, not executable names alone. A missing
+configured interpreter slot can be conclusive; unresolved manifests remain
+Unknown, with preparation unavailable.
+
+The approved Q07 CPython bootstrap is registered: it downloads the pinned official
+installer, verifies SHA-256, and uses Q07's existing per-user arguments without
+changing PATH or requiring Python to run the installer. Its target is
+`%LOCALAPPDATA%/Raiders/Setup/python312`. Download cache and structured logs also
+live under this per-user Setup directory. Exception text, child output and URLs
+do not enter the UI log stream. UI operations log their duration separately from
+the core's optional profiling scopes.
+
+The GUI does not fabricate MSVC/SDK, NuGet-closure, Python-venv, Lua or Designer
+distribution manifests/recipes. These components are displayed as unavailable
+until reviewed bindings/payloads are supplied through `ISetupBackend`; installing
+an interpreter alone does not claim that the entire Python pipeline is ready.
+The UI/backend seam permits the same workflow to exercise approved recipes and
+isolated test installers without duplicating environment preparation logic.
+
+### Build, publish and test
+
+Building requires the pinned .NET 10 SDK on Windows. Running the published
+application does not require a developer runtime or SDK.
+
+```powershell
+$tests = 'tools/dotnet/Raiders.Environment.Setup/tests/Raiders.Environment.Setup.Tests.csproj'
+dotnet restore $tests --locked-mode
+dotnet publish tools/dotnet/Raiders.Environment.Setup/Raiders.Environment.Setup.csproj --no-restore -c Release -p:RaidersEnableProfiling=true -o out/setup/win-x64
+$env:RAIDERS_SETUP_PUBLISHED_EXE = (Resolve-Path out/setup/win-x64/Raiders.Environment.Setup.exe).Path
+dotnet test $tests --no-restore -c Release -p:RaidersEnableProfiling=true -- RunConfiguration.TreatNoTestsAsError=true
+```
+
+Check each command's exit code. The entry point and window share `SetupWindow.cs`;
+UI state and the default policy/backend composition live in `ProfileViewModel.cs`.
+The app and its owned MSTest project have reviewed package locks. The existing
+managed CI job publishes first, then runs all UI tests with the published path.
+
+Tests cover selection, health/evidence binding, unavailable actions, no-op health,
+failure reporting, pending actions, UI-thread progress/cancellation and close
+lifecycle. They use the real WinForms controls with fake probes/installers; no
+real installer executes. The publish test launches the actual EXE from an
+unrelated working directory with empty PATH and nonexistent .NET/Python roots,
+inspects the owned hidden window, and verifies the host's self-contained-runtime
+trace. It closes the process cleanly. Optional `RAIDERS_SETUP_PREVIEW` and
+`RAIDERS_SETUP_CATALOG_OUTPUT` paths capture a fixture-window PNG and production
+catalog for local visual/schema validation; these outputs stay ignored.
