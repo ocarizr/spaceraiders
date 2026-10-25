@@ -1,14 +1,16 @@
 # Task dependency diagram
 
-Updated: 2026-10-25. Merged baseline: master `849b4b8` (PR #15).
+Updated: 2026-10-25. Merged baseline: master `43ade50` (PR #16).
+Includes T06's locally validated delivery, pending review/merge.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
 
-**226 tasks · 510 prerequisite edges · 12 completed · 6 ready · 208 waiting.**
+**226 tasks · 510 prerequisite edges · 13 completed · 5 ready · 208 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
-task at a time. T06 remains the discussed next implementation; it is not completed.
+task at a time. T06 is complete locally and awaits review/merge; it unlocks no
+additional task because its consumers still have other unmet prerequisites.
 
 The graphs are split by task family so GitHub can render and readers can inspect
 them without a single 510-edge canvas. Every task has exactly one primary node.
@@ -24,7 +26,6 @@ flowchart TD
     ready_A06["A06<br/>Tornar includes e unidades de compilação explícitos"]:::ready
     ready_Q05["Q05<br/>Reusable NuGet library build/restore policy"]:::ready
     ready_Q06["Q06<br/>Python module wheel and installed entry point"]:::ready
-    ready_T06["T06<br/>Python pipeline telemetry adapter"]:::ready
     ready_V01["V01<br/>Scheduler contract and design decision"]:::ready
     ready_Y01["Y01<br/>Setup profiles and health contract"]:::ready
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
@@ -37,19 +38,19 @@ flowchart TD
 | **A06** - Tornar includes e unidades de compilação explícitos | [engine](plans/engine.md) | A05 |
 | **Q05** - Reusable NuGet library build/restore policy | [asset-pipeline](plans/asset-pipeline.md) | Q02 |
 | **Q06** - Python module wheel and installed entry point | [asset-pipeline](plans/asset-pipeline.md) | Q02 |
-| **T06** - Python pipeline telemetry adapter | [observability](plans/observability.md) | T01, Q02 |
 | **V01** - Scheduler contract and design decision | [jobs](plans/jobs.md) | Q02, T01 |
 | **Y01** - Setup profiles and health contract | [environment-setup](plans/environment-setup.md) | Q01, T01 |
 
 ## Completion evidence
 
-Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, T01, T02, T03, T04, T05.
+Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, T01, T02, T03, T04, T05, T06.
 
-This baseline is grounded in first-parent task merges on master. A maintenance
+The merged baseline is grounded in first-parent task merges on master. T06 is
+the current locally validated branch delivery, not a claimed merge. A maintenance
 change or a partial reusable slice does not complete a separate task: Q05/Q06
 remain planned, and PR #14 is pytest maintenance rather than a task ID.
 
-| Task | Merged PR | Commit |
+| Task | Delivery evidence | Commit or branch |
 | --- | --- | --- |
 | A01 | [#3](https://github.com/ocarizr/spaceraiders/pull/3) | `bf4bd7c` |
 | Q01 | [#4](https://github.com/ocarizr/spaceraiders/pull/4) | `87d9648` |
@@ -63,6 +64,7 @@ remain planned, and PR #14 is pytest maintenance rather than a task ID.
 | T03 | [#12](https://github.com/ocarizr/spaceraiders/pull/12) | `87bba9d` |
 | T04 | [#13](https://github.com/ocarizr/spaceraiders/pull/13) | `f3d9834` |
 | T05 | [#15](https://github.com/ocarizr/spaceraiders/pull/15) | `849b4b8` |
+| T06 | Installed wheel/CLI pytest acceptance and code style passed; pending review/merge | `T06_python_pipeline_telemetry_adapter` |
 
 ## Reading the task families
 
@@ -750,7 +752,7 @@ flowchart TD
     ref_O_Q04["Q04<br/>prerequisite reference"]:::pending
     ref_O_S04["S04<br/>prerequisite reference"]:::pending
     ref_O_T05["T05<br/>prerequisite reference"]:::done
-    ref_O_T06["T06<br/>prerequisite reference"]:::ready
+    ref_O_T06["T06<br/>prerequisite reference"]:::done
     ref_O_V12["V12<br/>prerequisite reference"]:::pending
     ref_O_V14["V14<br/>prerequisite reference"]:::pending
     ref_O_V19["V19<br/>prerequisite reference"]:::pending
@@ -1033,7 +1035,7 @@ flowchart TD
     T03["T03<br/>Optional native profiling scopes"]:::done
     T04["T04<br/>Chrome JSON trace writer and capture sessions"]:::done
     T05["T05<br/>C# logging and profiling adapter"]:::done
-    T06["T06<br/>Python pipeline telemetry adapter"]:::ready
+    T06["T06<br/>Python pipeline telemetry adapter"]:::done
     T07["T07<br/>Instrument native execution and preview"]:::pending
     T08["T08<br/>Lua callback/module profiling bridge"]:::pending
     T09["T09<br/>Native tagged memory resources"]:::pending
@@ -1115,7 +1117,7 @@ flowchart TD
     ref_V_T01["T01<br/>prerequisite reference"]:::done
     ref_V_T04["T04<br/>prerequisite reference"]:::done
     ref_V_T05["T05<br/>prerequisite reference"]:::done
-    ref_V_T06["T06<br/>prerequisite reference"]:::ready
+    ref_V_T06["T06<br/>prerequisite reference"]:::done
     V01["V01<br/>Scheduler contract and design decision"]:::ready
     V02["V02<br/>Independent native job package and handles"]:::pending
     V03["V03<br/>Configurable worker pool and bounded ready queue"]:::pending

@@ -3,7 +3,109 @@
 Version 1 defines data exchanged by native C++20, C#/.NET 10, Python and Lua
 adapters. T01 defines schemas and terminology; T02 adds native logging and T03
 adds optional elapsed-time scopes. T04 adds bounded Chrome JSON export/recovery.
-Memory collectors and cross-process clock conversion remain later tasks.
+T06 adds the installed Python pipeline adapter. Memory collectors and
+cross-process clock conversion remain later tasks.
+
+## Python pipeline adapter (T06)
+
+`tools/pipeline/diagnostics` builds the `raiders-diagnostics` wheel for Windows
+and Python 3.12, with no runtime dependencies. Source, tests and packaging belong
+to that project. CI builds a wheel in a build venv, installs it with the pinned
+pytest test extra in a separate execution venv, and exercises the installed
+module and console entry point. The existing Code style job runs these tests;
+its failure blocks CI gate. Impact-based job selection remains O01-O03.
+
+```python
+from raiders_diagnostics.logging import Log
+from raiders_diagnostics.profiling import Profiler
+from raiders_diagnostics.session import TelemetrySession
+
+session = TelemetrySession.from_environment()
+log = Log(session)  # stderr; pass a caller-owned UTF-8 writer for files
+profiler = Profiler(session, capacity=1024, log=log)
+with session.bind(correlation_id="cook.1", asset_id="asset.ship"):
+    with profiler.stage(lambda: "validate-assets"):
+        log.write("info", "assets", lambda: "Validation started", lambda: {"count": 12})
+        # Perform pipeline work here.
+
+events = profiler.drain()
+```
+
+Sessions use the v1 IDs and monotonic microsecond clock. Process/clock IDs are
+generated once per interpreter process and thread IDs once per thread instance.
+`bind` inherits omitted optional IDs; `None` clears one and scope exit restores
+the previous context, including on exceptions. Context variables isolate async
+tasks. New threads require explicit `contextvars.copy_context().run(...)` when
+inheritance is desired; the context object must not be entered concurrently.
+Scopes capture context at entry. Use `with profiler.stage(...)` inside async
+functions too; its duration includes suspension and waits.
+
+`from_environment()` accepts `RA_TELEMETRY_SESSION_ID` and optional
+`RA_TELEMETRY_CORRELATION_ID`, `RA_TELEMETRY_ASSET_ID`, `RA_TELEMETRY_ENTITY_ID`,
+`RA_TELEMETRY_WIDGET_ID`, `RA_TELEMETRY_VM_INSTANCE_ID`.
+`RA_ENABLE_LOGGING` and `RA_ENABLE_PROFILING` independently accept `0` or `1`
+(default `1`). `child_environment()` copies a base environment, clears stale
+optional context and passes the active IDs and switches. Child programs opt in
+by reading this contract; native/managed programs need their own environment
+integration. Process and clock identities are never inherited. These values
+correlate events; they do not synchronize clocks across processes.
+
+`Log.write` emits v1 JSONL to stderr by default, never implicitly to stdout.
+Levels run from trace through critical; `minimum="off"` rejects everything.
+Message/attribute factories execute only after collection, severity and record
+budget checks. Python eagerly evaluates normal expressions: use factories for
+expensive optional payloads. Each logger serializes writes, bounds lifetime
+records and canonical UTF-8 bytes per record (including LF), and exposes
+`written`, `rejected`, `failures`, `faulted` stats. Defaults are 10,000 records
+and 16,384 bytes each. Files should use UTF-8 and `newline="\n"`; caller-owned
+writers that translate newlines can add bytes. Share one logger per sink.
+Unsafe JSON numbers, malformed payloads and oversized records never reach the
+sink. Factory/serialization errors return false and increment failures;
+filtering/budget/size rejections increment rejected. Sink failure permanently
+faults the logger to avoid repeated partial writes. A failed write can already
+have emitted a partial record: discard/recover that capture before reuse.
+The caller owns disposal/retention. Serialization and user factories can allocate
+before the byte limit is checked; the adapter does not cap their transient heap.
+
+`Profiler` reserves capacity for both active scopes and completed records.
+Its stats expose capacity, buffered/in-flight, completed, dropped, rejected and
+accepting. Full buffers drop new scopes without evaluating their name factories.
+`stop()` rejects new scopes while allowing active ones to complete; `drain()`
+removes completed events and releases their slots. OFF skips names, clocks and
+buffers and reports zero capacity. Invalid names/factory failures reject the
+scope while still executing its body. Work exceptions propagate after recording
+an error outcome. Events contain name/category, entry context, start/duration
+in microseconds and outcome. These are elapsed-time scopes, not CPU samples or
+heap measurements; Python heap diagnostics remain T11. Events are returned in
+completion order; nested durations overlap and must not be summed as CPU time.
+Optional log summaries use category `pipeline.profile`. Full trace manifests,
+Chrome export and cross-process alignment remain future integration work.
+
+`Profiler.run([executable, ...], timeout=seconds)` measures a child process,
+uses no shell and inherits stdout/stderr without buffering output in memory.
+It passes the session environment and propagates nonzero exit/timeout exceptions.
+A timeout kills and waits for the direct child; descendant-tree lifecycle and
+job-system integration remain V18. Command lines/environment values are not
+copied into telemetry. Child stderr may contain ordinary diagnostics; use a
+dedicated file sink when the telemetry stream must contain only JSONL.
+
+The installed CLI wraps a pipeline stage and its child timing:
+
+```powershell
+python -m venv .venv/diagnostics-build
+python -m venv .venv/diagnostics
+.venv/diagnostics-build/Scripts/python.exe -m pip wheel --no-deps --wheel-dir .tools/diagnostics/wheels tools/pipeline/diagnostics
+.venv/diagnostics/Scripts/python.exe -m pip install '.tools/diagnostics/wheels/raiders_diagnostics-0.1.0-py3-none-any.whl[test]'
+.venv/diagnostics/Scripts/python.exe -m pytest -c tools/pipeline/diagnostics/pyproject.toml tools/pipeline/diagnostics/tests -v
+.venv/diagnostics/Scripts/raiders-telemetry.exe --log-file out/pipeline.jsonl --timeout 60 -- .venv/diagnostics/Scripts/python.exe -c "print('{}')"
+```
+
+Check each command's exit code before continuing. Log files are created exclusively
+and never overwritten; create parent directories first. `--disabled` overrides
+both switches and creates no telemetry file. Disabled collection still executes
+the child and preserves its stdout. The CLI returns the child exit code, `124`
+on timeout and `2` for invalid configuration/launch errors. The wrapper does not
+validate or rewrite the child's stdout protocol.
 
 ## Managed logging and profiling adapter (T05)
 

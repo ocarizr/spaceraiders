@@ -39,6 +39,20 @@ jobs:
           .venv/code-style/Scripts/python.exe -m raiders_code_style --bootstrap-lua
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Build and test installed Python telemetry wheel
+        shell: pwsh
+        run: |
+          python -m venv .venv/diagnostics-build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m venv .venv/diagnostics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .venv/diagnostics-build/Scripts/python.exe -m pip wheel --no-deps --wheel-dir .tools/diagnostics/wheels tools/pipeline/diagnostics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .venv/diagnostics/Scripts/python.exe -m pip install '.tools/diagnostics/wheels/raiders_diagnostics-0.1.0-py3-none-any.whl[test]'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .venv/diagnostics/Scripts/python.exe -m pytest -c tools/pipeline/diagnostics/pyproject.toml tools/pipeline/diagnostics/tests -v --junitxml=out/test-results/python-diagnostics.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Test formatters and check changed source
         shell: pwsh
         env:
