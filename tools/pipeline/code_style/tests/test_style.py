@@ -1,6 +1,8 @@
 """Contract fixtures for syntax-aware spacing in every repository language."""
 
 import re
+import subprocess
+import sys
 
 import pytest
 
@@ -83,3 +85,44 @@ def test_check_does_not_write_files(root, tmp_path):
     path.write_text(original, encoding="utf-8")
     canonical(original, root / "fixture.py", root)
     assert path.read_text(encoding="utf-8") == original
+
+
+@pytest.mark.parametrize(
+    "invalid_config,unknown_marker,exit_code,message",
+    [
+        (False, False, 0, "1 passed"),
+        (True, False, 4, "Unknown config option: raiders_invalid_option"),
+        (False, True, 2, "'raiders_unknown_marker' not found in `markers` configuration option"),
+    ],
+    ids=["valid", "unknown-config", "unknown-marker"],
+)
+def test_pytest_strict_validation(
+    root, tmp_path, invalid_config, unknown_marker, exit_code, message
+):
+    config = (root / "tools/pipeline/code_style/pyproject.toml").read_text(encoding="utf-8")
+
+    if invalid_config:
+        config = config.replace(
+            "[tool.pytest.ini_options]",
+            "[tool.pytest.ini_options]\nraiders_invalid_option = true",
+        )
+
+    (tmp_path / "pyproject.toml").write_text(config, encoding="utf-8")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    source = "def test_probe():\n    assert True\n"
+
+    if unknown_marker:
+        source = "import pytest\n\n@pytest.mark.raiders_unknown_marker\n" + source
+
+    (tests / "test_probe.py").write_text(source, encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "-c", "pyproject.toml", "tests", "-q"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == exit_code, output
+    assert message in output
