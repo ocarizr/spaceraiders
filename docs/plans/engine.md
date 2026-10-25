@@ -1,6 +1,6 @@
 # Engine, rendering, physics and native UI
 
-Status: Planned. Implementation has not started.
+Status: A01-A05 baseline merged; engine extraction and runtime extensions remain planned.
 
 ## Scope and independent execution
 
@@ -24,6 +24,17 @@ requirement to finish every other project. Target 3-8 changed paths per PR, at
 most about 10 including tests/build registration/manifests. Split before exceeding it.
 Detailed notes retained from the prior plan use its approved Portuguese planning
 exception; implementation files, diagnostics, API names and shipped docs use English.
+
+## Shared job-system handoff
+
+The [jobs plan](jobs.md) owns the scheduler and language wrappers. Added V
+prerequisites apply to the integration tasks below; synchronous contracts and
+existing completed tasks remain valid. The [task diagram](../task-dependencies.md)
+shows cross-project readiness and must be refreshed after dependency changes.
+
+J07 and D10 require the V15 frame graph and main/render ownership handoff. E09
+verifies the V16 physics batches against the serial result oracle. Basic extraction
+remains sequential until these integration slices are ready.
 
 ## Implementation backlog
 
@@ -314,7 +325,7 @@ the UI factory receives typed descriptors; Development supplies them through sha
 XML deserialization, Shipping through binary/compiled data. The factory itself
 does not own parsing, but XML loading is supported by the development host.
 
-**J07 - Native engine preview host with real renderer.** Depends: J06, G09, R09, D05.
+**J07 - Native engine preview host with real renderer.** Depends: J06, G09, R09, D05, V15.
 Paths (6): `apps/preview_host/{CMakeLists.txt,PreviewApplication.cpp,
 PreviewProtocol.h,PreviewProtocol.cpp}`, `CMakeLists.txt`,
 `tests/integration/preview_host_tests.cpp`.
@@ -396,7 +407,7 @@ Paths (6): `engine/render/include/raiders/RenderLayer.h`,
 Acceptance: stable named layer IDs and authored order; UI layer selectable;
 unknown/removed layer references fail validation rather than silently moving to front.
 
-**D10 - Renderer equivalence tests.** Depends: D05, J07, D08, D09.
+**D10 - Renderer equivalence tests.** Depends: D05, J07, D08, D09, V15.
 Paths (5): `tests/integration/render_parity_tests.cpp`,
 `tests/fixtures/render_scene.bundle/manifest.json`, `tests/CMakeLists.txt`,
 `apps/preview_host/PreviewProtocol.cpp`, `docs/rendering.md`.
@@ -434,7 +445,7 @@ Acceptance: top/bottom and left/right wrapping retain position remainder,
 orientation/velocity; seam contact/CCD works for rotated shapes without duplicate
 entity IDs, damage or fragmentation; interpolation does not streak across screen.
 
-**E09 - Integrated physics/animation performance scenarios.** Depends: E08, D08, T09.
+**E09 - Integrated physics/animation performance scenarios.** Depends: E08, D08, T09, V16.
 Paths (4): `tests/physics/physics_scenarios.cpp`,
 `tests/animation/spawn_contact_tests.cpp`, `tests/CMakeLists.txt`,
 `docs/physics.md`.

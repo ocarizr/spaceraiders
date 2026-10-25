@@ -24,6 +24,17 @@ most about 10 including tests/build registration/manifests. Split before exceedi
 Detailed notes retained from the prior plan use its approved Portuguese planning
 exception; implementation files, diagnostics, API names and shipped docs use English.
 
+## Shared job-system handoff
+
+The [jobs plan](jobs.md) owns the scheduler and language wrappers. Added V
+prerequisites apply to the integration tasks below; synchronous contracts and
+existing completed tasks remain valid. The [task diagram](../task-dependencies.md)
+shows cross-project readiness and must be refreshed after dependency changes.
+
+K05 consumes the V17 common job service for background validation/preview work
+and owner-thread result publication. Widget mutation stays on the UI thread;
+preview rasterization remains native.
+
 ## Implementation backlog
 
 **J01 - Definir UX desktop e fronteiras C#/C++.** Depende: F05, Q01, R01.
@@ -108,7 +119,7 @@ Arquivos (5): `tools/dotnet/Raiders.UIEditor/UiEditorDocument.cs`,
 Aceite: criar tela gera Lua membro; rename mantém ID e custom code; journal
 recupera falha entre arquivos e mantém manifesto coerente com todos os membros.
 
-**K05 - Handlers e preview de UI.** Depende: K04, H06, J08.
+**K05 - Handlers e preview de UI.** Depende: K04, H06, J08, V17.
 Arquivos (4): `tools/dotnet/Raiders.UIEditor/{UiPreviewController.cs,
 EventBindingInspector.cs,UiEditorDocument.cs}`,
 `tests/dotnet/Raiders.Tools.Tests/UiPreviewTests.cs`.

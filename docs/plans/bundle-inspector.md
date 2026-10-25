@@ -22,6 +22,17 @@ most about 10 including tests/build registration/manifests. Split before exceedi
 Detailed notes retained from the prior plan use its approved Portuguese planning
 exception; implementation files, diagnostics, API names and shipped docs use English.
 
+## Shared job-system handoff
+
+The [jobs plan](jobs.md) owns the scheduler and language wrappers. Added V
+prerequisites apply to the integration tasks below; synchronous contracts and
+existing completed tasks remain valid. The [task diagram](../task-dependencies.md)
+shows cross-project readiness and must be refreshed after dependency changes.
+
+S03 uses the V17 service for bounded graph/layout/query work and cancellation.
+The C# UI publishes immutable results on its owning thread; large graph expansion
+must not block input or mutate widgets from workers.
+
 ## Implementation backlog
 
 **S01 - Aplicação C# e browser de bundles.** Depende: J06, R03.
@@ -38,7 +49,7 @@ GraphNode.cs,GraphEdge.cs,GraphQueryService.cs}`,
 Aceite: arestas diretas/reversas, ownership e referências entre bundles são distintas;
 referências mútuas são agrupadas sem recursão infinita.
 
-**S03 - Canvas de grafo navegável em C#.** Depende: S02.
+**S03 - Canvas de grafo navegável em C#.** Depende: S02, V17.
 Arquivos (5): `tools/dotnet/Raiders.BundleInspector/{GraphCanvas.cs,
 GraphLayout.cs,GraphSelection.cs,GraphViewport.cs}`,
 `tests/dotnet/Raiders.Tools.Tests/GraphNavigationTests.cs`.

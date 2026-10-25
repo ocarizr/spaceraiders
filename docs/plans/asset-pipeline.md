@@ -1,7 +1,8 @@
 # Assets, bundles, build, CI and distribution
 
-Status: Production implementation planned. Q01 decision and disposable spike are
-documented in [ADR 0001](../decisions/0001-monorepo-build.md), ready for review.
+Status: Q01-Q02 merged. The [build decision](../decisions/0001-monorepo-build.md)
+and environment policies are established; asset processing, package foundations
+and selective orchestration remain planned.
 
 ## Scope and independent execution
 
@@ -25,6 +26,17 @@ requirement to finish every other project. Target 3-8 changed paths per PR, at
 most about 10 including tests/build registration/manifests. Split before exceeding it.
 Detailed notes retained from the prior plan use its approved Portuguese planning
 exception; implementation files, diagnostics, API names and shipped docs use English.
+
+## Shared job-system handoff
+
+The [jobs plan](jobs.md) owns the scheduler and language wrappers. Added V
+prerequisites apply to the integration tasks below; synchronous contracts and
+existing completed tasks remain valid. The [task diagram](../task-dependencies.md)
+shows cross-project readiness and must be refreshed after dependency changes.
+
+I05 uses the V09 native scheduler for incremental cooking dependencies. V18 adds
+Python/subprocess orchestration over I06. O07 selects native and wrapper consumers;
+O06 includes V19 combined-workload budgets. Editing never invokes that cook graph.
 
 ## Implementation backlog
 
@@ -124,7 +136,7 @@ Acceptance: generate compilable native data/binary payloads for eligible scene/
 sprite records with stable IDs and optimized layout; no machine paths. Editing
 does not invoke the packaging emitter or require its outputs.
 
-**I05 - Manifesto e grafo incremental de cooking.** Depende: I04, F05, R04.
+**I05 - Manifesto e grafo incremental de cooking.** Depende: I04, F05, R04, V09.
 Arquivos (6): `tools/assetc/{include/CookManifest.h,src/CookManifest.cpp}`,
 `tools/assetc/src/main.cpp`, `tools/assetc/CMakeLists.txt`,
 `tests/assets/incremental_cook_tests.cpp`, `docs/assets.md`.
@@ -201,7 +213,7 @@ Aceite: criar/salvar/reabrir asset, customizar Lua, regenerar, cookar e iniciar
 pacote usando serviços reais dos editores; complementar com smoke manual da
 interação visual, sem fingir que teste de serialização valida toda a interface.
 
-**O06 - Desempenho medido e orçamento simples.** Depende: N05, P03.
+**O06 - Desempenho medido e orçamento simples.** Depende: N05, P03, V19.
 Arquivos (5): `tests/integration/performance_scenarios.cpp`,
 `tests/CMakeLists.txt`, `CMakePresets.json`, `docs/performance.md`,
 `.github/workflows/ci.yml`.
@@ -501,7 +513,7 @@ Acceptance: machine with binaries and optional configured VS Code, but no native
 install a cooked content update. Noninteractive tests plus recorded manual IDE
 acceptance; publish no temporary captures into the source tree.
 
-**O07 - Selective CI for diagnostics and shared surfaces.** Depends: O03, T05, T06, D04.
+**O07 - Selective CI for diagnostics and shared surfaces.** Depends: O03, T05, T06, D04, V12, V14.
 Paths (4): `tools/pipeline/classify_changes.py`,
 `tests/pipeline/test_ci_impact.py`, `.github/workflows/ci.yml`, `docs/ci.md`.
 Acceptance: native diagnostics/surface changes test affected consumers; C# changes

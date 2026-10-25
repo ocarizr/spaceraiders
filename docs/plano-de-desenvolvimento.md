@@ -1,9 +1,9 @@
 # Space Raiders: macro development roadmap
 
-Updated: 2026-10-24. Source-code baseline inspected: `9d87fe4`.
-The current branch contains planning changes; no engine/editor implementation is
-claimed by this roadmap. The existing source was read together with both pages of
-`IKACppTest.pdf`. No game build or runtime verification was performed while planning.
+Updated: 2026-10-25. Merged progress checked against master `849b4b8` (#15).
+The original source/PDF inspection used `9d87fe4`; its legacy findings remain
+historical context. A01-A05, Q01-Q02 and T01-T05 are now merged. This update adds
+future job-system work and the task diagram, without implementing T06 or jobs.
 
 This is the coordination plan for a reusable 2D engine and its developer ecosystem.
 The game is a sample demonstrating the engine, editors, scripting and content
@@ -15,19 +15,20 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 
 | Project | Authoritative plan | Owned tasks | Delivery state |
 | --- | --- | --- | --- |
-| C++20 engine, renderer, physics, native UI and preview host | [Engine](plans/engine.md) | A, B, C, D, E, H and J07 | Planned |
+| C++20 engine, renderer, physics, native UI and preview host | [Engine](plans/engine.md) | A, B, C, D, E, H and J07 | A01-A05 baseline merged; extraction planned |
 | LuaJIT runtime, bindings, VS Code and debugger | [Scripting](plans/scripting.md) | G | Planned |
-| Assets/bundles, pipeline, build, CI and Designer SDK | [Asset pipeline](plans/asset-pipeline.md) | F, I, O, P, Q, R and X | Planned |
+| Assets/bundles, pipeline, build, CI and Designer SDK | [Asset pipeline](plans/asset-pipeline.md) | F, I, O, P, Q, R and X | Contract ready (Q01/Q02); remaining work planned |
 | Shared C# tooling platform and UI editor | [UI editor](plans/ui-editor.md) | J except J07, and K | Planned |
 | C# entity, drawing and animation editor | [Entity editor](plans/entity-editor.md) | L | Planned |
 | C# dependency graph and memory inspector | [Bundle inspector](plans/bundle-inspector.md) | S | Planned |
-| Cross-language diagnostics | [Observability](plans/observability.md) | T | Planned |
+| Cross-language diagnostics | [Observability](plans/observability.md) | T | Usable native/managed slice (T01-T05) |
+| Shared native job system and C#/Python packages | [Jobs](plans/jobs.md) | V | Planned |
 | C#/.NET 10 graphical environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Planned |
 | C# scene/level editor and native playtest | [Level editor](plans/level-editor.md) | W | Planned |
 | Authored Space Raiders sample and legacy regression | [Sample game](plans/sample-game.md) | M and N | Planned |
 
-The plans currently define **207 small PR-sized tasks**, including all 131 task IDs
-from the previous plan and 76 additions. Task IDs are unique across projects.
+The plans currently define **226 small PR-sized tasks**: the previous 207 plus
+19 job-system tasks (V01-V19). Task IDs are unique across projects.
 Cross-project needs refer to those IDs. The dependency graph must remain acyclic.
 Projects may consume each other's incremental interfaces; this does not require
 completing a whole project before starting a consumer.
@@ -36,8 +37,13 @@ Delivery status is a public product-level summary explicitly requested for this
 roadmap: Planned -> Contract ready -> Usable slice -> Integrated -> Verified.
 Only update it with a merged PR/reference or reproducible acceptance evidence.
 Drafted documentation is not implementation progress. Detailed execution checklists,
-agent notes, temporary captures and milestone evidence remain local or CI artifacts,
-not additional source-controlled trackers.
+agent notes, temporary captures and milestone evidence remain local or CI artifacts.
+The explicitly requested [task dependency diagram](task-dependencies.md) is the
+shared navigation/status view: white means waiting on prerequisites, green means
+ready, and red means completed. It covers every task and records merged completion
+references. Update its completed nodes and recompute readiness at the end of each
+completed task; do not treat a green prerequisite as completed. Detailed task
+definitions and dependency edits stay in their owning project plans.
 
 ## Confirmed constraints
 
@@ -52,6 +58,12 @@ not additional source-controlled trackers.
 - Support and validate Windows only. Linux support, Linux CI and portability work
   are outside this project.
 - Engine and native sample/support code use C++20.
+- A shared C++20 job library supplies native engine/tools and C#/Python wrappers.
+  Game/main and render threads orchestrate a configurable CPU worker pool, initially
+  targeting four or five workers where appropriate. Dependency counters, nested
+  child completion, continuations and explicit affinity replace intermediate
+  main-thread waits. Wrappers preserve one scheduler implementation; Python GIL
+  limits and process/thread budgets are explicit. See the [job contract](plans/jobs.md).
 - Interactive developer applications use C# with .NET 10: UI/entity/level editors, inspectors
   and the graphical environment setup manager.
   A native preview process is an engine service, not a C++ authoring frontend.
@@ -201,6 +213,7 @@ A side-scroller is a possible engine reuse case, not a second promised sample.
 | Lua API definitions/debug/source maps | Scripting | C# tools, VS Code, designer SDK | Embedded breakpoint/step/watch and Shipping exclusions |
 | Log/trace/snapshot schemas and allocation semantics | Observability | Every executable; bundle inspector | ON/OFF, queue saturation, measured/estimated/shared accounting |
 | Scene instances and playtest control | Level editor + runtime | Designers and sample | Play/pause/step/reset without packaging or document mutation |
+| Job handles, dependency/child completion, lanes and native ABI | Shared jobs | Runtime/render/physics, C# tooling, Python pipeline | Same DAG semantics; bounded queues; cancellation/shutdown; trace correlation; GIL/GC and serial-oracle tests |
 
 When changing a shared contract, its producer owns the change; list all consumers
 and update only those affected. Keep compatibility or introduce a versioned migration.
@@ -216,11 +229,11 @@ authority when an approximate phase list is insufficient.
 | --- | --- | --- |
 | GATE-0: reproducible base | A01, Q01, A04/A05; T01-T04 and native extraction starts | Clean supported build/test; native logging and one trace scope |
 | GATE-1: native editing slice | B07, C03, D05, E05, G01, R02/R09 | Source XML/Lua deserialized in native renderer before cooking exists |
-| GATE-2: exact tooling preview | J06-J08, D10, K05, L07 | UI/entity/animation preview equals native game output |
+| GATE-2: exact tooling preview | J06-J08, D10, K05, L07; V15/V17 | UI/entity/animation preview equals native game output with explicit frame/job ownership |
 | GATE-3: usable Lua environment | G11-G15 | Completion/lint and breakpoint/step/watch in embedded preview |
 | GATE-4: designer content loop and packaging | X02-X06, W03/W04, G16, P07, I08 | Source-only editing/Play; explicit packaging to binary/bytecode, including full-game generated-C++ route |
-| GATE-5: performance visibility | T12-T15, G17, S07-S11, W05 | Correlated traces plus player/UI memory graphs with shared/unknown costs |
-| GATE-6: sample and release | N07, E08/E09, O07/O08, W06, X07, P06 | Ship thrust/rotation/wrap, aliens/asteroids, selective CI and clean-machine SDK acceptance |
+| GATE-5: performance visibility | T12-T15, G17, S07-S11, W05; V08 | Correlated traces including job dependencies, plus player/UI memory graphs with shared/unknown costs |
+| GATE-6: sample and release | N07, E08/E09, O07/O08, W06, X07, P06; V19 | Ship sample, selective CI, clean-machine SDK and measured runtime/tool/pipeline scheduling acceptance |
 
 Observability contracts begin early rather than waiting for the game to become slow.
 A project does not need its full feature set to satisfy an initial handoff.
@@ -236,10 +249,10 @@ standard .NET path here. Bazel remains a future reconsideration option, not a
 second maintained build graph.
 
 The [build/environment contract](build-system.md) defines package handoffs,
-project-level builds and graphical/headless setup responsibilities. Q02-Q07
-implement version pins, package foundations and environments later; Y01-Y07 own
-the independent self-contained C# setup product. No Q01 production build migration
-or setup implementation is claimed. Each is a separate task.
+project-level builds and graphical/headless setup responsibilities. Q02 established
+version/environment policies; Q03-Q07 implement the remaining project/package
+foundations and environments. Y01-Y07 own the independent self-contained C# setup
+product. Each is a separate task.
 
 Use a small number of workflows: CI with impact-based jobs and a stable mandatory
 gate; release/manual product selection for game, tools/Designer SDK, or both.
@@ -284,10 +297,16 @@ a .cpp in the inspected revision; transitively included headers, ownership/timin
 collisions and generated CMake/IDE files are concrete issues. The engine plan retains
 the detailed source/PDF diagnosis and legacy stabilization tasks.
 
-Work on one task at a time. A01's [reference](legacy-game.md) was merged in
-`bf4bd7c`. Q01's [build ADR](decisions/0001-monorepo-build.md) and
-[build contract](build-system.md) are now ready for review; SDK pins, package
-pipelines and graphical setup remain separate planned tasks. After Q01 review,
-select the next ready task with the maintainer rather than executing adjacent work
-automatically. Use branches named `<TASK_ID>_<short_description>`, such as
-`Q01_evaluate_monorepo_build`. This decision does not authorize a broad rewrite.
+Merged foundations include the legacy reference, source/IDE hygiene, C++20 presets,
+native tests/CI, build decision/environment policies and native/managed telemetry.
+The [task diagram](task-dependencies.md) records the twelve completed task IDs and
+their PRs, including T05 (#15); the pytest maintenance PR (#14) is not another task.
+Q05/Q06 remain separate package-foundation tasks despite earlier reusable slices.
+
+The [diagram's green frontier](task-dependencies.md#available-now) lists the current
+ready choices. T06 is the previously discussed next implementation; this planning
+update does not start it. V01 is an
+independent design-contract option, followed by future V implementation tasks.
+Choose one ready task with the maintainer; never execute adjacent work automatically.
+Use branches named `<TASK_ID>_<short_description>`. Completion must update the task
+diagram and newly unlocked green nodes as part of the same reviewed delivery.
