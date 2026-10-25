@@ -1,4 +1,4 @@
-# Managed package build and restore (Q05)
+# Package build and restore
 
 Reusable managed libraries are NuGet packages targeting .NET 10. SDK project
 files remain the source of truth; this policy adds explicit package production
@@ -122,3 +122,71 @@ producers, floating versions, idempotence and immutable cache invalidation.
 The existing managed CI job runs this suite and packs Raiders.Diagnostics through
 the guarded target. CI gate continues to require that job. Selective job impact
 classification remains O01-O03; this task does not implement it.
+
+## Python wheel module and installed entry point (Q06)
+
+`tools/pipeline/wheel_build` owns the `raiders-pipeline` distribution, the
+`raiders_pipeline` namespace, tests and packaging metadata. The repository root
+`pyproject.toml` stays an environment policy, not an installable distribution.
+The package has no runtime dependencies. Its public API exports `build_wheel`,
+`load_policy` and `__version__`; both `raiders-pipeline` and
+`python -m raiders_pipeline` expose the same installed CLI.
+
+The packaged `wheel_policy.json` selects setuptools 84.2.1 and wheel 0.48.0.
+It is read using `importlib.resources`, without searching the checkout or current
+directory. This first builder supports projects declaring those exact backend
+requirements and `setuptools.build_meta`, without `backend-path` hooks. Other
+backends/additional build requirements need an explicit policy extension.
+
+Prepare separate Windows x64 Python 3.12 venvs, then bootstrap the coordinator:
+
+```powershell
+python -m venv .venv/wheel-build
+python -m venv .venv/pipeline
+.venv/wheel-build/Scripts/python.exe -m pip install setuptools==84.2.1 wheel==0.48.0 packaging==24.2
+.venv/wheel-build/Scripts/python.exe -I -m pip --isolated wheel --no-deps --no-build-isolation --no-index --wheel-dir .tools/pipeline/wheels tools/pipeline/wheel_build
+.venv/pipeline/Scripts/python.exe -m pip install '.tools/pipeline/wheels/raiders_pipeline-0.1.0-py3-none-any.whl[test]'
+$env:RAIDERS_TEST_BUILD_PYTHON = (Resolve-Path .venv/wheel-build/Scripts/python.exe).Path
+.venv/pipeline/Scripts/python.exe -m pytest -c tools/pipeline/wheel_build/pyproject.toml tools/pipeline/wheel_build/tests -v
+```
+
+Check each exit code before continuing. The `test` extra is for validation, not
+normal deployment. Install just the wheel in an execution environment that does
+not need pytest. Interpreters, venvs, wheels and fixture projects remain ignored.
+The bootstrap builds the coordinator itself once; subsequent selected package
+builds can use its installed command. For example, from any working directory:
+
+```powershell
+D:/Projects/spaceraiders/.venv/pipeline/Scripts/python.exe -I -m raiders_pipeline build-wheel --project D:/Projects/spaceraiders/tools/pipeline/diagnostics --build-python D:/Projects/spaceraiders/.venv/wheel-build/Scripts/python.exe --wheel-dir D:/Projects/spaceraiders/out/python-wheels
+```
+
+Replace the example checkout paths with your own. Source is an explicit build
+input; importing/running the installed coordinator does not require the source
+checkout or its location. No `sys.path` modification, editable install or
+`PYTHONPATH` workaround is used. The build interpreter must be a distinct venv
+with the selected backend versions; the command rejects a global interpreter,
+the execution venv, unsupported Python/platforms and missing backend pins.
+The child uses Python isolated mode and pip's isolated configuration.
+
+`build-wheel` builds exactly one selected project with `--no-deps`,
+`--no-build-isolation` and `--no-index`. Build prerequisites are the caller's
+responsibility; the command does not create environments or download packages.
+Pip build diagnostics go to stderr; success emits one JSON object to stdout with
+`schema_version`, absolute wheel path and SHA-256. Failure returns a nonzero code
+and emits no success object. The temporary build-output directory is separate
+from the requested artifact directory; existing wheels for other projects are
+not included in the result. A wheel with the same filename at the destination is
+replaced: explicitly reinstall the resulting artifact when testing new bytes.
+This output directory is not an immutable package feed or runtime cache.
+Runtime dependencies are installed separately by the consumer.
+
+CI runs the pytest suite against the installed coordinator wheel. Tests exercise
+its module and console entry points from an unrelated working directory, build
+a real fixture wheel with package data, install it into a fresh third venv, move
+the fixture source and run its installed entry points successfully. They also
+cover backend/build failures, invalid projects/interpreters and environment
+separation. The existing Code style job carries these checks into CI gate.
+
+Interpreter acquisition, complete dependency locks/hashes, environment health and
+repair are Q07/Y tasks. Whole-monorepo project orchestration is Q04, selective CI
+is O01-O03, and native/binary Python wrappers remain their owning project tasks.
