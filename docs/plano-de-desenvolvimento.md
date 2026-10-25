@@ -1,9 +1,10 @@
 # Space Raiders: macro development roadmap
 
-Updated: 2026-10-25. Merged progress checked against master `849b4b8` (#15).
+Updated: 2026-10-25. Merged progress checked against master `43ade50` (#16).
 The original source/PDF inspection used `9d87fe4`; its legacy findings remain
-historical context. A01-A05, Q01-Q02 and T01-T05 are now merged. This update adds
-future job-system work and the task diagram, without implementing T06 or jobs.
+historical context. A01-A05, Q01-Q02 and T01-T05 are merged. T06's Python telemetry
+adapter is implemented and locally validated, pending review/merge; job-system
+implementation remains planned.
 
 This is the coordination plan for a reusable 2D engine and its developer ecosystem.
 The game is a sample demonstrating the engine, editors, scripting and content
@@ -21,7 +22,7 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 | Shared C# tooling platform and UI editor | [UI editor](plans/ui-editor.md) | J except J07, and K | Planned |
 | C# entity, drawing and animation editor | [Entity editor](plans/entity-editor.md) | L | Planned |
 | C# dependency graph and memory inspector | [Bundle inspector](plans/bundle-inspector.md) | S | Planned |
-| Cross-language diagnostics | [Observability](plans/observability.md) | T | Usable native/managed slice (T01-T05) |
+| Cross-language diagnostics | [Observability](plans/observability.md) | T | Native/managed merged (T01-T05); Python T06 locally validated, pending merge |
 | Shared native job system and C#/Python packages | [Jobs](plans/jobs.md) | V | Planned |
 | C#/.NET 10 graphical environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Planned |
 | C# scene/level editor and native playtest | [Level editor](plans/level-editor.md) | W | Planned |
@@ -299,13 +300,14 @@ the detailed source/PDF diagnosis and legacy stabilization tasks.
 
 Merged foundations include the legacy reference, source/IDE hygiene, C++20 presets,
 native tests/CI, build decision/environment policies and native/managed telemetry.
-The [task diagram](task-dependencies.md) records the twelve completed task IDs and
-their PRs, including T05 (#15); the pytest maintenance PR (#14) is not another task.
+The [task diagram](task-dependencies.md) records twelve merged task IDs and their
+PRs, plus the locally validated T06 delivery awaiting review/merge. The pytest
+maintenance PR (#14) is not another task.
 Q05/Q06 remain separate package-foundation tasks despite earlier reusable slices.
 
 The [diagram's green frontier](task-dependencies.md#available-now) lists the current
-ready choices. T06 is the previously discussed next implementation; this planning
-update does not start it. V01 is an
+ready choices. Completing T06 unlocks no new task until its consumers' other
+prerequisites are satisfied. V01 is an
 independent design-contract option, followed by future V implementation tasks.
 Choose one ready task with the maintainer; never execute adjacent work automatically.
 Use branches named `<TASK_ID>_<short_description>`. Completion must update the task

@@ -1,6 +1,7 @@
 # Cross-language logging, profiling and memory diagnostics
 
-Status: T01-T05 merged; Python/Lua adapters and remaining collectors/integration remain planned.
+Status: T01-T05 merged; T06 implemented and locally validated, pending review/merge.
+Lua adapters and remaining collectors/integration remain planned.
 
 ## Scope and independent execution
 
@@ -140,8 +141,11 @@ Acceptance: MSBuild profiling symbols, exception-safe scopes, structured logs an
 session propagation; disabled instrumentation does not build expensive payloads.
 
 **T06 - Python pipeline telemetry adapter.** Depends: T01, Q02.
-Paths (4): `tools/pipeline/diagnostics/{logging.py,profiling.py,session.py}`,
-`tests/pipeline/test_diagnostics.py`.
+Status: implemented and locally validated on `T06_python_pipeline_telemetry_adapter`;
+pending review/merge. See [adapter usage and validation](../observability.md#python-pipeline-adapter-t06).
+Paths (5 implementation/package/test files): `tools/pipeline/diagnostics/pyproject.toml`,
+`tools/pipeline/diagnostics/src/raiders_diagnostics/{logging.py,profiling.py,session.py}`,
+`tools/pipeline/diagnostics/tests/test_diagnostics.py`; CI/docs complete the delivery.
 Acceptance: CLI stage/child-process timing, structured stderr/file sinks, bounded
 outputs and disabled-collection tests; stdout protocol JSON remains uncontaminated.
 
