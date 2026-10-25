@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
-        <Version>0.1.0</Version>
-        <Description>Read-only Windows environment probes and profile health for Raiders tools.</Description>
+        <Version>0.2.0</Version>
+        <Description>Windows environment probes and selected-profile preparation for Raiders tools.</Description>
         <RaidersEnableProfiling Condition="'$(RaidersEnableProfiling)' == ''">false</RaidersEnableProfiling>
         <DefineConstants Condition="'$(RaidersEnableProfiling)' == 'true'">$(DefineConstants);RA_ENABLE_PROFILING</DefineConstants>
     </PropertyGroup>

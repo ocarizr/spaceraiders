@@ -1,11 +1,11 @@
-# Environment setup profiles and health contract (Y01)
+# Environment setup profiles, health and recipe execution
 
-Version 1 defines the inputs and diagnostic results shared by the future Windows
-setup GUI and headless doctor. This delivery contains schemas, synthetic examples
-and conformance tests. The C# probe library is Y02, recipe execution is Y03,
-self-contained GUI is Y04, interrupted-operation repair is Y05, headless commands
-are Y06 and bootstrap distribution is Y07. No installer or workstation probe runs
-as part of Y01 validation.
+Version 1 defines the inputs and diagnostic results shared by the Windows setup
+GUI and headless doctor. Y01 supplies schemas and conformance tests; Y02 supplies
+the C# probe library. Y03 adds selected-profile recipe execution in
+`Raiders.Environment.Core` 0.2.0. The self-contained GUI remains Y04,
+interrupted-operation repair Y05, headless commands Y06 and bootstrap distribution
+Y07. No real installer runs as part of automated validation.
 
 The application is C#/.NET 10, `net10.0-windows`, self-contained `win-x64`. Launch
 requires no installed .NET SDK, Python, game executable, renderer, asset bundle or
@@ -219,3 +219,101 @@ python -m venv .venv/environment-contract
 
 Check each command's exit code. The test dependency lock targets CPython 3.12 on
 Windows x64 and is not a runtime dependency of the future C# application.
+
+## Selected-profile preparation (Y03)
+
+The reusable .NET 10 library lives in
+[`tools/dotnet/Raiders.Environment.Core`](../tools/dotnet/Raiders.Environment.Core).
+`RecipeRunner` shares Y02's `IToolDiscovery` and `EnvironmentProbe`, accepts trusted
+`SetupRecipe` registrations, and prepares only required requirements in the
+selected profile closure. Optional tools remain visible in health results but
+are not installed implicitly. Both profile and requirement prerequisites run
+before consumers, regardless of declaration order. Independent branches can
+continue after failure; a failed or unresolved prerequisite blocks its consumers.
+Execution is sequential, with one run at a time per runner instance. The future
+V tasks own parallel scheduling; hosts must also serialize separate runners that
+would modify the same environment.
+
+Each registration binds a profile ID, requirement ID, `recipe_ref` and
+`SetupRecipe.Fingerprint(requirement)`. A changed requirement policy blocks an old
+registration with `PolicyChanged`. The application supplies reviewed artifacts
+and actions separately from the catalog: the JSON never becomes shell commands,
+installer arguments or arbitrary download URLs. Missing registrations remain
+unavailable; Y03 does not invent release manifests for native/Lua/Designer tools.
+Acquisition/execution adapters are provided, while product-specific pins and
+registrations remain explicit inputs to the host.
+
+The runner always probes current state. `Ready` requirements are no-ops and do not
+create a cache, acquire artifacts or execute an action. Only `Missing` or
+`Needs repair` observations authorize a registered recipe; inconclusive detection
+blocks execution. Every action, including one reporting failure, is followed by
+a fresh health scan. Exit zero alone never means success. A final scan captures
+the resulting closure, and `EnvironmentState.Status` also preserves failed or
+blocked actions even if a later observation happens to be healthy.
+
+`ArtifactAcquisition` takes an absolute caller-owned cache directory and approved
+`SetupArtifact` descriptors: an ID, HTTPS or local-file source, leaf filename,
+SHA-256 and maximum byte size. Downloads stream to unique partial files, enforce
+the size bound and raw-byte hash, then publish atomically without overwriting an
+existing artifact. Cached bytes are rehashed before reuse, including offline.
+Corrupt cached entries are rejected. Failed/cancelled transfers remove their own
+partial files. Local-file sources support offline bundles; UNC sources, embedded
+URL credentials, traversal filenames and cache links are rejected. Cache files,
+installers and machine state stay outside Git. Cache acquisition never extracts
+archives, installs software or removes an existing environment.
+
+Actions receive a `RecipeContext` containing only that recipe's acquired artifacts.
+`RecipeProcess.ExecuteAsync` runs an explicit absolute executable with separate
+arguments, no shell, a bounded timeout and caller cancellation. Child stdout/stderr
+are drained with a size bound and discarded. Cancellation/timeout terminates the
+owned process tree. Code 0 means execution completed; 3010/1641 require restart,
+740 requires privileges, and other codes fail. Launch access/elevation failures
+also require privileges. Additional installer-specific codes must be interpreted
+by a reviewed adapter rather than guessed as success.
+
+Restart/privilege outcomes remain `Needs repair` in the Y01 health report, even
+when a tool version probe succeeds. They block dependent installation and repeated
+runs on the same runner. This is in-memory session state. Durable interruption
+receipts, restart reconciliation, retry policy and last-good replacement are Y05;
+the runner does not claim rollback of arbitrary installer side effects. A fresh
+host session must use probes that report outstanding OS/installer actions rather
+than interpreting an old Ready report as proof.
+
+The existing Q07 CPython locks supply approved native bootstrap URL/hash/arguments
+for a Python interpreter recipe. A host can register that installer action and
+then register the Q07 build/tools `create` operations behind their requirement
+dependencies, using the reviewed runner/locks and wheel release hash. Q06's
+installed wheel builder/CLI can be invoked through the same process adapter once
+its environments exist. Approve scripts/locks as a versioned unit and pass paths
+explicitly; no PATH-only interpreter selection, unverified checkout script,
+unconditional network restore or new Python packaging policy is introduced by
+this library. Preparing the selected Python profile can acquire Python; launching
+the future C# setup application still does not require it.
+
+`IProgress<PreparationProgress>` reports checking/acquiring/executing/validating,
+step counts, completion and cancellation under one run ID. These are phase/count
+updates, not invented download percentages. Caller cancellation propagates as
+`OperationCanceledException`; inspect health again before resuming. Synchronous
+observer failures cannot skip installation validation. T05 logs contain stable
+IDs, status and elapsed microseconds, without paths, URLs, child output or raw
+exceptions; planning scopes follow `RaidersEnableProfiling`. Health remains
+shareable/redacted by default. GUI and headless callers use the same runner.
+
+### Managed validation
+
+MSTest fixtures under the library's `tests/` directory use isolated caches, HTTP
+stubs and fake installers. A small PowerShell child writes only fixture files;
+tests never run a real SDK/interpreter installer or mutate developer environments.
+The existing managed CI step discovers these tests in both build configurations
+and profiling modes and packs the versioned NuGet; no extra pipeline is needed.
+
+```powershell
+dotnet restore tools/dotnet/Raiders.Environment.Core/tests/Raiders.Environment.Tests.csproj --locked-mode
+dotnet test tools/dotnet/Raiders.Environment.Core/tests/Raiders.Environment.Tests.csproj --no-restore -c Release -p:RaidersEnableProfiling=true -- RunConfiguration.TreatNoTestsAsError=true
+dotnet msbuild tools/dotnet/Raiders.Environment.Core/Raiders.Environment.Core.csproj -t:RaidersPackLocal -p:Configuration=Release -p:RaidersEnableProfiling=true -p:RestoreLockedMode=true
+```
+
+Check every command's exit code. Machines retaining a different 0.2.0 development
+package must use an isolated feed for local validation; immutable published
+versions must not be overwritten. The package retains its versioned
+`Raiders.Diagnostics` dependency; test assemblies and generated state are excluded.
