@@ -1,44 +1,38 @@
 #ifndef PLAYERLASER_H
 #define PLAYERLASER_H
+#include <string>
+#include <utility>
+
 #include "Explosion.h"
 
 class PlayerLaser : public GameObject
 {
-public:
-    PlayerLaser() : GameObject("ot_PlayerLaser", RS_PlayerLaser) {}
-    PlayerLaser(std::string objName, unsigned char s) : GameObject(objName, s) {}
-    inline virtual ~PlayerLaser() noexcept override = default;
-
-    virtual void Update(PlayField& world) override
+  public:
+    PlayerLaser() : GameObject("ot_PlayerLaser", RS_PlayerLaser)
     {
-        bool deleted = false;
-        pos.y -= 4.f * world.vsync.DeltaTime();
-        if (pos.y < 0)
+    }
+
+    PlayerLaser(std::string objName, unsigned char s) : GameObject(std::move(objName), s)
+    {
+    }
+
+    ~PlayerLaser() noexcept override = default;
+
+    void Update(PlayField& world) override
+    {
+        if (world.ResolveLaserCollision(this))
         {
-            deleted = true;
+            return;
         }
 
-        for (auto it : world.GameObjects())
-        {
-            if ((it->m_objType == "ot_AlienShip" || it->m_objType == "ot_BlockWall")
-                && it->pos.IntCmp(pos))
-            {
-                deleted = true;
+        Move(world);
+        world.ResolveLaserCollision(this);
+    }
 
-                if (it->DecreaseHealth(world))
-                {
-                    GameObjPtr no = new Explosion;
-                    no->pos = pos;
-                    world.AddObject(no);
-                    world.RemoveObject(it);
-                }
-            }
-        }
-
-        if (deleted)
-        {
-            world.DespawnLaser(this);
-        }
+  protected:
+    virtual void Move(PlayField& world)
+    {
+        pos.y -= PlayField::LaserSpeedCellsPerSecond * world.vsync.DeltaTime();
     }
 };
 
