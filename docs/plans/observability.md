@@ -1,6 +1,6 @@
 # Cross-language logging, profiling and memory diagnostics
 
-Status: T01-T05 merged; T06 implemented and locally validated, pending review/merge.
+Status: T01-T06 merged. Their adapters are not full application capture integration.
 Lua adapters and remaining collectors/integration remain planned.
 
 ## Scope and independent execution
@@ -107,6 +107,40 @@ logs/traces/snapshots outside source trees with retention limits, local-only by
 default. They do not enter game bundles or commits. Schemas, reusable collectors,
 tests and developer documentation are repository content.
 
+## Audit closure: usable diagnostics before the editors exist
+
+The [delivery audit](../audits/2026-10-26-delivery-completeness.md) distinguishes
+working collectors from missing consumers/export. Keep T01-T06 as completed
+contract/library slices; do not describe the current setup or Python pipeline as
+having an exportable end-to-end profiler until the relevant tasks below pass.
+Each task remains a separate 3-8 path PR, about 10 including tests/build metadata.
+
+**T16 - Async-safe managed operation timing.** Depends: T05, Y06.
+Deliverable: async operation span API and real async-consumer tests (4-7 paths).
+Existing `ProfileScope` rejects disposal on another thread; Y06 spans awaits.
+Define elapsed async spans versus synchronous thread scopes and verify context,
+thread switches, cancellation and OFF builds without silently losing events.
+
+**T17 - Standalone setup and pipeline trace export.** Depends: T16, T04, T06.
+Deliverable: versioned bounded managed/Python export and setup/headless capture
+controls/tests (5-8 paths). Persist usable files, drop/coverage counts and errors
+from actual tool runs and import them with the chosen viewer. Do not wait for the
+future memory inspector/J06/T12; T15 later supplies the shared graphical controls.
+
+**T18 - Instrument the current production Python stages.** Depends: T17, Q11.
+Deliverable: installed telemetry dependencies and instrumentation of wheel/venv
+commands with pytest acceptance (4-8 paths). Run real build/create/check operations
+through installed modules, preserve stdout JSON and propagate correlation to child
+processes. An optional wrapper tested on toy commands alone is insufficient.
+
+**T19 - Reproducible native trace viewer acceptance.** Depends: T04.
+Deliverable: reusable native capture fixtures, pinned viewer validation and CI
+registration (4-7 paths). Reproduce normal/recovered trace schema/import queries
+and parser-error checks from a clean supported environment. Historical local
+Perfetto verification is valid evidence, but is not an existing CI regression job.
+
+## Foundation backlog
+
 **T01 - Shared telemetry schemas and cost terminology.** Depends: Q01.
 Paths (4): `schemas/{log-event,trace-session,memory-snapshot}.schema.json`,
 `docs/observability.md`.
@@ -141,8 +175,7 @@ Acceptance: MSBuild profiling symbols, exception-safe scopes, structured logs an
 session propagation; disabled instrumentation does not build expensive payloads.
 
 **T06 - Python pipeline telemetry adapter.** Depends: T01, Q02.
-Status: implemented and locally validated on `T06_python_pipeline_telemetry_adapter`;
-pending review/merge. See [adapter usage and validation](../observability.md#python-pipeline-adapter-t06).
+Status: merged in PR #17. See [adapter usage and validation](../observability.md#python-pipeline-adapter-t06).
 Paths (5 implementation/package/test files): `tools/pipeline/diagnostics/pyproject.toml`,
 `tools/pipeline/diagnostics/src/raiders_diagnostics/{logging.py,profiling.py,session.py}`,
 `tools/pipeline/diagnostics/tests/test_diagnostics.py`; CI/docs complete the delivery.
@@ -195,7 +228,7 @@ Acceptance: player/UI -> components -> assets -> Lua modules traverses a stable
 snapshot epoch; dynamic imports, shared allocations, cycles and missing tags are
 reported; before/after load/unload identifies deltas without assuming a forced GC.
 
-**T13 - Instrument every shipped application and pipeline stage.** Depends: T05, T06, J06, S01, W01, Y04, V17, V18.
+**T13 - Instrument every shipped application and pipeline stage.** Depends: T05, T06, J06, S01, W01, Y04, V17, V18, T17, T18.
 Paths (8): the 5 C# application Program.cs files (including Environment.Setup), `tools/assetc/src/main.cpp`,
 `tools/pipeline/diagnostics/session.py` and `tests/integration/telemetry_apps_tests.py`.
 Acceptance: every executable has session context, errors, CPU scopes and capture
@@ -207,7 +240,7 @@ Paths (5): `tests/integration/{telemetry_coverage_tests.py,telemetry_cost_tests.
 Acceptance: logging/profile/memory capabilities tested ON/OFF; bounded-buffer
 saturation, release shutdown and measured collector overhead; no fixed speedup claims.
 
-**T15 - Capture control and snapshot/trace export in C#.** Depends: J06, T04, T05, T12.
+**T15 - Capture control and snapshot/trace export in C#.** Depends: J06, T04, T05, T12, T17.
 Paths (5): `tools/dotnet/Raiders.Tools.Common/{CaptureController.cs,
 CapturePanel.cs,DiagnosticsExport.cs}`,
 `tests/dotnet/Raiders.Tools.Tests/CaptureTests.cs`, `docs/observability.md`.

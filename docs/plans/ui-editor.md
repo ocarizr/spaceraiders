@@ -2,6 +2,10 @@
 
 Status: Planned. Implementation has not started.
 
+The shared visual foundation is J09-J16 below, also used by Environment.Setup and
+the launcher. It is a versioned NuGet UI library, separate from asset documents,
+native rendering and application behavior. See the [delivery audit](../audits/2026-10-26-delivery-completeness.md).
+
 ## Scope and independent execution
 
 C#/.NET 10 desktop UI editor plus shared documents, undo/redo, bundle/protocol clients,
@@ -39,16 +43,71 @@ K05 consumes the V17 common job service for background validation/preview work
 and owner-thread result publication. Widget mutation stays on the UI thread;
 preview rasterization remains native.
 
+## Shared visual and resource foundation
+
+Interactive tools must consume the same resource/token/control packages. Do not
+copy colors, spacing, button implementations or human-facing text into each app.
+Application presenters/view models own commands and event behavior; reusable UI
+components expose typed properties/events and remain independent of setup/game
+services. Stable machine protocol IDs remain invariant constants, not translations.
+The framework/resource ADR must address the existing standalone WinForms setup;
+do not defer it until asset/editor infrastructure or silently rewrite it in a
+second framework. Design for accessibility, DPI, keyboard focus and text expansion.
+
+**J09 - Shared desktop design and framework contract.** Depends: Q02, Y04.
+Deliverable: design tokens, component inventory and Windows desktop/resource ADR
+(3-5 paths). Define one visual identity, framework interoperability/migration,
+dependency boundaries and ownership; the setup UI is the first real consumer.
+
+**J10 - Localizable .NET resource service.** Depends: J09, F11.
+Deliverable: `tools/dotnet/Raiders.Tools.Resources/` library, English resource
+tables and MSTest project (5-8 paths). Use stable resource keys, fallback, typed
+formatting and missing-key diagnostics. Test another locale/long-text fixture;
+do not count fixture translations as a supported product language.
+
+**J11 - Styled reusable desktop controls.** Depends: J10, Q05.
+Deliverable: `tools/dotnet/Raiders.Tools.UI/` controls/tokens and MSTest project
+(5-8 paths). Provide shared buttons, labels, inputs and state styling through
+composition; separate commands/events from presentation and test DPI/focus.
+
+**J12 - Published shared UI package contract.** Depends: J11, Q08.
+Deliverable: package metadata, real packaged control consumer and locked restore
+tests (4-8 paths). Consume UI/resource NuGet artifacts from an unrelated directory;
+no source references or copied DLLs may substitute for this acceptance.
+
+**J13 - Migrate setup to shared UI and resource packages.** Depends: J12, Y18, Y06.
+Deliverable: setup package references, view/presenter adaptation and regression
+tests (5-8 paths). Preserve headless/self-contained behavior, installation review
+and cancellation. Remove duplicated style values and human-facing literals from
+the view; protocol codes remain stable. Verify the actual published setup window.
+
+**J14 - Shared editor shell presentation.** Depends: J02, J12.
+Deliverable: common menus, tabs, dialogs and status/error presentation with tests
+(4-8 paths). UI/entity/level editors, inspectors and localization editor inherit
+the same presentation services while retaining their own commands/documents.
+
+**J15 - UI resource and design conformance checks.** Depends: J13, J14.
+Deliverable: focused analyzers/validators, visual/resource fixtures and CI checks
+(4-8 paths). Detect raw user-facing control text, duplicated design tokens and
+missing resource keys; explicitly allow invariant protocol identifiers and
+reviewed framework constants. Test pseudo-localized expansion and accessibility.
+
+**J16 - Shipped tools visual integration acceptance.** Depends: J15, Z02, U06, K08, L01, S01, W01.
+Deliverable: application-manifest driven acceptance cases and product evidence
+(4-8 paths). Inspect actual setup/launcher/editor/inspector/localization/addon
+views for common controls, resources, DPI and keyboard behavior. A gallery-only
+fixture cannot complete this task; split acceptance by app if the budget grows.
+
 ## Implementation backlog
 
-**J01 - Definir UX desktop e fronteiras C#/C++.** Depende: F05, Q01, R01.
+**J01 - Definir UX desktop e fronteiras C#/C++.** Depende: F05, Q01, R01, J09.
 Arquivos (3): `docs/editors.md`, `docs/entity-format.md`, `docs/tooling-protocol.md`.
 Entrega: escolher framework desktop .NET para Windows; canvas, árvore, inspector,
 documentos e protocolo de preview. Console continua backend do jogo.
 Aceite: desenhar nave, montar UI e inspecionar dependências são fluxos definidos;
 a ferramenta C# tem entry point/event loop próprios, sem herdar Application C++.
 
-**J02 - Shell C# e documentos de bundle.** Depende: J01, Q02, R02.
+**J02 - Shell C# e documentos de bundle.** Depende: J01, Q02, R02, J12.
 Arquivos (7): `tools/dotnet/Raiders.Tools.Common/{Raiders.Tools.Common.csproj,
 EditorDocument.cs,DocumentService.cs,ToolShell.cs}`,
 `tests/dotnet/Raiders.Tools.Tests/{Raiders.Tools.Tests.csproj,DocumentTests.cs}`,

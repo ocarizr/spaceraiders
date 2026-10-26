@@ -1,7 +1,8 @@
 # Windows development environment manager
 
-Status: Y01-Y05 and Q07 are merged. Y06's headless commands are implemented and
-locally validated, pending review/merge. Bootstrap distribution remains Y07;
+Status: Y01-Y06 and Q07 are merged, but Y05's full acceptance is reopened by the
+delivery audit: durable interruption handling exists; last-good replacement does
+not. Y15/Y16 close that gap. Bootstrap distribution remains Y07;
 production profile completion is explicitly tracked in Y08-Y14.
 
 ## Scope and independent execution
@@ -61,8 +62,9 @@ until approved production bindings are supplied. The Q07 venv tools work separat
 but are not wired to this GUI. Fixture-based UI screenshots do not prove installation
 coverage; see [Y04 capabilities](../environment-setup.md#registered-capabilities-in-this-delivery).
 
-Y08-Y14 close these gaps without rolling every language into one PR. Y07 distributes
-the usable approved subset; it does not certify all five profiles. Lua integration
+Y08-Y14 close profile gaps without rolling every language into one PR. Y07 must
+verify the current native/.NET/Python development subset through Y19; it does not
+certify all five profiles. Lua integration
 depends on the real VM/debugger contract and Designer setup on the actual SDK
 artifact. Do not invent a manifest or checksum to bypass those dependencies.
 
@@ -109,8 +111,11 @@ Acceptance: show health/evidence, select actions and report progress/failures;
 launch without .NET/Python SDK; use shared probes. Split framework-generated files
 into sub-deliveries if the path budget would be exceeded.
 
-**Y05 - Repair and interrupted setup.** Depends: Y04.
-Status: merged in PR #25. See [durable repair](../environment-setup.md#durable-repair-and-interrupted-setup-y05).
+**Y05 - Repair and interrupted setup.** Depends: Y04, Y16.
+Status: PR #25 merged; acceptance reopened on 2026-10-26. Durable journaling and
+retry exist, but transactional last-good environment replacement is missing.
+Y16 must complete before Y05 is revalidated; do not narrow the original acceptance
+retroactively. See the [audit](../audits/2026-10-26-delivery-completeness.md).
 Paths (10): core `RepairPlan.cs`, `EnvironmentState.cs`, `RecipeRunner.cs`,
 `ArtifactAcquisition.cs`, owned `tests/RepairTests.cs`; setup `ProfileViewModel.cs`
 and `SetupWindow.cs`; `docs/environment-setup.md`, this plan and the task diagram.
@@ -119,8 +124,7 @@ preserve last-good state, retry failed steps and explain offline failures.
 Do not remove unrelated user toolchains or project configuration.
 
 **Y06 - Headless setup/doctor and CI.** Depends: Y03.
-Status: implemented and locally validated on `Y06_headless_setup_and_doctor`,
-pending review/merge. See [headless commands](../environment-setup.md#headless-setup-and-doctor-y06).
+Status: merged in PR #26. See [headless commands](../environment-setup.md#headless-setup-and-doctor-y06).
 Paths (10): setup `SetupWindow.cs`, `HeadlessCommands.cs`, owned `tests/HeadlessTests.cs`;
 `schemas/environment-command.schema.json`, `.github/workflows/ci.yml`,
 `tests/integration/environment_setup/test_contract.py`, `docs/environment-setup.md`,
@@ -129,15 +133,17 @@ Acceptance: inspect/prepare selected profiles with exit codes and versioned JSON
 share GUI probes/recipes and logs/profiling. Detect drift instead of trusting
 a prior Ready marker.
 
-**Y07 - Bootstrap distribution and acceptance.** Depends: Y05, Y06.
+**Y07 - Bootstrap distribution and acceptance.** Depends: Y05, Y06, Y19.
 Paths (5): `tools/bootstrap/setup.ps1`, `tools/pipeline/package_setup.py`,
 `tests/integration/environment_bootstrap_tests.py`,
 `docs/environment-setup.md`, `.github/workflows/release.yml`.
 Acceptance: a Windows clone obtains/launches a verified setup artifact without
-Python/.NET SDK; selected available approved components reach Ready, reopen without
-reinstall and repair an isolated incomplete environment. No interpreter/SDK/venv/binary is committed;
-distribution/update ownership is explicit. Report unavailable profiles honestly;
-complete five-profile acceptance belongs to Y14.
+Python/.NET SDK; the current native/.NET/Python development profiles reach Ready,
+reopen without reinstall and preserve the prior working environment during failed
+repair. Y19 supplies the real acceptance prerequisite. Do not lower this to a
+Python-only component install to claim completion. No interpreter/SDK/venv/binary
+is committed; distribution/update ownership is explicit. Lua/Designer completion
+still belongs to Y12/Y13/Y14 rather than being silently included in this claim.
 
 ## Production profile completion
 
@@ -158,13 +164,13 @@ tests (4-8 paths). Show component/version/destination and privilege/restart acti
 acquire only selected prerequisites, validate them after execution, preserve
 unrelated installations and support documented approved offline artifacts.
 
-**Y10 - Managed SDK and NuGet closure preparation.** Depends: Y04, Q05.
+**Y10 - Managed SDK and NuGet closure preparation.** Depends: Y04, Q05, Q10.
 Deliverable: managed SDK acquisition/restore bindings and tests (4-8 paths).
 Use the pinned SDK policy and locked package closure; verify feed/configuration
 and actual packages, acquire approved SDK artifacts and restore only selected
 projects. Hide credentials in reports; SDK presence alone cannot mean Ready.
 
-**Y11 - Python build and tools venv integration.** Depends: Y04, Q07.
+**Y11 - Python build and tools venv integration.** Depends: Y04, Q07, Y16.
 Deliverable: Q07 recipe adapter, health fingerprints and tests (4-7 paths).
 Wire the existing interpreter/bootstrap and locked build/tools venv commands into
 GUI/doctor with cancellation and postvalidation. Verify installed module entry
@@ -183,6 +189,47 @@ Deliverable: Designer SDK manifest binding, acquisition/health adapter and tests
 (4-7 paths). Validate compatible shipped tools/runtime/templates, relocate cleanly
 and expose optional approved Lua authoring setup without developer toolchains.
 Reject incompatible bundles; never require C++/.NET SDKs or installed Python.
+
+## Audit repair and acceptance closure
+
+The audit keeps PR history separate from acceptance. Tests with fake installers
+are required for failure injection; they do not prove an actual installer/SDK works.
+These are separate 3-8 path tasks, about 10 including tests/docs/registration.
+
+**Y15 - Last-good environment activation contract.** Depends: Q07.
+Deliverable: owned-generation/activation ADR and fault-injection contract fixtures
+(3-5 paths). Python venvs cannot be treated as freely relocatable directories:
+define final interpreter paths, receipts, rollback/cleanup ownership and concurrent
+activation. Preserve old usable generations while validating replacements.
+
+**Y16 - Transactional managed Python environment replacement.** Depends: Y15, Q07.
+Deliverable: installed Q07 recipe changes and real venv failure/recovery tests
+(4-8 paths). Fail after environment creation, during pip install and before/after
+activation; the previous working environment must remain usable. Check entry
+points and fingerprints at final paths, not merely directory presence. Revalidate
+the original Y05 acceptance after this task; do not substitute journaling for rollback.
+
+**Y17 - Repair identity and policy compatibility.** Depends: Y03, Y06.
+Deliverable: journal identity/version/policy validation and tests (4-7 paths).
+Align journal IDs with the accepted catalog grammar (including colon/slash),
+handle changed requirement policies and incompatible records explicitly, and
+prove reopening cannot strand a valid catalog or silently authorize stale data.
+
+**Y18 - Setup composition and typed presentation boundaries.** Depends: Y04, Y06.
+Deliverable: split catalog/policy loading, discovery/recipe composition and
+presentation adapters with regression coverage (5-8 paths). Keep one runtime
+backend shared by GUI/headless. Replace duplicated health/action string switches
+and unexplained limits with typed contracts/named options; preserve wire codes.
+Do not mix this refactor with adding all missing profiles or migrating all UI.
+
+**Y19 - Real native managed and Python setup acceptance.** Depends: Y09, Y10, Y11, Y16, Q10, Y17.
+Deliverable: clean-Windows test procedures/automation, real artifact manifests
+and result integration (4-8 paths). Use reviewed current SDK/interpreter/wheel/
+NuGet payloads on machines with tools present, absent, incompatible and partially
+prepared. Verify actual native compilation, managed publish/restore and installed
+Python CLI; exercise offline, cancel/reopen and one failed replacement. Unit
+fakes/screenshots cannot complete this task. Do not run real installers on a
+developer's workstation as an implicit unit test; use isolated reviewed environments.
 
 **Y14 - Complete environment coverage acceptance.** Depends: Y07, Y09, Y10, Y11, Y12, Y13.
 Deliverable: isolated cross-profile acceptance fixtures, clean-machine procedure
