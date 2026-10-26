@@ -1,6 +1,7 @@
 # Engine, rendering, physics and native UI
 
-Status: A01-A05 baseline merged; engine extraction and runtime extensions remain planned.
+Status: A01-A05 baseline merged. A06 is locally validated, pending review/merge;
+engine extraction and runtime extensions remain planned.
 
 ## Scope and independent execution
 
@@ -75,11 +76,35 @@ Entrega: CTest com teste útil de coordenadas; build Windows e agregador de stat
 Aceite: checkout limpo compila/testa em CI; falha de compilação bloqueia o gate.
 
 **A06 - Tornar includes e unidades de compilação explícitos.** Depende: A05.
-Arquivos (até 8): `renderer.cpp`, `renderer.h`, `PowerUp.cpp`, `PlayField.cpp`,
-`GameObject.h`, `GameMenus.h`, `tests/CMakeLists.txt`, `tests/core/header_tests.cpp`.
+Status: implemented and locally validated on `A06_explicit_headers_and_translation_units`,
+pending review/merge. Paths (10): `renderer.cpp`, `renderer.h`, `PowerUp.cpp`,
+`PlayField.cpp`, `GameObject.h`, `GameMenus.h`, `tests/CMakeLists.txt`,
+`tests/core/header_tests.cpp`, this plan and the task diagram.
 Entrega: incluir a própria declaração primeiro e declarar dependências reais.
 Aceite: headers públicos compilam isoladamente sem unity build/PCH esconder erros;
 não introduzir includes de `.cpp`. Se aparecer ciclo estrutural, dividir por header.
+
+A06 delivery audit: the three legacy implementation files now include their own
+declaration first. Renderer exposes only a PlayField forward declaration; its
+implementation includes the actual game mode/world, Win32 and stream facilities.
+GameMenus explicitly includes its list/pair/vector/Win32 dependencies; GameObject
+includes utility for std::move. No runtime behavior or resource strings were added.
+The existing formatting standard is applied to touched source files.
+
+All 16 headers registered in the legacy game's `project_headers` compile in
+independent object targets, each included twice to check guards. Targets explicitly
+disable unity and precompiled headers. Their normal ALL build participates in the
+existing native CI job; CTest runtime counts do not include these compile checks.
+Actual MSVC C++20 Debug/Release builds compile/link SpaceRaiders and pass 33 existing
+GoogleTest/CTest cases each. Compile commands were inspected for separate sources
+and absent PCH/forced-prefix inputs. No mock headers or SDK stubs are used.
+
+Known limits: this proves legacy header/build integration, not full gameplay,
+engine extraction, minimum transitive include graphs or portability. Full manual
+playthroughs were not performed; A07-A11 retain ownership/time/gameplay fixes.
+Warnings C4100/C4244/C4267 remain in legacy parameters/conversions, and O04 already
+owns target warning/static-analysis adoption in small batches. These are not
+silently described as resolved. No additional in-scope A06 acceptance gap was found.
 
 **A07 - Corrigir ownership e filas de remoção.** Depende: A06.
 Arquivos (5): `PlayField.h`, `PlayField.cpp`, `renderer.h`, `tests/CMakeLists.txt`,

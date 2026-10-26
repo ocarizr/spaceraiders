@@ -1,3 +1,5 @@
+#include "PowerUp.h"
+
 #include "PlayerShip.h"
 
 void TripleFire::ApplyPowerUp(GameObjPtr player, PlayField& world)

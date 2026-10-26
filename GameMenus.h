@@ -1,7 +1,11 @@
 #ifndef GAMEMENUS_H
 #define GAMEMENUS_H
+#include <windows.h>
 #include <string>
+#include <list>
+#include <utility>
 
+#include "Vector2D.h"
 #include "renderer.h"
 
 class GameMenus
@@ -15,23 +19,23 @@ class GameMenus
         int slotToStart = (widht / 2) - msg.size();
         Vector2D pos(0, msgHeight);
 
-        for(int i = 0; i < slotToStart; ++i)
+        for (int i = 0; i < slotToStart; ++i)
         {
             pos.x = i;
             ret.emplace_back(RS_BackgroundTile, pos);
         }
 
-        for(const auto& letter : msg)
+        for (const auto& letter : msg)
         {
             pos.x = slotToStart;
             ++slotToStart;
-            ret.emplace_back(letter == ' ' ? RS_BackgroundTile : letter , pos);
+            ret.emplace_back(letter == ' ' ? RS_BackgroundTile : letter, pos);
             pos.x = slotToStart;
             ++slotToStart;
             ret.emplace_back(RS_BackgroundTile, pos);
         }
 
-        for(int i = slotToStart; i < widht; ++i)
+        for (int i = slotToStart; i < widht; ++i)
         {
             pos.x = i;
             ret.emplace_back(RS_BackgroundTile, pos);
@@ -40,83 +44,80 @@ class GameMenus
         return ret;
     }
 
-public:
+  public:
     static void GenerateStartMenu(RenderItemList& rl, const Vector2D canvasSize)
     {
         auto Title = GameMenus::LayoutToPrint(
-            static_cast<int>(canvasSize.x),
-            static_cast<int>(canvasSize.y) / 2 - 2,
-            "SpaceRaiders");
-        auto msg = GameMenus::LayoutToPrint(
-            static_cast<int>(canvasSize.x),
-            static_cast<int>(canvasSize.y) / 2 - 1,
-            "Select a Game Mode:");
-        auto firstOption = GameMenus::LayoutToPrint(
-            static_cast<int>(canvasSize.x),
-            static_cast<int>(canvasSize.y) / 2,
-            "1 - Until Player Death.");
-        auto secondOption = GameMenus::LayoutToPrint(
-            static_cast<int>(canvasSize.x),
-            static_cast<int>(canvasSize.y) / 2 + 1,
-            "2 - Time Attack (59 seconds).");
-        auto thirdOption = GameMenus::LayoutToPrint(
-            static_cast<int>(canvasSize.x),
-            static_cast<int>(canvasSize.y) / 2 + 2,
-            "3 - Destroy All Aliens.");
+            static_cast<int>(canvasSize.x), static_cast<int>(canvasSize.y) / 2 - 2, "SpaceRaiders");
+        auto msg =
+            GameMenus::LayoutToPrint(static_cast<int>(canvasSize.x),
+                                     static_cast<int>(canvasSize.y) / 2 - 1, "Select a Game Mode:");
+        auto firstOption =
+            GameMenus::LayoutToPrint(static_cast<int>(canvasSize.x),
+                                     static_cast<int>(canvasSize.y) / 2, "1 - Until Player Death.");
+        auto secondOption = GameMenus::LayoutToPrint(static_cast<int>(canvasSize.x),
+                                                     static_cast<int>(canvasSize.y) / 2 + 1,
+                                                     "2 - Time Attack (59 seconds).");
+        auto thirdOption = GameMenus::LayoutToPrint(static_cast<int>(canvasSize.x),
+                                                    static_cast<int>(canvasSize.y) / 2 + 2,
+                                                    "3 - Destroy All Aliens.");
 
-        for(const auto& pair : Title)
+        for (const auto& pair : Title)
         {
             RenderItem a = RenderItem(pair.second, pair.first);
             rl.push_back(a);
         }
-        for(const auto& pair : msg)
+
+        for (const auto& pair : msg)
         {
             RenderItem a = RenderItem(pair.second, pair.first);
             rl.push_back(a);
         }
-        for(const auto& pair : firstOption)
+
+        for (const auto& pair : firstOption)
         {
             RenderItem a = RenderItem(pair.second, pair.first);
             rl.push_back(a);
         }
-        for(const auto& pair : secondOption)
+
+        for (const auto& pair : secondOption)
         {
             RenderItem a = RenderItem(pair.second, pair.first);
             rl.push_back(a);
         }
-        for(const auto& pair : thirdOption)
+
+        for (const auto& pair : thirdOption)
         {
             RenderItem a = RenderItem(pair.second, pair.first);
             rl.push_back(a);
         }
     }
 
-    static void GenerateGameOverMenu(RenderItemList& rl, const Vector2D canvasSize, const int score, bool won)
+    static void GenerateGameOverMenu(RenderItemList& rl, const Vector2D canvasSize, const int score,
+                                     bool won)
     {
         auto gameOverMsg = GameMenus::LayoutToPrint(
-            static_cast<int>(canvasSize.x),
-            static_cast<int>(canvasSize.y) / 2 - 1,
-            "Game Over");
-        auto GameResult = GameMenus::LayoutToPrint(
-            static_cast<int>(canvasSize.x),
-            static_cast<int>(canvasSize.y) / 2,
-            won ? "You won the game!" : "You Died!");
-        auto ScoreMsg = GameMenus::LayoutToPrint(
-            static_cast<int>(canvasSize.x),
-            static_cast<int>(canvasSize.y) / 2 + 1,
-            "Score: " + std::to_string(score));
+            static_cast<int>(canvasSize.x), static_cast<int>(canvasSize.y) / 2 - 1, "Game Over");
+        auto GameResult = GameMenus::LayoutToPrint(static_cast<int>(canvasSize.x),
+                                                   static_cast<int>(canvasSize.y) / 2,
+                                                   won ? "You won the game!" : "You Died!");
+        auto ScoreMsg = GameMenus::LayoutToPrint(static_cast<int>(canvasSize.x),
+                                                 static_cast<int>(canvasSize.y) / 2 + 1,
+                                                 "Score: " + std::to_string(score));
 
-        for(const auto& pair : gameOverMsg)
+        for (const auto& pair : gameOverMsg)
         {
             RenderItem a = RenderItem(pair.second, pair.first);
             rl.push_back(a);
         }
-        for(const auto& pair : GameResult)
+
+        for (const auto& pair : GameResult)
         {
             RenderItem a = RenderItem(pair.second, pair.first);
             rl.push_back(a);
         }
-        for(const auto& pair : ScoreMsg)
+
+        for (const auto& pair : ScoreMsg)
         {
             RenderItem a = RenderItem(pair.second, pair.first);
             rl.push_back(a);
@@ -127,16 +128,21 @@ public:
     {
         int ret = 0;
 
-        if(GetKeyState(0x31) >> 15 & 0x1)
+        if (GetKeyState(0x31) >> 15 & 0x1)
+        {
             ret = 1;
-        else if(GetKeyState(0x32) >> 15 & 0x1)
+        }
+        else if (GetKeyState(0x32) >> 15 & 0x1)
+        {
             ret = 2;
-        else if(GetKeyState(0x33) >> 15 & 0x1)
+        }
+        else if (GetKeyState(0x33) >> 15 & 0x1)
+        {
             ret = 3;
+        }
 
         return ret;
     }
-
 };
 
 #endif // GAMEMENUS_H
