@@ -1,6 +1,6 @@
 # Engine, rendering, physics and native UI
 
-Status: A01-A07 baseline merged. A08 is locally validated, pending review/merge;
+Status: A01-A08 baseline merged. A09 is locally validated, pending review/merge;
 engine extraction and runtime extensions remain planned.
 
 ## Scope and independent execution
@@ -149,8 +149,7 @@ legacy warnings (O04) remain explicitly planned. Clearing releases entities but
 does not reset gameplay slot policy; A10 owns that reset/reconciliation contract.
 
 **A08 - Separar tempo simulado de pacing legado.** Depende: A07.
-Status: implemented and locally validated on `A08_fixed_timestep_and_frame_pacing`,
-pending review/merge. Paths (7): `VSync.h`, `SpaceRaiders.cpp`, `GameMode.h`,
+Status: merged through PR #30 (`5a49e47`). Paths (7): `VSync.h`, `SpaceRaiders.cpp`, `GameMode.h`,
 `tests/CMakeLists.txt`, `tests/runtime/legacy_time_tests.cpp`, this plan and the
 task diagram.
 Entrega: relógio monotônico, timestep fixo e sleep limitado a valor não negativo.
@@ -195,11 +194,60 @@ Legacy warnings remain tracked by O04. No additional adapters/manifests are need
 for this native slice and no known in-scope A08 acceptance gap remains.
 
 **A09 - Corrigir alien/player e transições de fim de jogo.** Depende: A08.
-Arquivos (7): `Alien.h`, `PlayerShip.h`, `GameMode.h`, `PlayField.cpp`,
-`SpaceRaiders.cpp`, `tests/CMakeLists.txt`, `tests/game/legacy_rules_tests.cpp`.
+Status: implemented and locally validated on `A09_legacy_gameplay_and_game_over`,
+pending review/merge. Paths (10): `Alien.h`, `PlayerShip.h`, `GameMode.h`,
+`PlayField.cpp`, `SpaceRaiders.cpp`, `GameMenus.h`, `tests/CMakeLists.txt`,
+`tests/game/legacy_rules_tests.cpp`, this plan and the task diagram.
 Entrega: limites, morte ao alien chegar ao fundo, destruição de ambos em contato,
 congelamento da cena final e prioridade das condições de término/novas ondas.
 Aceite: nenhum modo repovoa uma partida encerrada; posição final permanece visível.
+
+A09 delivery audit: the player stays inside the horizontal canvas bounds. Aliens
+clamp at horizontal borders and descend once on reversal. Reaching the bottom
+kills the player regardless of column, preserving the breaching alien at the last
+row and a death explosion at the player's last position. Direct contact removes
+both ships, including a better alien with two hit points. Contact uses the existing
+10/20 kill score and drop path once; a bottom breach without contact awards no kill
+score. Initial overlap and contact after movement are resolved independently of
+player/alien insertion order. Dead/contacting aliens stop evolving or firing.
+
+GameOutcome is explicit and terminal: player death wins ties against clearing the
+last alien or expiring the timer. A surviving timeout or cleared DestroyAllAliens
+wave wins; survival ends only in defeat. World Update stops after a terminal mode.
+Its tick begins by committing prior pending objects before evaluating contacts or
+mode conditions, preventing a pending population from being treated as absent.
+The caller still flushes tick effects/removals after Update. Borrowed objects can
+therefore expire at the beginning of the next Update as well as explicit flushes.
+Both the real loop and AddAlienWave reject wave creation after game over. Live
+survival/timed modes still create subsequent waves; clear-all mode ends instead.
+
+The real entry point no longer clears the world before its final presentation.
+GenerateGameOverFrame composes retained entities followed by the existing three-row
+menu overlay and chooses its result from the recorded outcome. Subsequent updates
+cannot move the final scene, advance effects/RNG or reverse the result. The existing
+menu rows may cover scene cells; surviving/death sprites elsewhere stay visible.
+Existing UI strings/layout are reused; no new localization catalog is claimed.
+
+Validation: Windows x64 MSVC C++20 Debug/Release compile/link the actual executable,
+all 16 isolated header checks and 106 GoogleTest/CTest cases each. The 42 new game
+cases cover all three modes, both borders, normal/better contact, both entity update
+orders, bottom descent, terminal ties/latching, pending population, continuous-wave
+continuation and terminal rejection. They use real entities, modes, wave spawning,
+laser elimination, menu composition and console renderer. Better aliens evolve via
+the existing real seeded RNG/update path, without private-state injection. Input
+is a controlled test adapter. Captured real renderer output verifies a last-row
+sprite and identical final frames; it is not a physical console screenshot.
+All 42 rules cases and 17 lifetime cases also pass local MSVC AddressSanitizer.
+The existing native CI job discovers the new suite through CTest.
+
+Limits: no full interactive keyboard playthrough, physical-console cursor/glyph QA,
+leak-profiler capture or performance/determinism benchmark was performed. New game
+assets, Lua and general physics are outside this legacy slice. No additional
+runtime adapter/data is needed and no known in-scope A09 acceptance gap remains.
+Laser budget/contact-effect reconciliation and recursive wall displacement remain
+A10; evolution probability, better firing rate and temporary buffs remain A11;
+legacy compiler warnings remain O04. Restarting a terminal mode requires a fresh
+mode instance; this task does not add a replay/menu workflow.
 
 **A10 - Corrigir colisões e orçamento de lasers.** Depende: A09.
 Arquivos (7): `PlayerLaser.h`, `PlayerDiagonalLaser.h`, `AlienLaser.h`,

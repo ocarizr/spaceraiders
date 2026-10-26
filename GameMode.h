@@ -5,20 +5,27 @@
 
 #include "PlayField.h"
 
+enum class GameOutcome
+{
+    Running,
+    Won,
+    Lost
+};
+
 class GameMode
 {
   protected:
     int score;
-    bool gameOver;
+    GameOutcome outcome = GameOutcome::Running;
 
   public:
-    GameMode() : score(0), gameOver(false)
+    GameMode() : score(0)
     {
     }
 
     virtual ~GameMode() = default;
 
-    int GetScore() noexcept
+    int GetScore() const noexcept
     {
         return score;
     }
@@ -28,9 +35,14 @@ class GameMode
         score += value;
     }
 
-    bool GameOver() noexcept
+    bool GameOver() const noexcept
     {
-        return gameOver;
+        return outcome != GameOutcome::Running;
+    }
+
+    GameOutcome GetOutcome() const noexcept
+    {
+        return outcome;
     }
 
     virtual void Update(PlayField& world) = 0;
@@ -43,7 +55,7 @@ class TimeAttack : public GameMode
 
     void Update(PlayField& world) override
     {
-        if (gameOver)
+        if (GameOver())
         {
             return;
         }
@@ -51,9 +63,14 @@ class TimeAttack : public GameMode
         remaining =
             (std::max)(remaining - VSync::SimulationStep, std::chrono::milliseconds::zero());
 
-        if (remaining == std::chrono::milliseconds::zero() || !world.HasPlayer())
+        // Losing the player takes priority over reaching the timer boundary.
+        if (!world.HasPlayer())
         {
-            gameOver = true;
+            outcome = GameOutcome::Lost;
+        }
+        else if (remaining == std::chrono::milliseconds::zero())
+        {
+            outcome = GameOutcome::Won;
         }
     }
 
@@ -69,7 +86,10 @@ class UntilPlayerDeath : public GameMode
 {
     void Update(PlayField& world) override
     {
-        gameOver = !world.HasPlayer();
+        if (!GameOver() && !world.HasPlayer())
+        {
+            outcome = GameOutcome::Lost;
+        }
     }
 };
 
@@ -77,7 +97,19 @@ class DestroyAllAliens : public GameMode
 {
     void Update(PlayField& world) override
     {
-        gameOver = !world.HasAliens() || !world.HasPlayer();
+        if (GameOver())
+        {
+            return;
+        }
+
+        if (!world.HasPlayer())
+        {
+            outcome = GameOutcome::Lost;
+        }
+        else if (!world.HasAliens())
+        {
+            outcome = GameOutcome::Won;
+        }
     }
 };
 

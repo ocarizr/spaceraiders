@@ -69,7 +69,7 @@ int main()
         {
             world.Update();
             world.ProcessQueues();
-            if (!world.HasAliens())
+            if (!world.GetGameMode()->GameOver() && !world.HasAliens())
             {
                 world.AddAlienWave(size);
             }
@@ -94,10 +94,8 @@ int main()
     }
 
     {
-        world.RemoveAllObjects();
         RenderItemList rl;
-        GameMenus::GenerateGameOverMenu(rl, size, world.GetGameMode()->GetScore(),
-                                        world.HasPlayer());
+        GameMenus::GenerateGameOverFrame(rl, world);
         mainRenderer.Update(rl, world);
     }
     getchar(); // just to wait the player to confirm the close game
