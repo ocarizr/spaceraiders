@@ -1,49 +1,66 @@
-#ifndef VSINC_H
-#define VSINC_H
+#ifndef VSYNC_H
+#define VSYNC_H
+#include <algorithm>
+#include <chrono>
+
+// Legacy fixed-step scheduler. Wall-clock pacing never changes gameplay delta.
 class VSync
 {
-    int fps;
-    const int five = 1000/5;
-    const int ten = 1000/10;
-    const int twenty = 1000/20;
-    const int thirty = 1000/30;
-    const int sixty = 1000/60;
+  public:
+    using Clock = std::chrono::steady_clock;
+    using TimePoint = Clock::time_point;
+    using Duration = Clock::duration;
 
-    void SetFps(const int& timestamp)
+    // Retain the legacy 16 ms gameplay step (62.5 ticks/s, not exact 60 Hz).
+    static constexpr std::chrono::milliseconds SimulationStep{16};
+    // Bound recovery after stalls to 80 ms per frame, avoiding an unbounded backlog.
+    static constexpr int MaxCatchUpSteps = 5;
+
+    explicit VSync(TimePoint now = Clock::now()) : previous(now)
     {
-        fps = timestamp < five ? 5 :
-                               (timestamp < ten ? 10 :
-                                                (timestamp < twenty ? 20 :
-                                                                    (timestamp < thirty ? 30 :
-                                                                                        60)));
     }
 
-public:
-    VSync() : fps(0) {}
-    int GetFramerate() { return fps; }
-
-    int GetFramePeriod()
+    static constexpr float DeltaTime() noexcept
     {
-        switch (fps) {
-        case 5: return five;
-        case 10: return ten;
-        case 20: return twenty;
-        case 30: return thirty;
-        default: return sixty;
+        return std::chrono::duration<float>(SimulationStep).count();
+    }
+
+    void Reset(TimePoint now = Clock::now()) noexcept
+    {
+        previous = now;
+        accumulated = Duration::zero();
+    }
+
+    int Advance(TimePoint now) noexcept
+    {
+        // Defensive handling for injected/regressing timestamps; steady_clock itself
+        // is monotonic. Retain the last valid anchor rather than counting time twice.
+        if (now < previous)
+        {
+            return 0;
         }
+
+        const Duration elapsed = now - previous;
+        previous = now;
+        const Duration maximumElapsed = SimulationStep * MaxCatchUpSteps;
+        accumulated += (std::min)(elapsed, maximumElapsed);
+        const int ticks = static_cast<int>(accumulated / SimulationStep);
+        accumulated -= SimulationStep * ticks;
+        return ticks;
     }
 
-    float DeltaTime()
+    Duration TimeUntilNextTick(TimePoint now) const noexcept
     {
-        return static_cast<float>(GetFramePeriod()) / 1000.f;
+        const Duration elapsed = now > previous ? now - previous : Duration::zero();
+        const Duration step = SimulationStep;
+        // Subtract only after bounding elapsed, avoiding overflow on a long stall.
+        const Duration remaining = step - accumulated;
+        return elapsed >= remaining ? Duration::zero() : remaining - elapsed;
     }
 
-    int GetSyncPeriod(const int& timestamp)
-    {
-        SetFps(timestamp);
-        auto frame = GetFramePeriod();
-        return frame - timestamp;
-    }
+  private:
+    TimePoint previous;
+    Duration accumulated = Duration::zero();
 };
 
-#endif // VSINC_H
+#endif // VSYNC_H

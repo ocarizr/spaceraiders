@@ -1,6 +1,6 @@
 # Engine, rendering, physics and native UI
 
-Status: A01-A06 baseline merged. A07 is locally validated, pending review/merge;
+Status: A01-A07 baseline merged. A08 is locally validated, pending review/merge;
 engine extraction and runtime extensions remain planned.
 
 ## Scope and independent execution
@@ -106,8 +106,7 @@ owns target warning/static-analysis adoption in small batches. These are not
 silently described as resolved. No additional in-scope A06 acceptance gap was found.
 
 **A07 - Corrigir ownership e filas de remoção.** Depende: A06.
-Status: implemented and locally validated on `A07_legacy_ownership_and_removal_queues`,
-pending review/merge. Paths (10): `PlayField.h`, `PlayField.cpp`, `renderer.h`,
+Status: merged through PR #29 (`9b75b30`). Paths (10): `PlayField.h`, `PlayField.cpp`, `renderer.h`,
 `renderer.cpp`, `SpaceRaiders.cpp`, `Alien.h`, `tests/CMakeLists.txt`,
 `tests/runtime/legacy_lifetime_tests.cpp`, this plan and the task diagram.
 Entrega: ownership único, limpeza de filas/objetos/modo e proibição de cópia de
@@ -150,11 +149,50 @@ legacy warnings (O04) remain explicitly planned. Clearing releases entities but
 does not reset gameplay slot policy; A10 owns that reset/reconciliation contract.
 
 **A08 - Separar tempo simulado de pacing legado.** Depende: A07.
-Arquivos (5): `VSync.h`, `SpaceRaiders.cpp`, `GameMode.h`,
-`tests/CMakeLists.txt`, `tests/runtime/legacy_time_tests.cpp`.
+Status: implemented and locally validated on `A08_fixed_timestep_and_frame_pacing`,
+pending review/merge. Paths (7): `VSync.h`, `SpaceRaiders.cpp`, `GameMode.h`,
+`tests/CMakeLists.txt`, `tests/runtime/legacy_time_tests.cpp`, this plan and the
+task diagram.
 Entrega: relógio monotônico, timestep fixo e sleep limitado a valor não negativo.
 Aceite: ticks equivalentes independem da demora do renderer; time attack termina
 no tick previsto; atraso grande possui limite explícito de recuperação.
+
+A08 delivery audit: the actual game loop now samples std::chrono::steady_clock,
+runs zero or more fixed simulation ticks, processes object queues per tick and
+renders once per batch. Every existing movement/lifetime consumer of DeltaTime
+receives the same 16 ms step; rendering speed no longer selects a gameplay delta.
+This deliberately preserves the legacy 16 ms base (62.5 ticks/s, not exact 60 Hz).
+The accumulator retains fractional time. Each Advance accepts at most 80 ms of
+elapsed time (five ticks); extra stall time is discarded, preserving any earlier
+fractional remainder. Simulation can therefore lag wall time after a long stall,
+without an unlimited catch-up burst/backlog. Reset excludes menu/setup time.
+
+The sleep duration includes work already spent updating/rendering, saturates at
+zero and does not mutate simulation time. Oversleep is measured on the next frame.
+Backward injected timestamps are ignored without moving the last valid anchor.
+TimeAttack consumes fixed integer milliseconds, saturates at zero and ends on
+tick 3,688 for the existing 59-second duration. Catch-up stops on game over; no
+additional ticks or sleep run after that terminal update. Whole-second HUD display
+still truncates, so it can show zero during the last fractional second.
+
+Validation: Windows x64 MSVC C++20 Debug/Release build/link of the game and all
+16 independent header checks, plus 64 GoogleTest/CTest cases in each configuration
+(14 new timing cases). Controlled timestamp/input fixtures exercise exact boundaries,
+sub-millisecond remainders, equal movement/timer results under different schedules,
+irregular frame delays, reset, regressing input, long stalls and terminal batches.
+The movement/timer cases use the real PlayField, PlayerShip and TimeAttack classes;
+only time/input are controlled. A separate local smoke case runs the actual native
+renderer, monotonic clock and sleep, captures console output and checks bounded
+pacing/tick counts. It does not assert Windows scheduling precision or performance.
+CTest registration uses the existing CI native job; no new pipeline is required.
+
+Limits: no full interactive keyboard playthrough, rendering interpolation,
+performance benchmark, wall-clock determinism across machines or new engine clock
+abstraction is claimed. Rendering and simulation still share the main thread;
+future application-loop/thread extraction remains B06/B07/V15. A09 retains final-scene,
+contact and post-game wave priority rules; A10/A11 retain collision/buff work.
+Legacy warnings remain tracked by O04. No additional adapters/manifests are needed
+for this native slice and no known in-scope A08 acceptance gap remains.
 
 **A09 - Corrigir alien/player e transições de fim de jogo.** Depende: A08.
 Arquivos (7): `Alien.h`, `PlayerShip.h`, `GameMode.h`, `PlayField.cpp`,

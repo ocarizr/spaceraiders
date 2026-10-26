@@ -15,29 +15,31 @@ endif()
 include(GoogleTest)
 gtest_discover_tests(vector_tests TEST_PREFIX "core." DISCOVERY_MODE PRE_TEST PROPERTIES TIMEOUT 10)
 
-add_executable(
-    legacy_lifetime_tests
-    runtime/legacy_lifetime_tests.cpp
-    "${PROJECT_SOURCE_DIR}/PlayField.cpp"
-    "${PROJECT_SOURCE_DIR}/PowerUp.cpp"
-    "${PROJECT_SOURCE_DIR}/renderer.cpp"
-)
-target_link_libraries(legacy_lifetime_tests PRIVATE GTest::gtest_main)
-target_include_directories(legacy_lifetime_tests PRIVATE "${PROJECT_SOURCE_DIR}")
-set_target_properties(
-    legacy_lifetime_tests
-    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO
-)
-if(MSVC)
-    target_compile_options(legacy_lifetime_tests PRIVATE /W4)
-endif()
+foreach(runtime_test IN ITEMS legacy_lifetime_tests legacy_time_tests)
+    add_executable(
+        ${runtime_test}
+        "runtime/${runtime_test}.cpp"
+        "${PROJECT_SOURCE_DIR}/PlayField.cpp"
+        "${PROJECT_SOURCE_DIR}/PowerUp.cpp"
+        "${PROJECT_SOURCE_DIR}/renderer.cpp"
+    )
+    target_link_libraries(${runtime_test} PRIVATE GTest::gtest_main)
+    target_include_directories(${runtime_test} PRIVATE "${PROJECT_SOURCE_DIR}")
+    set_target_properties(
+        ${runtime_test}
+        PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO
+    )
+    if(MSVC)
+        target_compile_options(${runtime_test} PRIVATE /W4)
+    endif()
 
-gtest_discover_tests(
-    legacy_lifetime_tests
-    TEST_PREFIX "runtime."
-    DISCOVERY_MODE PRE_TEST
-    PROPERTIES TIMEOUT 10
-)
+    gtest_discover_tests(
+        ${runtime_test}
+        TEST_PREFIX "runtime."
+        DISCOVERY_MODE PRE_TEST
+        PROPERTIES TIMEOUT 10
+    )
+endforeach()
 
 # Compile the actual public game headers independently, including their guards twice.
 # These are build-time checks, not standalone test applications or mock headers.
