@@ -5,6 +5,7 @@
 #include <memory>
 #include <ranges>
 #include <unordered_set>
+#include <vector>
 
 #include "GameObject.h"
 #include "Input.h"
@@ -17,7 +18,16 @@ class PlayField
   private:
     static constexpr int InitialAlienLaserSlots = 10;
     static constexpr int InitialPlayerLaserSlots = 5;
-    static constexpr int AlienLaserSlotsPerAlien = 3;
+    enum class LaserOwner
+    {
+        None,
+        Player,
+        Alien
+    };
+    int playerLaserCapacity = InitialPlayerLaserSlots;
+    int alienLaserCapacity = InitialAlienLaserSlots;
+    std::atomic<int> availablePlayerLaserSlots{InitialPlayerLaserSlots};
+    std::atomic<int> availableAlienLaserSlots{InitialAlienLaserSlots};
 
     std::list<std::unique_ptr<GameObject>> gameObjects;
     std::list<std::unique_ptr<GameObject>> gameObjectsToAdd;
@@ -25,15 +35,20 @@ class PlayField
     std::unique_ptr<GameMode> gameMode;
 
     bool OwnsObject(GameObjPtr object) const;
+    static LaserOwner GetLaserOwner(GameObjPtr object);
+    int AvailableLaserSlots(LaserOwner owner) const;
+    void ReconcileLaserSlots(LaserOwner owner);
 
   public:
     std::unique_ptr<Input> controllerInput;
     Vector2D bounds;
     VSync vsync;
 
-    // Available laser slots; gameplay budgeting is refined by A10.
-    std::atomic<int> AlienLasers;
-    std::atomic<int> PlayerLasers;
+    static constexpr float LaserSpeedCellsPerSecond = 4.f;
+    // Legacy read access to available slots. Configure limits through the setters.
+    // World mutation remains single-threaded; atomic snapshots do not synchronize admission.
+    const std::atomic<int>& AlienLasers = availableAlienLaserSlots;
+    const std::atomic<int>& PlayerLasers = availablePlayerLaserSlots;
 
     explicit PlayField(const Vector2D& iBounds);
     ~PlayField();
@@ -45,7 +60,7 @@ class PlayField
 
     PlayField& operator=(PlayField&&) = delete;
 
-    // Borrowed objects remain alive until ProcessQueues/RemoveAllObjects.
+    // Borrowed objects remain alive until ProcessQueues/RemoveAllObjects or Update entry.
     // Pending removals disappear immediately from queries and collision traversal.
     auto GameObjects() const
     {
@@ -68,11 +83,24 @@ class PlayField
     bool HasAliens();
     int AlienLaserCount();
     int AlienCount();
-    void SpawnLaser(GameObjPtr newObj);
+    // Consumes new lasers even when rejected; already-owned duplicates are ignored.
+    bool SpawnLaser(GameObjPtr newObj);
+    // Consumes the batch on success/failure; only player lasers are accepted.
+    bool SpawnPlayerLasers(std::vector<std::unique_ptr<GameObject>> lasers);
     void DespawnLaser(GameObjPtr newObj);
+    bool ResolveLaserCollision(GameObjPtr laser);
+    bool IsLiveObject(GameObjPtr object) const;
 
-    // Transfers ownership on first registration; null/duplicate registrations
-    // are ignored. The caller must not delete or transfer an owned object elsewhere.
+    int GetPlayerLaserCapacity() const noexcept
+    {
+        return playerLaserCapacity;
+    }
+
+    void SetPlayerLaserCapacity(int capacity);
+    void SetAlienLaserCapacity(int capacity);
+
+    // Consumes new objects, including rejected lasers. Null/owned duplicates are
+    // ignored. The caller must not delete or transfer an owned object elsewhere.
     bool AddObject(GameObjPtr newObj);
     bool RemoveObject(GameObjPtr object);
     void RemoveAllObjects();

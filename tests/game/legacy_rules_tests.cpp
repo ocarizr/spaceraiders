@@ -5,17 +5,30 @@
 #include <ranges>
 #include <sstream>
 #include <string>
+#include <stdexcept>
+#include <memory>
+#include <utility>
+#include <vector>
+#include <limits>
+#include <type_traits>
 
 #include <gtest/gtest.h>
 
 #include "Alien.h"
+#include "AlienLaser.h"
+#include "BlockWall.h"
 #include "GameMenus.h"
 #include "GameMode.h"
 #include "PlayerLaser.h"
+#include "PlayerDiagonalLaser.h"
 #include "PlayerShip.h"
 #include "renderer.h"
 
 std::default_random_engine rGen;
+
+// Legacy consumers may observe counts, but only the world can mutate reservations.
+static_assert(!std::is_assignable_v<decltype((std::declval<PlayField&>().PlayerLasers)), int>);
+static_assert(!std::is_assignable_v<decltype((std::declval<PlayField&>().AlienLasers)), int>);
 
 namespace
 {
@@ -34,11 +47,12 @@ class ControlledInput : public Input
 
     bool Fire() override
     {
-        return false;
+        return fire;
     }
 
     bool left = false;
     bool right = false;
+    bool fire = false;
 };
 
 enum class ModeKind
@@ -72,7 +86,7 @@ class LegacyRules : public testing::TestWithParam<ModeKind>
 
         world.AddPlayer(bounds);
         world.ProcessQueues();
-        world.AlienLasers = 0;
+        world.SetAlienLaserCapacity(0);
     }
 
     GameObjPtr AddAlien(Vector2D position)
@@ -430,5 +444,545 @@ TEST(LegacyModeRules, DeathOnTimeoutTickHasPriorityOverVictory)
     world.RemoveObject(world.GetPlayerObject());
     world.Update();
     EXPECT_EQ(world.GetGameMode()->GetOutcome(), GameOutcome::Lost);
+}
+} // namespace
+
+namespace
+{
+class ProjectileScene : public testing::Test
+{
+  protected:
+    void SetUp() override
+    {
+        rGen.seed(1);
+        auto input = std::make_unique<ControlledInput>();
+        controls = input.get();
+        world.controllerInput = std::move(input);
+        world.SetGameMode(new UntilPlayerDeath);
+        world.AddPlayer(bounds);
+        world.ProcessQueues();
+    }
+
+    int Effects()
+    {
+        return static_cast<int>(std::ranges::count_if(world.GameObjects(),
+                                                      [](auto object)
+                                                      {
+                                                          return object->sprite == RS_Explosion;
+                                                      }));
+    }
+
+    int PlayerShots()
+    {
+        return static_cast<int>(std::ranges::count_if(world.GameObjects(),
+                                                      [](auto object)
+                                                      {
+                                                          return dynamic_cast<PlayerLaser*>(
+                                                                     object) != nullptr;
+                                                      }));
+    }
+
+    Vector2D bounds{80, 28};
+    PlayField world{bounds};
+    ControlledInput* controls = nullptr;
+};
+
+class ProjectileContacts : public ProjectileScene, public testing::WithParamInterface<int>
+{
+  protected:
+    GameObjPtr Shot(Vector2D position = Vector2D(10, 10))
+    {
+        GameObjPtr laser = GetParam() == 0
+                               ? static_cast<GameObjPtr>(new PlayerLaser)
+                               : static_cast<GameObjPtr>(new PlayerDiagonalLaser(GetParam()));
+        laser->pos = position;
+        EXPECT_TRUE(world.SpawnLaser(laser));
+        world.ProcessQueues();
+        return laser;
+    }
+};
+
+TEST_P(ProjectileContacts, OpposingLasersProduceOneImpactAndReturnBothSlots)
+{
+    auto playerShot = Shot();
+    auto enemy = new AlienLaser;
+    enemy->pos = playerShot->pos;
+    ASSERT_TRUE(world.SpawnLaser(enemy));
+    world.ProcessQueues();
+    playerShot->Update(world);
+    enemy->Update(world); // Already logically removed: cannot produce another effect.
+    playerShot->Update(world);
+    world.ProcessQueues();
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.AlienLaserCount(), 0);
+    EXPECT_EQ(world.PlayerLasers, 5);
+    EXPECT_EQ(world.AlienLasers, 10);
+    EXPECT_EQ(Effects(), 1);
+}
+
+TEST_P(ProjectileContacts, EnemyCanResolveTheSameContactFirst)
+{
+    auto playerShot = Shot();
+    auto enemy = new AlienLaser;
+    enemy->pos = playerShot->pos;
+    world.SpawnLaser(enemy);
+    world.ProcessQueues();
+    enemy->Update(world);
+    playerShot->Update(world);
+    world.ProcessQueues();
+    EXPECT_EQ(Effects(), 1);
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.AlienLaserCount(), 0);
+    EXPECT_EQ(world.PlayerLasers, 5);
+    EXPECT_EQ(world.AlienLasers, 10);
+}
+
+TEST_P(ProjectileContacts, OneLaserHitsOnlyOneOfTwoOverlappingAliens)
+{
+    auto shot = Shot();
+    for (int index = 0; index < 2; ++index)
+    {
+        auto alien = new Alien;
+        alien->pos = shot->pos;
+        world.AddObject(alien);
+    }
+
+    world.ProcessQueues();
+    shot->Update(world);
+    shot->Update(world);
+    world.ProcessQueues();
+    EXPECT_EQ(world.AlienCount(), 1);
+    EXPECT_EQ(world.GetGameMode()->GetScore(), 10);
+    EXPECT_EQ(Effects(), 1);
+    EXPECT_EQ(world.PlayerLasers, 5);
+}
+
+TEST_P(ProjectileContacts, WallTakesExactlyFiveSeparatePlayerHits)
+{
+    auto wall = new BlockWall;
+    wall->pos = Vector2D(10, 10);
+    world.AddObject(wall);
+    world.ProcessQueues();
+    for (int hit = 0; hit < 5; ++hit)
+    {
+        auto shot = Shot(wall->pos);
+        shot->Update(world);
+        shot->Update(world);
+        EXPECT_EQ(world.IsLiveObject(wall), hit < 4);
+        world.ProcessQueues();
+        EXPECT_EQ(Effects(), hit + 1);
+        EXPECT_EQ(world.PlayerLasers, 5);
+    }
+
+    EXPECT_EQ(world.GetGameMode()->GetScore(), 0);
+}
+
+TEST_P(ProjectileContacts, FriendlyLasersDoNotCollide)
+{
+    auto first = Shot();
+    auto second = Shot();
+    first->Update(world);
+    second->Update(world);
+    world.ProcessQueues();
+    EXPECT_EQ(PlayerShots(), 2);
+    EXPECT_EQ(Effects(), 0);
+    EXPECT_EQ(world.PlayerLasers, 3);
+}
+
+TEST_P(ProjectileContacts, TopAndSideExitReturnSlotsWithoutImpact)
+{
+    auto shot = Shot(Vector2D(GetParam() > 0 ? 79.99f : 0.01f, 10));
+    if (GetParam() == 0)
+    {
+        shot->pos.y = 0.01f;
+    }
+
+    shot->Update(world);
+    shot->Update(world);
+    world.ProcessQueues();
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.PlayerLasers, 5);
+    EXPECT_EQ(Effects(), 0);
+}
+
+TEST_P(ProjectileContacts, GenericRemovalAndPendingCancellationReleaseOneSlot)
+{
+    auto shot = Shot();
+    EXPECT_TRUE(world.RemoveObject(shot));
+    EXPECT_FALSE(world.RemoveObject(shot));
+    world.DespawnLaser(shot);
+    EXPECT_EQ(world.PlayerLasers, 5);
+    world.ProcessQueues();
+    GameObjPtr pending = GetParam() == 0
+                             ? static_cast<GameObjPtr>(new PlayerLaser)
+                             : static_cast<GameObjPtr>(new PlayerDiagonalLaser(GetParam()));
+    world.SpawnLaser(pending);
+    EXPECT_EQ(world.PlayerLasers, 4);
+    world.RemoveObject(pending);
+    world.ProcessQueues();
+    EXPECT_EQ(world.PlayerLasers, 5);
+    EXPECT_EQ(PlayerShots(), 0);
+}
+
+TEST_P(ProjectileContacts, MovementIntoAnotherCellResolvesAnImpact)
+{
+    const float startX = GetParam() < 0 ? 10.01f : GetParam() > 0 ? 10.99f : 10.f;
+    const float targetX = GetParam() < 0 ? 9.99f : GetParam() > 0 ? 11.01f : 10.f;
+    auto shot = Shot(Vector2D(startX, 10.01f));
+    auto alien = new Alien;
+    alien->pos = Vector2D(targetX, 9.99f);
+    world.AddObject(alien);
+    world.ProcessQueues();
+    shot->Update(world);
+    world.ProcessQueues();
+    EXPECT_FALSE(world.HasAliens());
+    EXPECT_EQ(world.GetGameMode()->GetScore(), 10);
+    EXPECT_EQ(Effects(), 1);
+    EXPECT_EQ(world.PlayerLasers, 5);
+}
+
+TEST_P(ProjectileContacts, OutsideShotCannotHitTheClampedIntegerCell)
+{
+    auto shot = Shot(Vector2D(-0.01f, 10));
+    auto alien = new Alien;
+    alien->pos = Vector2D(0, 10);
+    world.AddObject(alien);
+    world.ProcessQueues();
+    shot->Update(world);
+    world.ProcessQueues();
+    EXPECT_TRUE(world.HasAliens());
+    EXPECT_EQ(world.GetGameMode()->GetScore(), 0);
+    EXPECT_EQ(Effects(), 0);
+    EXPECT_EQ(world.PlayerLasers, 5);
+}
+
+INSTANTIATE_TEST_SUITE_P(AllPlayerShots, ProjectileContacts, testing::Values(-1, 0, 1),
+                         [](const testing::TestParamInfo<int>& info)
+                         {
+                             return info.param < 0 ? "Left" : info.param > 0 ? "Right" : "Straight";
+                         });
+
+TEST_F(ProjectileScene, RealTripleFireRequiresTheWholeVolleyAndReturnsEverySlot)
+{
+    auto player = static_cast<PlayerShip*>(world.GetPlayerObject());
+    player->StartTripleLaser();
+    world.SetPlayerLaserCapacity(2);
+    controls->fire = true;
+    for (int tick = 0; tick < 30; ++tick)
+    {
+        world.Update();
+        world.ProcessQueues();
+    }
+
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.PlayerLasers, 2);
+    world.SetPlayerLaserCapacity(3);
+    world.Update();
+    world.ProcessQueues();
+    EXPECT_EQ(PlayerShots(), 3);
+    EXPECT_EQ(world.PlayerLasers, 0);
+    for (auto object : world.GameObjects())
+    {
+        if (dynamic_cast<PlayerLaser*>(object))
+        {
+            world.DespawnLaser(object);
+        }
+    }
+
+    world.ProcessQueues();
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.PlayerLasers, 3);
+}
+
+TEST_F(ProjectileScene, BatchRejectionLeavesNoPartialVolley)
+{
+    world.SetPlayerLaserCapacity(2);
+    std::vector<std::unique_ptr<GameObject>> volley;
+    volley.emplace_back(std::make_unique<PlayerLaser>());
+    volley.emplace_back(std::make_unique<PlayerDiagonalLaser>(-1));
+    volley.emplace_back(std::make_unique<PlayerDiagonalLaser>(1));
+    EXPECT_FALSE(world.SpawnPlayerLasers(std::move(volley)));
+    world.ProcessQueues();
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.PlayerLasers, 2);
+    world.SetPlayerLaserCapacity(5);
+    std::vector<std::unique_ptr<GameObject>> invalid;
+    invalid.emplace_back(std::make_unique<PlayerLaser>());
+    invalid.emplace_back(std::make_unique<AlienLaser>());
+    EXPECT_FALSE(world.SpawnPlayerLasers(std::move(invalid)));
+    EXPECT_FALSE(world.SpawnPlayerLasers({}));
+    std::vector<std::unique_ptr<GameObject>> emptyShot;
+    emptyShot.emplace_back(nullptr);
+    EXPECT_FALSE(world.SpawnPlayerLasers(std::move(emptyShot)));
+    EXPECT_FALSE(world.SpawnLaser(nullptr));
+    EXPECT_FALSE(world.SpawnLaser(new Explosion));
+    world.ProcessQueues();
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.AlienLaserCount(), 0);
+    EXPECT_EQ(world.PlayerLasers, 5);
+}
+
+TEST_F(ProjectileScene, PendingShotsSpendBudgetAndDirectAddCannotBypassIt)
+{
+    world.SetPlayerLaserCapacity(1);
+    auto first = new PlayerDiagonalLaser(-1);
+    ASSERT_TRUE(world.SpawnLaser(first));
+    EXPECT_FALSE(world.SpawnLaser(first));
+    EXPECT_FALSE(world.SpawnLaser(new PlayerLaser));
+    EXPECT_FALSE(world.AddObject(new PlayerDiagonalLaser(1)));
+    world.ProcessQueues();
+    EXPECT_EQ(PlayerShots(), 1);
+    EXPECT_EQ(world.PlayerLasers, 0);
+}
+
+TEST_F(ProjectileScene, ClearingResetsCapacityAndActiveAndPendingReservations)
+{
+    world.SetPlayerLaserCapacity(9);
+    world.SetAlienLaserCapacity(4);
+    world.SpawnLaser(new PlayerLaser);
+    world.SpawnLaser(new AlienLaser);
+    world.ProcessQueues();
+    world.SpawnLaser(new PlayerDiagonalLaser(-1));
+    world.SpawnLaser(new AlienLaser);
+    world.RemoveAllObjects();
+    world.ProcessQueues();
+    EXPECT_EQ(world.GetPlayerLaserCapacity(), 5);
+    EXPECT_EQ(world.PlayerLasers, 5);
+    EXPECT_EQ(world.AlienLasers, 10);
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.AlienLaserCount(), 0);
+}
+
+TEST_F(ProjectileScene, SmallerCapacityWaitsForExistingShotsToDrain)
+{
+    for (int shot = 0; shot < 3; ++shot)
+    {
+        world.SpawnLaser(new AlienLaser);
+    }
+
+    world.ProcessQueues();
+    world.SetAlienLaserCapacity(1);
+    EXPECT_EQ(world.AlienLasers, 0);
+    EXPECT_FALSE(world.SpawnLaser(new AlienLaser));
+    for (auto object : world.GameObjects())
+    {
+        if (dynamic_cast<AlienLaser*>(object))
+        {
+            world.RemoveObject(object);
+            EXPECT_GE(world.AlienLasers.load(), 0);
+        }
+    }
+
+    world.ProcessQueues();
+    EXPECT_EQ(world.AlienLasers, 1);
+    EXPECT_THROW(world.SetAlienLaserCapacity(-1), std::invalid_argument);
+    EXPECT_THROW(world.SetPlayerLaserCapacity(-1), std::invalid_argument);
+}
+
+TEST_F(ProjectileScene, NewWaveAccountsForExistingEnemyShots)
+{
+    world.SpawnLaser(new AlienLaser);
+    world.ProcessQueues();
+    world.SpawnLaser(new AlienLaser);
+    world.AddAlienWave(bounds);
+    world.ProcessQueues();
+    EXPECT_EQ(world.AlienLasers.load() + world.AlienLaserCount(), world.AlienCount());
+}
+
+TEST_F(ProjectileScene, FireBoostExpandsCapacityWithoutForgettingExistingShots)
+{
+    world.SpawnLaser(new PlayerLaser);
+    auto player = static_cast<PlayerShip*>(world.GetPlayerObject());
+    player->UpdateFireDelay(0.5f, world);
+    EXPECT_EQ(world.GetPlayerLaserCapacity(), 7);
+    EXPECT_EQ(world.PlayerLasers, 6);
+    world.ProcessQueues();
+    for (auto object : world.GameObjects())
+    {
+        if (dynamic_cast<PlayerLaser*>(object))
+        {
+            world.RemoveObject(object);
+        }
+    }
+
+    EXPECT_EQ(world.PlayerLasers, 7);
+}
+
+TEST_F(ProjectileScene, EnemyShotHitsPlayerOnceAndReturnsItsSlot)
+{
+    auto enemy = new AlienLaser;
+    enemy->pos = world.GetPlayerObject()->pos;
+    world.SpawnLaser(enemy);
+    world.ProcessQueues();
+    enemy->Update(world);
+    enemy->Update(world);
+    world.ProcessQueues();
+    EXPECT_FALSE(world.HasPlayer());
+    EXPECT_EQ(world.AlienLaserCount(), 0);
+    EXPECT_EQ(world.AlienLasers, 10);
+    EXPECT_EQ(Effects(), 1);
+}
+
+TEST_F(ProjectileScene, EnemyShotIsAbsorbedByWallWithoutDamagingIt)
+{
+    auto wall = new BlockWall;
+    wall->pos = Vector2D(10, 10);
+    world.AddObject(wall);
+    auto enemy = new AlienLaser;
+    enemy->pos = wall->pos;
+    world.SpawnLaser(enemy);
+    world.ProcessQueues();
+    enemy->Update(world);
+    world.ProcessQueues();
+    EXPECT_TRUE(world.IsLiveObject(wall));
+    EXPECT_EQ(Effects(), 1);
+    for (int hit = 0; hit < 5; ++hit)
+    {
+        EXPECT_EQ(wall->DecreaseHealth(world), hit == 4);
+    }
+}
+
+TEST_F(ProjectileScene, OpposingShotInterceptsBeforeAColocatedPlayer)
+{
+    auto defender = new PlayerLaser;
+    auto attacker = new AlienLaser;
+    defender->pos = attacker->pos = world.GetPlayerObject()->pos;
+    world.SpawnLaser(defender);
+    world.SpawnLaser(attacker);
+    world.ProcessQueues();
+    attacker->Update(world);
+    world.ProcessQueues();
+    EXPECT_TRUE(world.HasPlayer());
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.AlienLaserCount(), 0);
+    EXPECT_EQ(Effects(), 1);
+}
+
+TEST_F(ProjectileScene, EnemyShotLeavingBottomReturnsSlotWithoutEffect)
+{
+    auto shot = new AlienLaser;
+    shot->pos = Vector2D(10, 27.99f);
+    world.SpawnLaser(shot);
+    world.ProcessQueues();
+    shot->Update(world);
+    world.ProcessQueues();
+    EXPECT_EQ(world.AlienLaserCount(), 0);
+    EXPECT_EQ(world.AlienLasers, 10);
+    EXPECT_EQ(Effects(), 0);
+}
+
+TEST_F(ProjectileScene, DenseWallOverlapUsesBoundedDisplacementInARealTick)
+{
+    world.SetAlienLaserCapacity(0);
+    auto wall = new BlockWall;
+    wall->pos = Vector2D(10, 1);
+    world.AddObject(wall);
+    for (int row = 1; row < 25; ++row)
+    {
+        auto alien = new Alien;
+        alien->pos = Vector2D(10, static_cast<float>(row));
+        world.AddObject(alien);
+    }
+
+    world.Update();
+    world.ProcessQueues();
+    EXPECT_TRUE(world.IsLiveObject(wall));
+    EXPECT_FLOAT_EQ(wall->pos.y, 25);
+    EXPECT_TRUE(world.HasPlayer());
+}
+
+TEST_F(ProjectileScene, WallExitsCanvasInsteadOfRecursingPastDenseAliens)
+{
+    auto wall = new BlockWall;
+    wall->pos = Vector2D(10, 1);
+    world.AddObject(wall);
+    for (int row = 1; row < 28; ++row)
+    {
+        auto alien = new Alien;
+        alien->pos = Vector2D(10, static_cast<float>(row));
+        world.AddObject(alien);
+    }
+
+    world.ProcessQueues();
+    wall->Update(world); // Direct boundary case; a normal tick ends on the bottom alien first.
+    EXPECT_FALSE(world.IsLiveObject(wall));
+    world.ProcessQueues();
+    EXPECT_EQ(Effects(), 0);
+}
+
+TEST_F(ProjectileScene, DisplacedWallKillsPlayerWithOneExplosion)
+{
+    auto wall = new BlockWall;
+    wall->pos = Vector2D(10, 26);
+    world.GetPlayerObject()->pos = Vector2D(10, 27);
+    auto alien = new Alien;
+    alien->pos = wall->pos;
+    world.AddObject(alien);
+    world.AddObject(wall);
+    world.ProcessQueues();
+    wall->Update(world);
+    wall->Update(world);
+    EXPECT_FALSE(world.HasPlayer());
+    EXPECT_FALSE(world.IsLiveObject(wall));
+    world.ProcessQueues();
+    EXPECT_EQ(Effects(), 1);
+}
+
+TEST_F(ProjectileScene, TerminalWorldRejectsNewShotsWithoutSpendingSlots)
+{
+    world.RemoveObject(world.GetPlayerObject());
+    world.Update();
+    ASSERT_TRUE(world.GetGameMode()->GameOver());
+    EXPECT_FALSE(world.SpawnLaser(new PlayerLaser));
+    EXPECT_FALSE(world.SpawnLaser(new AlienLaser));
+    world.ProcessQueues();
+    EXPECT_EQ(world.PlayerLasers, 5);
+    EXPECT_EQ(world.AlienLasers, 10);
+    EXPECT_EQ(PlayerShots(), 0);
+    EXPECT_EQ(world.AlienLaserCount(), 0);
+}
+} // namespace
+
+namespace
+{
+TEST_F(ProjectileScene, HeadOnShotsCrossingACellBoundaryCollideInEitherOrder)
+{
+    for (const bool playerFirst : {false, true})
+    {
+        SCOPED_TRACE(playerFirst);
+        const int previousEffects = Effects();
+        auto player = new PlayerLaser;
+        auto enemy = new AlienLaser;
+        player->pos = Vector2D(10, 10.01f);
+        enemy->pos = Vector2D(10, 9.99f);
+        world.SpawnLaser(player);
+        world.SpawnLaser(enemy);
+        world.ProcessQueues();
+        if (playerFirst)
+        {
+            player->Update(world);
+            enemy->Update(world);
+        }
+        else
+        {
+            enemy->Update(world);
+            player->Update(world);
+        }
+
+        world.ProcessQueues();
+        EXPECT_EQ(PlayerShots(), 0);
+        EXPECT_EQ(world.AlienLaserCount(), 0);
+        EXPECT_EQ(Effects(), previousEffects + 1);
+    }
+}
+
+TEST_F(ProjectileScene, FireBoostSaturatesCapacityWithoutIntegerOverflow)
+{
+    const int maximum = (std::numeric_limits<int>::max)();
+    world.SetPlayerLaserCapacity(maximum);
+    auto player = static_cast<PlayerShip*>(world.GetPlayerObject());
+    player->UpdateFireDelay(0.5f, world);
+    EXPECT_EQ(world.GetPlayerLaserCapacity(), maximum);
+    EXPECT_EQ(world.PlayerLasers, maximum);
 }
 } // namespace

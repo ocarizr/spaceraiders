@@ -1,6 +1,6 @@
 # Engine, rendering, physics and native UI
 
-Status: A01-A08 baseline merged. A09 is locally validated, pending review/merge;
+Status: A01-A09 baseline merged. A10 is locally validated, pending review/merge;
 engine extraction and runtime extensions remain planned.
 
 ## Scope and independent execution
@@ -194,8 +194,7 @@ Legacy warnings remain tracked by O04. No additional adapters/manifests are need
 for this native slice and no known in-scope A08 acceptance gap remains.
 
 **A09 - Corrigir alien/player e transições de fim de jogo.** Depende: A08.
-Status: implemented and locally validated on `A09_legacy_gameplay_and_game_over`,
-pending review/merge. Paths (10): `Alien.h`, `PlayerShip.h`, `GameMode.h`,
+Status: merged through PR #31 (`61df377`). Paths (10): `Alien.h`, `PlayerShip.h`, `GameMode.h`,
 `PlayField.cpp`, `SpaceRaiders.cpp`, `GameMenus.h`, `tests/CMakeLists.txt`,
 `tests/game/legacy_rules_tests.cpp`, this plan and the task diagram.
 Entrega: limites, morte ao alien chegar ao fundo, destruição de ambos em contato,
@@ -250,12 +249,68 @@ legacy compiler warnings remain O04. Restarting a terminal mode requires a fresh
 mode instance; this task does not add a replay/menu workflow.
 
 **A10 - Corrigir colisões e orçamento de lasers.** Depende: A09.
-Arquivos (7): `PlayerLaser.h`, `PlayerDiagonalLaser.h`, `AlienLaser.h`,
-`PlayField.h`, `PlayField.cpp`, `BlockWall.h`, `tests/game/legacy_rules_tests.cpp`.
+Status: implemented and locally validated on `A10_projectile_collisions_and_budgets`,
+pending review/merge. Paths (10): `PlayerLaser.h`, `PlayerDiagonalLaser.h`,
+`AlienLaser.h`, `PlayField.h`, `PlayField.cpp`, `BlockWall.h`, `PlayerShip.h`,
+`tests/game/legacy_rules_tests.cpp`, this plan and the task diagram.
 Entrega: slots coerentes para tiro triplo, laser contra laser, uma resolução por
 contato e deslocamento de parede sem recursão; reset/reconciliação de slots ao
 limpar/reiniciar o mundo. Aceite: slots retornam ao despawn,
 uma colisão não duplica score/efeito, parede sobreposta não trava a atualização.
+
+A10 delivery audit: straight/diagonal player shots and alien shots share the real
+world's collision resolver before and after movement. Diagonals customize movement
+only. An impact consumes the shot and resolves at most one contact/one explosion;
+repeated updates/removal cannot repeat damage, score or slot return. Opposing shots
+intercept before ship/wall contacts; friendly shots pass through each other. Other
+eligible targets are selected in stable world order. Player shots damage aliens
+and walls; alien shots kill the player and are absorbed by walls without damaging
+them, preserving the legacy wall rule. Hits on surviving targets now also show an
+impact. Shots outside the canvas are removed without an effect or integer-cell hit.
+
+Capacity and occupancy are separate. Both active and pending straight/diagonal
+shots reserve player slots. AddObject cannot bypass the same admission check.
+Generic removal, explicit despawn and pending cancellation immediately reconcile
+the corresponding count. Negative capacities are rejected; reducing a capacity
+below existing occupancy blocks admission until enough shots drain, without a
+negative available count. The legacy atomic count views are read-only; setters own
+policy changes. This remains a single-threaded world, not a concurrent allocator.
+
+The actual PlayerShip producer submits a unique-owned, all-or-none volley: triple
+fire requires three free slots and cannot partially emit or overdraw a budget.
+Invalid/empty/over-budget batches leave no partial spawn; staging precedes the
+no-throw ownership splice. New rejected single shots/batches are consumed and
+released, while already-owned duplicate registration is ignored. Terminal games
+reject new shots. Fire boosts expand capacity while retaining existing reservations
+and saturate at the integer limit. Buff duration/effect balancing still belongs A11.
+
+New waves keep the legacy capacity of one slot per newly spawned alien, deducting
+any shots carried from the previous wave instead of resetting available slots to
+the wave size. Alien deaths do not resize that wave's capacity. RemoveAllObjects
+clears active/pending reservations and restores initial capacities (player 5,
+alien 10), including upgraded player limits. Walls move iteratively, at most canvas
+height checks, until clear or offscreen. Reaching the player removes both with one
+explosion; a wall pushed outside is removed without recursion.
+
+Validation: Windows x64 MSVC C++20 Debug/Release compile/link the actual game,
+16 isolated header checks and 150 GoogleTest/CTest cases each (44 new A10 cases).
+The existing GTest/CTest registration needs no new CI job. Real classes
+exercise all three player-shot variants, both interception update orders, pre/post
+movement hits, duplicate contacts, five-hit walls, boundaries, capacity changes,
+carry-over waves, real PlayerShip triple fire and real world ticks with dense wall
+overlap. Input is controlled; direct Update calls isolate collision/boundary cases.
+The offscreen dense-wall boundary case calls the actual wall directly, since a
+normal world tick ends on a bottom-row alien first. Invalid batches/configuration
+are deliberate test data; no fake gameplay/SDK adapter stands in for production.
+All 86 game rules cases plus 17 lifetime cases pass local MSVC AddressSanitizer.
+
+Limits: no full interactive playthrough, allocation-failure injection, leak-profiler
+capture or performance benchmark was performed. ASan checks memory accesses, not
+Windows leaks. This preserves discrete integer-cell collisions; general swept
+projectile/shape queries remain E04. Evolution/firing/buffs remain A11 and existing
+compiler warnings remain O04. No new runtime data/adapter is required and no known
+in-scope A10 acceptance gap remains. Borrowed pointers still expire at queue flushes;
+this slice does not introduce stable entity handles, engine extraction or job safety.
 
 **A11 - Corrigir evolução e buffs temporários.** Depende: A10.
 Arquivos (6): `Alien.h`, `PlayerShip.h`, `PowerUp.h`, `PowerUp.cpp`, `Input.h`,

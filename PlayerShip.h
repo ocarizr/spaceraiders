@@ -1,11 +1,17 @@
 #ifndef PLAYERSHIP_H
 #define PLAYERSHIP_H
 #include <algorithm>
+#include <memory>
+#include <limits>
+#include <utility>
+#include <vector>
 
 #include "PlayerDiagonalLaser.h"
 
 class PlayerShip : public GameObject
 {
+    static constexpr int TripleShotLaserCount = 3;
+    static constexpr int AdditionalLaserSlotsPerFireBoost = 2;
     float delayTime = .4f;
     float fireDelay = delayTime;
     float movementSpeed = 4.f;
@@ -23,7 +29,10 @@ class PlayerShip : public GameObject
         if (delayTime > .1f)
         {
             delayTime *= rate;
-            world.PlayerLasers += 2;
+            const int capacity = world.GetPlayerLaserCapacity();
+            const int headroom = (std::numeric_limits<int>::max)() - capacity;
+            const int extraSlots = (std::min)(AdditionalLaserSlotsPerFireBoost, headroom);
+            world.SetPlayerLaserCapacity(capacity + extraSlots);
         }
     }
 
@@ -60,29 +69,30 @@ class PlayerShip : public GameObject
         const float lastColumn = (std::max)(0.f, world.bounds.x - 1.f);
         pos.x = std::clamp(pos.x, 0.f, lastColumn);
 
-        if (world.controllerInput->Fire() && world.PlayerLasers > 0 && fireDelay <= 0.f)
+        const int requiredSlots = tripleLaser ? TripleShotLaserCount : 1;
+        if (world.controllerInput->Fire() && world.PlayerLasers >= requiredSlots &&
+            fireDelay <= 0.f)
         {
-            fireDelay = delayTime;
             // Spawn laser
-            std::list<GameObjPtr> lasers;
-            lasers.emplace_back(new PlayerLaser);
+            std::vector<std::unique_ptr<GameObject>> lasers;
+            lasers.emplace_back(std::make_unique<PlayerLaser>());
             Vector2D laserPos(pos.x, pos.y - 1);
             lasers.back()->pos = laserPos;
 
             if (tripleLaser)
             {
-                lasers.emplace_back(new PlayerDiagonalLaser(-1));
+                lasers.emplace_back(std::make_unique<PlayerDiagonalLaser>(-1));
                 laserPos.x -= 1;
                 lasers.back()->pos = laserPos;
 
-                lasers.emplace_back(new PlayerDiagonalLaser(1));
+                lasers.emplace_back(std::make_unique<PlayerDiagonalLaser>(1));
                 laserPos.x += 2;
                 lasers.back()->pos = laserPos;
             }
 
-            for (const auto& laser : lasers)
+            if (world.SpawnPlayerLasers(std::move(lasers)))
             {
-                world.SpawnLaser(laser);
+                fireDelay = delayTime;
             }
         }
         else

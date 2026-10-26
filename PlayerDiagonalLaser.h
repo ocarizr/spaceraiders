@@ -1,51 +1,28 @@
-#ifndef PLAYERTRIPLELASER_H
-#define PLAYERTRIPLELASER_H
+#ifndef PLAYERDIAGONALLASER_H
+#define PLAYERDIAGONALLASER_H
 #include "PlayerLaser.h"
 
 class PlayerDiagonalLaser : public PlayerLaser
 {
     int direction = 0;
-public:
-    PlayerDiagonalLaser() : PlayerLaser() {}
-    explicit PlayerDiagonalLaser(int dir) :
-        PlayerLaser("ot_PlayerDiagonalLaser",
-                    dir > 0 ? RS_PlayerRightLaser : RS_PlayerLeftLaser)
+
+  public:
+    PlayerDiagonalLaser() = default;
+
+    explicit PlayerDiagonalLaser(int dir)
+        : PlayerLaser("ot_PlayerDiagonalLaser", dir > 0 ? RS_PlayerRightLaser : RS_PlayerLeftLaser),
+          direction(dir)
     {
-        direction = dir;
     }
-    inline ~PlayerDiagonalLaser() noexcept override = default;
 
-    void Update(PlayField &world) override
+    ~PlayerDiagonalLaser() noexcept override = default;
+
+  protected:
+    void Move(PlayField& world) override
     {
-        bool deleted = false;
-        pos.y -= 4.f * world.vsync.DeltaTime();
-        pos.x += 4.f * direction * world.vsync.DeltaTime();
-        if (pos.y < 0)
-        {
-            deleted = true;
-        }
-
-        for (auto it : world.GameObjects())
-        {
-            if ((it->m_objType == "ot_AlienShip" || it->m_objType == "ot_BlockWall")
-                && it->pos.IntCmp(pos))
-            {
-                deleted = true;
-
-                if (it->DecreaseHealth(world))
-                {
-                    GameObjPtr no = new Explosion;
-                    no->pos = pos;
-                    world.AddObject(no);
-                    world.RemoveObject(it);
-                }
-            }
-        }
-
-        if (deleted)
-        {
-            world.DespawnLaser(this);
-        }
+        PlayerLaser::Move(world);
+        pos.x += PlayField::LaserSpeedCellsPerSecond * direction * world.vsync.DeltaTime();
     }
 };
-#endif // PLAYERTRIPLELASER_H
+
+#endif // PLAYERDIAGONALLASER_H
