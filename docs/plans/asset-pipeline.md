@@ -260,7 +260,7 @@ Entrega: build limpo, validação completa, cooking, testes e pacote em tag/manu
 Aceite: falha impede publicação; PR não publica release; permissões de escrita
 restritas ao job de publicação. O ato de publicar segue autorização do mantenedor.
 
-**P06 - Guia de desenvolvimento e entrega final.** Depende: O05, O06, P05, S11, R07, Q03, W06, T14, G17, N07, L08, K07, X07, U14, Z09, Y14.
+**P06 - Guia de desenvolvimento e entrega final.** Depende: O05, O06, P05, S11, R07, Q03, W06, T14, G17, N07, L08, K07, X07, U14, Z09, Y14, J16, K12, Q10, Q11, Q12, T17, T18, T19.
 Arquivos (até 6): `README.md`, `docs/{development,editors,scripting,
 assets,distribution}.md`.
 Entrega: caminho completo de checkout a build, autoria, testes, cooking e pacote;
@@ -543,6 +543,43 @@ not banned from the development runtime. Source errors preserve last-good state.
 
 ## Package foundations and setup handoff
 
+Q05-Q07 delivered reusable infrastructure, not full production adoption. The
+[delivery audit](../audits/2026-10-26-delivery-completeness.md) records fixture versus
+real-package evidence and the gaps below. Tool/game localization assets are owned
+by the [localization plan](localization.md), not implicitly supplied by F01-F10.
+
+**Q08 - Production package identity and immutable version discipline.** Depends: Q05, Y06.
+Deliverable: core package version/pin/lock corrections, collision regression and
+release policy (4-8 paths). Changed payloads cannot reuse an already published
+identity. Verify the real environment library across Y03/Y05/Y06 changes, not only
+Fixture.Foundation; retain a previous artifact and prove upgrade behavior.
+
+**Q09 - Environment core consumes packaged diagnostics.** Depends: Q08.
+Deliverable: core NuGet producer/consumer wiring and real artifact tests (4-8 paths).
+Replace its production diagnostics source reference with an explicit locked package
+dependency, verify transitive metadata and run the real core from packaged inputs.
+Keep local project editing convenient without substituting it for package acceptance.
+
+**Q10 - Setup consumes production NuGet artifacts.** Depends: Q09.
+Deliverable: setup package references/locks, CI build order and publish tests
+(5-8 paths). Publish and launch the actual GUI/headless app using packaged core/
+diagnostics from a fresh local feed/cache. No source references or loose DLL copies
+may hide missing dependencies, version collisions or stale cached payloads.
+
+**Q11 - Atomic immutable wheel publication and real producer acceptance.** Depends: Q06, Q07.
+Deliverable: wheel publication policy/implementation and pytest cases (4-7 paths).
+Build the actual diagnostics/pipeline producer through the installed CLI. Publish
+verified artifacts atomically; reject incompatible same-name payloads rather than
+overwriting them with `shutil.copyfile`. Preserve the previous artifact on failed
+copy/build, document any reproducibility constraints and verify isolated consumption.
+
+**Q12 - Effective native and Python toolchain policy checks.** Depends: Q02, A04.
+Deliverable: policy inspection/validation and developer/CI tests (4-7 paths).
+Compare actual compiler/toolset/Windows SDK/CMake/Ninja/Python identities with the
+approved policy before builds. Report drift precisely; writing pins alone is not
+enforcement. Confirm Windows CI image compatibility and split a policy migration
+from setup acquisition instead of silently changing required versions.
+
 Q01 selects [CMake/native + .NET 10/MSBuild](../build-system.md), without replacing
 the language-specific graphs. The coordinator builds package producers and restores
 their intended artifact versions for consumers. Python wheels and installed module
@@ -561,8 +598,7 @@ versions; no loose DLL copying, duplicate BUILD graph or public-feed publication
 Add small fixture projects in sub-deliveries if the total would exceed 10 paths.
 
 **Q06 - Python module wheel and installed entry point.** Depends: Q02.
-Status: implemented and locally validated on `Q06_python_wheel_build_and_entry_point`,
-pending review/merge. See [wheel module usage](../dependencies.md#python-wheel-module-and-installed-entry-point-q06).
+Status: merged in PR #19. See [wheel module usage](../dependencies.md#python-wheel-module-and-installed-entry-point-q06).
 Paths (6 implementation/package/test files): `tools/pipeline/wheel_build/pyproject.toml`,
 `tools/pipeline/wheel_build/src/raiders_pipeline/{__init__.py,__main__.py,build_wheels.py,wheel_policy.json}`,
 `tools/pipeline/wheel_build/tests/test_wheel_install.py`; CI/docs complete the delivery.
@@ -572,8 +608,7 @@ environment without sys.path hacks or dependence on source checkout location.
 Include needed data files/entry points; test the actual wheel, not just source imports.
 
 **Q07 - Reproducible Python environment recipes.** Depends: Q02, Q06.
-Status: implemented and locally validated on `Q07_reproducible_python_environments`,
-pending review/merge. See [recipes and bootstrap contract](../dependencies.md#reproducible-python-environments-q07).
+Status: merged in PR #20. See [recipes and bootstrap contract](../dependencies.md#reproducible-python-environments-q07).
 Paths (4 implementation/recipe/test files):
 `tools/pipeline/wheel_build/src/raiders_pipeline/environments/{python-build,python-tools}.lock`,
 `tools/pipeline/wheel_build/src/raiders_pipeline/create_env.py`,

@@ -4,6 +4,51 @@ The native library is **Raiders Engine**. **Space Raiders** is its sample game.
 Repository code, comments, diagnostics and developer documentation use English.
 Existing `raiders` namespaces and public schema identifiers remain stable.
 
+## Architecture and completeness
+
+Apply SOLID through clear responsibilities and composition at real variation
+boundaries. Separate presentation, application commands, domain policy and external
+effects. Reuse owned libraries/packages rather than copied source or loose binaries;
+inject discovery, storage and process operations where tests need control. Use
+patterns to solve a stated lifetime/extension/workflow problem, not to add layers
+without a consumer. Keep interfaces small and ownership/cancellation explicit.
+
+For every task, identify supported branches and real consumers before coding.
+Unit fakes prove controlled behavior; they do not prove a production registration,
+SDK payload or installed consumer. Missing data, adapters or validations require an
+explicit backlog task and dependency. Update the plan and notify the maintainer
+when discovered. Reopen unmet acceptance instead of silently reducing it. Follow
+the [delivery evidence protocol](audits/2026-10-26-delivery-completeness.md#mandatory-delivery-and-discovery-protocol)
+in progress updates and final handoffs, including the scope and limits of tests.
+
+## Constants, resource tables and shared presentation
+
+Human-facing tool text belongs in the shared localizable resource library: labels,
+menus, accessibility text, dialogs and formatted diagnostics shown to users.
+English is the baseline table, not an inline fallback repeated across views.
+Use stable keys, typed parameters and documented missing-key/fallback behavior;
+do not concatenate sentence fragments. Game-visible strings use localization keys
+and bundle catalogs under the [localization plan](plans/localization.md).
+
+Protocol fields, schema IDs, resource keys, enum wire values and diagnostic codes
+are invariant identifiers: centralize them in typed contracts/constants or
+authoritative schemas, and never translate them. Paths, URLs and version/hash
+policy belong in reviewed configuration/manifests. Do not put every string in a
+translation table or treat test inputs as shipped user interface resources.
+
+Replace unexplained numeric literals with named constants/options with units and
+rationale: timeouts, byte limits, capacities, geometry, spacing and typography.
+Use the shared design tokens for visual dimensions/colors; use domain configuration
+for tunable behavior. Basic loop indexes, identity values and explicit schema
+examples need not become meaningless constants. Document framework-required values.
+
+All interactive C# tools consume the shared UI/resource NuGet packages defined by
+J09-J16. Applications supply view models, commands and event handlers; shared
+components supply styling/accessibility/state behavior. Do not copy button/theme
+implementations into each tool. J13/Y18 migrate the current setup; J15 adds focused
+conformance checks. New code follows this rule immediately; existing literals are
+tracked migration work rather than evidence that the rule is already enforced.
+
 ## Layout
 
 - Use UTF-8, LF, a final newline and spaces. Use four spaces for source code,

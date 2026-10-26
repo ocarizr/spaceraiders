@@ -35,10 +35,12 @@ Deliverable: `docs/launcher.md`, action/workspace schema and contract fixtures
 (3-6 paths). Specify source/Designer capabilities, version compatibility,
 functional-test descriptors, process ownership and action/result protocols.
 
-**Z02 - Self-contained launcher shell.** Depends: Z01, Q05, T05.
+**Z02 - Self-contained launcher shell.** Depends: Z01, Q05, T05, J12.
 Deliverable: `tools/dotnet/Raiders.Launcher/` app and MSTest project (5-8 paths).
 Open without SDK/Python/game/source; select a workspace and show available versus
 unavailable actions from installed manifests. No tool executes on startup.
+Consume the shared UI/resource NuGet packages; do not introduce launcher-specific
+copies of controls, theme values or user-facing string literals.
 
 **Z03 - Tool discovery and launch lifecycle.** Depends: Z02, J02.
 Deliverable: launcher tool catalog/process adapter and tests (4-7 paths).

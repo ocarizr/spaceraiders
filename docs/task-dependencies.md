@@ -1,16 +1,18 @@
 # Task dependency diagram
 
-Updated: 2026-10-26. Merged baseline: master `6f148dd` (PR #25).
-Includes Y06's locally validated delivery, pending review/merge.
+Updated: 2026-10-26. Merged baseline: master `2832f5b` (PR #26).
+Audit reconciliation: Y01-Y06 are merged; Y05 acceptance is reopened. No new implementation task is completed by this audit.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
 
-**256 tasks · 596 prerequisite edges · 22 completed · 8 ready · 226 waiting.**
+**292 tasks · 697 prerequisite edges · 21 completed · 15 ready · 256 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
-task at a time. Y06 is complete locally and awaits review/merge. Y07 is now
-ready because both Y05 and Y06 are complete; choose the next task explicitly.
+task at a time. **Y05 is reopened**: its last-good requirement is not implemented.
+Y07 now waits for Y19 real native/.NET/Python acceptance, including transactional
+repair. Merged library/contract tasks do not certify a complete product capability.
+See the [delivery audit](audits/2026-10-26-delivery-completeness.md).
 
 The graphs are split by task family so GitHub can render and readers can inspect
 them without a single large canvas. Every task has exactly one primary node.
@@ -24,12 +26,19 @@ additional ordering. Original task titles retain the approved planning language.
 ```mermaid
 flowchart TD
     ready_A06["A06<br/>Tornar includes e unidades de compilação explícitos"]:::ready
+    ready_F11["F11<br/>Localization keys and catalog contract"]:::ready
+    ready_J09["J09<br/>Shared desktop design and framework contract"]:::ready
+    ready_Q08["Q08<br/>Production package identity and immutable version discipline"]:::ready
+    ready_Q11["Q11<br/>Atomic immutable wheel publication and real producer acceptance"]:::ready
+    ready_Q12["Q12<br/>Effective native and Python toolchain policy checks"]:::ready
+    ready_T16["T16<br/>Async-safe managed operation timing"]:::ready
+    ready_T19["T19<br/>Reproducible native trace viewer acceptance"]:::ready
     ready_U01["U01<br/>Addon manifest and host extension ADR"]:::ready
     ready_V01["V01<br/>Scheduler contract and design decision"]:::ready
-    ready_Y07["Y07<br/>Bootstrap distribution and acceptance"]:::ready
     ready_Y08["Y08<br/>Native compiler and SDK production discovery"]:::ready
-    ready_Y10["Y10<br/>Managed SDK and NuGet closure preparation"]:::ready
-    ready_Y11["Y11<br/>Python build and tools venv integration"]:::ready
+    ready_Y15["Y15<br/>Last-good environment activation contract"]:::ready
+    ready_Y17["Y17<br/>Repair identity and policy compatibility"]:::ready
+    ready_Y18["Y18<br/>Setup composition and typed presentation boundaries"]:::ready
     ready_Z01["Z01<br/>Launcher workspace and action contract"]:::ready
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
@@ -39,22 +48,31 @@ flowchart TD
 | Task | Authoritative plan | Prerequisites |
 | --- | --- | --- |
 | **A06** - Tornar includes e unidades de compilação explícitos | [engine](plans/engine.md) | A05 |
+| **F11** - Localization keys and catalog contract | [localization](plans/localization.md) | Q02 |
+| **J09** - Shared desktop design and framework contract | [ui-editor](plans/ui-editor.md) | Q02, Y04 |
+| **Q08** - Production package identity and immutable version discipline | [asset-pipeline](plans/asset-pipeline.md) | Q05, Y06 |
+| **Q11** - Atomic immutable wheel publication and real producer acceptance | [asset-pipeline](plans/asset-pipeline.md) | Q06, Q07 |
+| **Q12** - Effective native and Python toolchain policy checks | [asset-pipeline](plans/asset-pipeline.md) | Q02, A04 |
+| **T16** - Async-safe managed operation timing | [observability](plans/observability.md) | T05, Y06 |
+| **T19** - Reproducible native trace viewer acceptance | [observability](plans/observability.md) | T04 |
 | **U01** - Addon manifest and host extension ADR | [addons](plans/addons.md) | Q02, T01 |
 | **V01** - Scheduler contract and design decision | [jobs](plans/jobs.md) | Q02, T01 |
-| **Y07** - Bootstrap distribution and acceptance | [environment-setup](plans/environment-setup.md) | Y05, Y06 |
 | **Y08** - Native compiler and SDK production discovery | [environment-setup](plans/environment-setup.md) | Y04, Q02 |
-| **Y10** - Managed SDK and NuGet closure preparation | [environment-setup](plans/environment-setup.md) | Y04, Q05 |
-| **Y11** - Python build and tools venv integration | [environment-setup](plans/environment-setup.md) | Y04, Q07 |
+| **Y15** - Last-good environment activation contract | [environment-setup](plans/environment-setup.md) | Q07 |
+| **Y17** - Repair identity and policy compatibility | [environment-setup](plans/environment-setup.md) | Y03, Y06 |
+| **Y18** - Setup composition and typed presentation boundaries | [environment-setup](plans/environment-setup.md) | Y04, Y06 |
 | **Z01** - Launcher workspace and action contract | [launcher](plans/launcher.md) | Q02, Y01 |
 
-## Completion evidence
+## Merged delivery and acceptance evidence
 
-Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04, Y05, Y06.
+Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04, Y06.
 
-The merged baseline is grounded in first-parent task merges on master. Y06 is
-the current locally validated branch delivery, not a claimed merge. A maintenance
-change or a partial reusable slice does not complete a separate task. PR #14
-is pytest maintenance rather than a task ID.
+The baseline is grounded in first-parent task merges on master. All 22 listed
+deliveries are merged, but Y05 is excluded from Completed IDs because its original
+last-good acceptance is unmet. The new Y16 dependency closes that requirement
+before Y05 is reaccepted. Preserve the merged PR record when reopening acceptance.
+A contract/library completion is scoped evidence, not certification of all product
+consumers. PR #14 is pytest maintenance rather than a task ID.
 
 | Task | Delivery evidence | Commit or branch |
 | --- | --- | --- |
@@ -78,12 +96,12 @@ is pytest maintenance rather than a task ID.
 | Y02 | [#22](https://github.com/ocarizr/spaceraiders/pull/22) | `132582e` |
 | Y03 | [#23](https://github.com/ocarizr/spaceraiders/pull/23) | `a571e55` |
 | Y04 | [#24](https://github.com/ocarizr/spaceraiders/pull/24) | `e7ade58` |
-| Y05 | [#25](https://github.com/ocarizr/spaceraiders/pull/25) | `6f148dd` |
-| Y06 | 32 managed cases in Release/Debug, 47 contract cases and published headless JSON/schema smoke checks passed; pending review/merge | `Y06_headless_setup_and_doctor` |
+| Y05 | [#25](https://github.com/ocarizr/spaceraiders/pull/25), merged; acceptance reopened pending transactional last-good repair (Y15/Y16) | `6f148dd` |
+| Y06 | [#26](https://github.com/ocarizr/spaceraiders/pull/26) | `2832f5b` |
 
 ## Reading the task families
 
-[A: Legacy stabilization](#a-legacy-stabilization) | [B: Engine extraction](#b-engine-extraction) | [C: World and components](#c-world-and-components) | [D: Rendering](#d-rendering) | [E: Physics](#e-physics) | [F: Asset models and validation](#f-asset-models-and-validation) | [G: Lua runtime and development](#g-lua-runtime-and-development) | [H: Native UI](#h-native-ui) | [I: Cooking and generated data](#i-cooking-and-generated-data) | [J: Shared tooling and native preview](#j-shared-tooling-and-native-preview) | [K: UI editor](#k-ui-editor) | [L: Entity editor](#l-entity-editor) | [M: Sample migration](#m-sample-migration) | [N: Sample gameplay and regression](#n-sample-gameplay-and-regression) | [O: CI and quality](#o-ci-and-quality) | [P: Packaging and release](#p-packaging-and-release) | [Q: Build and package foundations](#q-build-and-package-foundations) | [R: Bundles and providers](#r-bundles-and-providers) | [S: Bundle and memory inspector](#s-bundle-and-memory-inspector) | [T: Observability](#t-observability) | [U: Addons](#u-addons) | [V: Shared job system](#v-shared-job-system) | [W: Level editor](#w-level-editor) | [X: Designer workflow](#x-designer-workflow) | [Y: Environment setup](#y-environment-setup) | [Z: Launcher](#z-launcher)
+[A: Legacy stabilization](#a-legacy-stabilization) | [B: Engine extraction](#b-engine-extraction) | [C: World and components](#c-world-and-components) | [D: Rendering](#d-rendering) | [E: Physics](#e-physics) | [F: Asset models validation and localization data](#f-asset-models-validation-and-localization-data) | [G: Lua runtime and development](#g-lua-runtime-and-development) | [H: Native UI and localized text](#h-native-ui-and-localized-text) | [I: Cooking and generated data](#i-cooking-and-generated-data) | [J: Shared UI tooling and native preview](#j-shared-ui-tooling-and-native-preview) | [K: UI and localization editors](#k-ui-and-localization-editors) | [L: Entity editor](#l-entity-editor) | [M: Sample migration](#m-sample-migration) | [N: Sample gameplay and regression](#n-sample-gameplay-and-regression) | [O: CI and quality](#o-ci-and-quality) | [P: Packaging and release](#p-packaging-and-release) | [Q: Build and package foundations](#q-build-and-package-foundations) | [R: Bundles and providers](#r-bundles-and-providers) | [S: Bundle and memory inspector](#s-bundle-and-memory-inspector) | [T: Observability](#t-observability) | [U: Addons](#u-addons) | [V: Shared job system](#v-shared-job-system) | [W: Level editor](#w-level-editor) | [X: Designer workflow](#x-designer-workflow) | [Y: Environment setup](#y-environment-setup) | [Z: Launcher](#z-launcher)
 
 Primary node titles come from the owning plans. For complete deliverables, file
 budgets and acceptance, open the linked plan above each diagram.
@@ -276,9 +294,9 @@ flowchart TD
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
 ```
 
-### F: Asset models and validation
+### F: Asset models validation and localization data
 
-Plans: [asset-pipeline](plans/asset-pipeline.md).
+Plans: [asset-pipeline](plans/asset-pipeline.md), [localization](plans/localization.md).
 
 ```mermaid
 flowchart TD
@@ -287,6 +305,11 @@ flowchart TD
     ref_F_D07["D07<br/>prerequisite reference"]:::pending
     ref_F_D08["D08<br/>prerequisite reference"]:::pending
     ref_F_E02["E02<br/>prerequisite reference"]:::pending
+    ref_F_H11["H11<br/>prerequisite reference"]:::pending
+    ref_F_I06["I06<br/>prerequisite reference"]:::pending
+    ref_F_Q02["Q02<br/>prerequisite reference"]:::done
+    ref_F_R02["R02<br/>prerequisite reference"]:::pending
+    ref_F_R04["R04<br/>prerequisite reference"]:::pending
     F01["F01<br/>IDs, schemas e modelo intermediário"]:::pending
     F02["F02<br/>Dependência XML e importador de entidades"]:::pending
     F03["F03<br/>Exportação e round-trip de entidades"]:::pending
@@ -297,6 +320,10 @@ flowchart TD
     F08["F08<br/>Serialização de cenas e instâncias"]:::pending
     F09["F09<br/>Drawing/image resource schema and authoring codec"]:::pending
     F10["F10<br/>Animation clip/track schema and cooking"]:::pending
+    F11["F11<br/>Localization keys and catalog contract"]:::ready
+    F12["F12<br/>Source localization codecs and validation"]:::pending
+    F13["F13<br/>Cooked localization bundle data"]:::pending
+    F14["F14<br/>Locale font resources and bundle dependencies"]:::pending
     ref_F_C02 --> F01
     ref_F_D02 --> F01
     ref_F_E02 --> F01
@@ -313,6 +340,14 @@ flowchart TD
     ref_F_D07 --> F09
     F09 --> F10
     ref_F_D08 --> F10
+    ref_F_Q02 --> F11
+    F11 --> F12
+    ref_F_R02 --> F12
+    F12 --> F13
+    ref_F_I06 --> F13
+    F12 --> F14
+    ref_F_H11 --> F14
+    ref_F_R04 --> F14
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -399,18 +434,22 @@ flowchart TD
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
 ```
 
-### H: Native UI
+### H: Native UI and localized text
 
-Plans: [engine](plans/engine.md).
+Plans: [engine](plans/engine.md), [localization](plans/localization.md).
 
 ```mermaid
 flowchart TD
     ref_H_B02["B02<br/>prerequisite reference"]:::pending
+    ref_H_C02["C02<br/>prerequisite reference"]:::pending
     ref_H_D01["D01<br/>prerequisite reference"]:::pending
     ref_H_D02["D02<br/>prerequisite reference"]:::pending
+    ref_H_D06["D06<br/>prerequisite reference"]:::pending
     ref_H_F04["F04<br/>prerequisite reference"]:::pending
     ref_H_F05["F05<br/>prerequisite reference"]:::pending
+    ref_H_F11["F11<br/>prerequisite reference"]:::ready
     ref_H_G07["G07<br/>prerequisite reference"]:::pending
+    ref_H_R09["R09<br/>prerequisite reference"]:::pending
     H01["H01<br/>Árvore de widgets e layout básico"]:::pending
     H02["H02<br/>Desenho de UI e estilos"]:::pending
     H03["H03<br/>Input de ponteiro e hit testing"]:::pending
@@ -418,6 +457,11 @@ flowchart TD
     H05["H05<br/>Binding Lua de widgets e eventos"]:::pending
     H06["H06<br/>Animações simples de propriedades"]:::pending
     H07["H07<br/>Instanciar UI a partir do modelo intermediário"]:::pending
+    H08["H08<br/>Native string catalog and lookup service"]:::pending
+    H09["H09<br/>Typed localized formatting"]:::pending
+    H10["H10<br/>Localized widget bindings and reload"]:::pending
+    H11["H11<br/>Unicode font resources and glyph fallback"]:::pending
+    H12["H12<br/>Native text shaping and layout integration"]:::pending
     ref_H_F04 --> H01
     ref_H_D01 --> H01
     H01 --> H02
@@ -430,6 +474,17 @@ flowchart TD
     H05 --> H06
     H06 --> H07
     ref_H_F05 --> H07
+    ref_H_F11 --> H08
+    ref_H_C02 --> H08
+    ref_H_R09 --> H08
+    H08 --> H09
+    H09 --> H10
+    H12 --> H10
+    H02 --> H10
+    ref_H_F11 --> H11
+    ref_H_D06 --> H11
+    H11 --> H12
+    ref_H_D06 --> H12
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -494,7 +549,7 @@ flowchart TD
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
 ```
 
-### J: Shared tooling and native preview
+### J: Shared UI tooling and native preview
 
 Plans: [engine](plans/engine.md), [ui-editor](plans/ui-editor.md).
 
@@ -502,14 +557,26 @@ Plans: [engine](plans/engine.md), [ui-editor](plans/ui-editor.md).
 flowchart TD
     ref_J_D05["D05<br/>prerequisite reference"]:::pending
     ref_J_F05["F05<br/>prerequisite reference"]:::pending
+    ref_J_F11["F11<br/>prerequisite reference"]:::ready
     ref_J_G09["G09<br/>prerequisite reference"]:::pending
+    ref_J_K08["K08<br/>prerequisite reference"]:::pending
+    ref_J_L01["L01<br/>prerequisite reference"]:::pending
     ref_J_Q01["Q01<br/>prerequisite reference"]:::done
     ref_J_Q02["Q02<br/>prerequisite reference"]:::done
+    ref_J_Q05["Q05<br/>prerequisite reference"]:::done
+    ref_J_Q08["Q08<br/>prerequisite reference"]:::ready
     ref_J_R01["R01<br/>prerequisite reference"]:::pending
     ref_J_R02["R02<br/>prerequisite reference"]:::pending
     ref_J_R03["R03<br/>prerequisite reference"]:::pending
     ref_J_R09["R09<br/>prerequisite reference"]:::pending
+    ref_J_S01["S01<br/>prerequisite reference"]:::pending
+    ref_J_U06["U06<br/>prerequisite reference"]:::pending
     ref_J_V15["V15<br/>prerequisite reference"]:::pending
+    ref_J_W01["W01<br/>prerequisite reference"]:::pending
+    ref_J_Y04["Y04<br/>prerequisite reference"]:::done
+    ref_J_Y06["Y06<br/>prerequisite reference"]:::done
+    ref_J_Y18["Y18<br/>prerequisite reference"]:::ready
+    ref_J_Z02["Z02<br/>prerequisite reference"]:::pending
     J01["J01<br/>Definir UX desktop e fronteiras C#/C++"]:::pending
     J02["J02<br/>Shell C# e documentos de bundle"]:::pending
     J03["J03<br/>Undo/redo em C#"]:::pending
@@ -518,12 +585,22 @@ flowchart TD
     J06["J06<br/>Protocolo de tooling e cliente CLI C#"]:::pending
     J07["J07<br/>Native engine preview host with real renderer"]:::pending
     J08["J08<br/>C# client presents the native preview surface"]:::pending
+    J09["J09<br/>Shared desktop design and framework contract"]:::ready
+    J10["J10<br/>Localizable .NET resource service"]:::pending
+    J11["J11<br/>Styled reusable desktop controls"]:::pending
+    J12["J12<br/>Published shared UI package contract"]:::pending
+    J13["J13<br/>Migrate setup to shared UI and resource packages"]:::pending
+    J14["J14<br/>Shared editor shell presentation"]:::pending
+    J15["J15<br/>UI resource and design conformance checks"]:::pending
+    J16["J16<br/>Shipped tools visual integration acceptance"]:::pending
     ref_J_F05 --> J01
     ref_J_Q01 --> J01
     ref_J_R01 --> J01
+    J09 --> J01
     J01 --> J02
     ref_J_Q02 --> J02
     ref_J_R02 --> J02
+    J12 --> J02
     J02 --> J03
     J03 --> J04
     J04 --> J05
@@ -536,22 +613,49 @@ flowchart TD
     ref_J_D05 --> J07
     ref_J_V15 --> J07
     J07 --> J08
+    ref_J_Q02 --> J09
+    ref_J_Y04 --> J09
+    J09 --> J10
+    ref_J_F11 --> J10
+    J10 --> J11
+    ref_J_Q05 --> J11
+    J11 --> J12
+    ref_J_Q08 --> J12
+    J12 --> J13
+    ref_J_Y18 --> J13
+    ref_J_Y06 --> J13
+    J02 --> J14
+    J12 --> J14
+    J13 --> J15
+    J14 --> J15
+    J15 --> J16
+    ref_J_Z02 --> J16
+    ref_J_U06 --> J16
+    ref_J_K08 --> J16
+    ref_J_L01 --> J16
+    ref_J_S01 --> J16
+    ref_J_W01 --> J16
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
 ```
 
-### K: UI editor
+### K: UI and localization editors
 
-Plans: [ui-editor](plans/ui-editor.md).
+Plans: [localization](plans/localization.md), [ui-editor](plans/ui-editor.md).
 
 ```mermaid
 flowchart TD
     ref_K_D09["D09<br/>prerequisite reference"]:::pending
+    ref_K_F12["F12<br/>prerequisite reference"]:::pending
+    ref_K_F13["F13<br/>prerequisite reference"]:::pending
+    ref_K_F14["F14<br/>prerequisite reference"]:::pending
     ref_K_G08["G08<br/>prerequisite reference"]:::pending
     ref_K_G15["G15<br/>prerequisite reference"]:::pending
     ref_K_H06["H06<br/>prerequisite reference"]:::pending
     ref_K_H07["H07<br/>prerequisite reference"]:::pending
+    ref_K_H10["H10<br/>prerequisite reference"]:::pending
+    ref_K_J02["J02<br/>prerequisite reference"]:::pending
     ref_K_J04["J04<br/>prerequisite reference"]:::pending
     ref_K_J05["J05<br/>prerequisite reference"]:::pending
     ref_K_J06["J06<br/>prerequisite reference"]:::pending
@@ -560,6 +664,7 @@ flowchart TD
     ref_K_S08["S08<br/>prerequisite reference"]:::pending
     ref_K_T15["T15<br/>prerequisite reference"]:::pending
     ref_K_V17["V17<br/>prerequisite reference"]:::pending
+    ref_K_X06["X06<br/>prerequisite reference"]:::pending
     K01["K01<br/>Aplicação C# e palette de widgets"]:::pending
     K02["K02<br/>Canvas de layout em C#"]:::pending
     K03["K03<br/>Cabeçalho Lua com preservação de custom code"]:::pending
@@ -567,6 +672,11 @@ flowchart TD
     K05["K05<br/>Handlers e preview de UI"]:::pending
     K06["K06<br/>Configurable UI layers and debugging integration"]:::pending
     K07["K07<br/>UI performance and footprint capture"]:::pending
+    K08["K08<br/>C# localization editor catalog document"]:::pending
+    K09["K09<br/>Translation editing and diagnostics"]:::pending
+    K10["K10<br/>Translation exchange and merge"]:::pending
+    K11["K11<br/>Localized preview and source navigation"]:::pending
+    K12["K12<br/>Localization developer and Designer acceptance"]:::pending
     ref_K_J05 --> K01
     ref_K_J06 --> K01
     ref_K_H07 --> K01
@@ -588,6 +698,19 @@ flowchart TD
     K06 --> K07
     ref_K_T15 --> K07
     ref_K_S08 --> K07
+    ref_K_J02 --> K08
+    ref_K_F12 --> K08
+    K08 --> K09
+    K09 --> K10
+    ref_K_F12 --> K10
+    K09 --> K11
+    ref_K_J08 --> K11
+    ref_K_H10 --> K11
+    K10 --> K12
+    K11 --> K12
+    ref_K_F13 --> K12
+    ref_K_F14 --> K12
+    ref_K_X06 --> K12
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -824,7 +947,9 @@ flowchart TD
     ref_P_G17["G17<br/>prerequisite reference"]:::pending
     ref_P_I09["I09<br/>prerequisite reference"]:::pending
     ref_P_J08["J08<br/>prerequisite reference"]:::pending
+    ref_P_J16["J16<br/>prerequisite reference"]:::pending
     ref_P_K07["K07<br/>prerequisite reference"]:::pending
+    ref_P_K12["K12<br/>prerequisite reference"]:::pending
     ref_P_L08["L08<br/>prerequisite reference"]:::pending
     ref_P_M07["M07<br/>prerequisite reference"]:::pending
     ref_P_N05["N05<br/>prerequisite reference"]:::pending
@@ -833,12 +958,18 @@ flowchart TD
     ref_P_O05["O05<br/>prerequisite reference"]:::pending
     ref_P_O06["O06<br/>prerequisite reference"]:::pending
     ref_P_Q03["Q03<br/>prerequisite reference"]:::pending
+    ref_P_Q10["Q10<br/>prerequisite reference"]:::pending
+    ref_P_Q11["Q11<br/>prerequisite reference"]:::ready
+    ref_P_Q12["Q12<br/>prerequisite reference"]:::ready
     ref_P_R06["R06<br/>prerequisite reference"]:::pending
     ref_P_R07["R07<br/>prerequisite reference"]:::pending
     ref_P_R09["R09<br/>prerequisite reference"]:::pending
     ref_P_S06["S06<br/>prerequisite reference"]:::pending
     ref_P_S11["S11<br/>prerequisite reference"]:::pending
     ref_P_T14["T14<br/>prerequisite reference"]:::pending
+    ref_P_T17["T17<br/>prerequisite reference"]:::pending
+    ref_P_T18["T18<br/>prerequisite reference"]:::pending
+    ref_P_T19["T19<br/>prerequisite reference"]:::ready
     ref_P_U14["U14<br/>prerequisite reference"]:::pending
     ref_P_W01["W01<br/>prerequisite reference"]:::pending
     ref_P_W06["W06<br/>prerequisite reference"]:::pending
@@ -881,6 +1012,14 @@ flowchart TD
     ref_P_U14 --> P06
     ref_P_Z09 --> P06
     ref_P_Y14 --> P06
+    ref_P_J16 --> P06
+    ref_P_K12 --> P06
+    ref_P_Q10 --> P06
+    ref_P_Q11 --> P06
+    ref_P_Q12 --> P06
+    ref_P_T17 --> P06
+    ref_P_T18 --> P06
+    ref_P_T19 --> P06
     ref_P_J08 --> P07
     ref_P_S06 --> P07
     ref_P_Q03 --> P07
@@ -898,11 +1037,13 @@ Plans: [asset-pipeline](plans/asset-pipeline.md).
 ```mermaid
 flowchart TD
     ref_Q_A01["A01<br/>prerequisite reference"]:::done
+    ref_Q_A04["A04<br/>prerequisite reference"]:::done
     ref_Q_J02["J02<br/>prerequisite reference"]:::pending
     ref_Q_K01["K01<br/>prerequisite reference"]:::pending
     ref_Q_L01["L01<br/>prerequisite reference"]:::pending
     ref_Q_S01["S01<br/>prerequisite reference"]:::pending
     ref_Q_W01["W01<br/>prerequisite reference"]:::pending
+    ref_Q_Y06["Y06<br/>prerequisite reference"]:::done
     Q01["Q01<br/>Windows monorepo build decision"]:::done
     Q02["Q02<br/>Pin .NET 10, native and Python environment policies"]:::done
     Q03["Q03<br/>Solution e filtros por ferramenta"]:::pending
@@ -910,6 +1051,11 @@ flowchart TD
     Q05["Q05<br/>Reusable NuGet library build/restore policy"]:::done
     Q06["Q06<br/>Python module wheel and installed entry point"]:::done
     Q07["Q07<br/>Reproducible Python environment recipes"]:::done
+    Q08["Q08<br/>Production package identity and immutable version discipline"]:::ready
+    Q09["Q09<br/>Environment core consumes packaged diagnostics"]:::pending
+    Q10["Q10<br/>Setup consumes production NuGet artifacts"]:::pending
+    Q11["Q11<br/>Atomic immutable wheel publication and real producer acceptance"]:::ready
+    Q12["Q12<br/>Effective native and Python toolchain policy checks"]:::ready
     ref_Q_A01 --> Q01
     Q01 --> Q02
     ref_Q_J02 --> Q03
@@ -925,6 +1071,14 @@ flowchart TD
     Q02 --> Q06
     Q02 --> Q07
     Q06 --> Q07
+    Q05 --> Q08
+    ref_Q_Y06 --> Q08
+    Q08 --> Q09
+    Q09 --> Q10
+    Q06 --> Q11
+    Q07 --> Q11
+    Q02 --> Q12
+    ref_Q_A04 --> Q12
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -1043,6 +1197,7 @@ flowchart TD
     ref_T_O03["O03<br/>prerequisite reference"]:::pending
     ref_T_Q01["Q01<br/>prerequisite reference"]:::done
     ref_T_Q02["Q02<br/>prerequisite reference"]:::done
+    ref_T_Q11["Q11<br/>prerequisite reference"]:::ready
     ref_T_R06["R06<br/>prerequisite reference"]:::pending
     ref_T_S01["S01<br/>prerequisite reference"]:::pending
     ref_T_V15["V15<br/>prerequisite reference"]:::pending
@@ -1051,6 +1206,7 @@ flowchart TD
     ref_T_V19["V19<br/>prerequisite reference"]:::pending
     ref_T_W01["W01<br/>prerequisite reference"]:::pending
     ref_T_Y04["Y04<br/>prerequisite reference"]:::done
+    ref_T_Y06["Y06<br/>prerequisite reference"]:::done
     T01["T01<br/>Shared telemetry schemas and cost terminology"]:::done
     T02["T02<br/>Native logging API with spdlog"]:::done
     T03["T03<br/>Optional native profiling scopes"]:::done
@@ -1066,6 +1222,10 @@ flowchart TD
     T13["T13<br/>Instrument every shipped application and pipeline stage"]:::pending
     T14["T14<br/>Coverage, disabled builds and overhead regression checks"]:::pending
     T15["T15<br/>Capture control and snapshot/trace export in C#"]:::pending
+    T16["T16<br/>Async-safe managed operation timing"]:::ready
+    T17["T17<br/>Standalone setup and pipeline trace export"]:::pending
+    T18["T18<br/>Instrument the current production Python stages"]:::pending
+    T19["T19<br/>Reproducible native trace viewer acceptance"]:::ready
     ref_T_Q01 --> T01
     T01 --> T02
     ref_T_A04 --> T02
@@ -1099,6 +1259,8 @@ flowchart TD
     ref_T_Y04 --> T13
     ref_T_V17 --> T13
     ref_T_V18 --> T13
+    T17 --> T13
+    T18 --> T13
     T07 --> T14
     T08 --> T14
     T12 --> T14
@@ -1109,6 +1271,15 @@ flowchart TD
     T04 --> T15
     T05 --> T15
     T12 --> T15
+    T17 --> T15
+    T05 --> T16
+    ref_T_Y06 --> T16
+    T16 --> T17
+    T04 --> T17
+    T06 --> T17
+    T17 --> T18
+    ref_T_Q11 --> T18
+    T04 --> T19
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -1135,7 +1306,7 @@ flowchart TD
     ref_U_T05["T05<br/>prerequisite reference"]:::done
     ref_U_T06["T06<br/>prerequisite reference"]:::done
     ref_U_V09["V09<br/>prerequisite reference"]:::pending
-    ref_U_Y05["Y05<br/>prerequisite reference"]:::done
+    ref_U_Y05["Y05<br/>prerequisite reference"]:::pending
     ref_U_Y06["Y06<br/>prerequisite reference"]:::done
     U01["U01<br/>Addon manifest and host extension ADR"]:::ready
     U02["U02<br/>Addon dependency resolver and lock contract"]:::pending
@@ -1408,6 +1579,7 @@ flowchart TD
     ref_Y_Q05["Q05<br/>prerequisite reference"]:::done
     ref_Y_Q06["Q06<br/>prerequisite reference"]:::done
     ref_Y_Q07["Q07<br/>prerequisite reference"]:::done
+    ref_Y_Q10["Q10<br/>prerequisite reference"]:::pending
     ref_Y_T01["T01<br/>prerequisite reference"]:::done
     ref_Y_T05["T05<br/>prerequisite reference"]:::done
     ref_Y_X04["X04<br/>prerequisite reference"]:::pending
@@ -1415,16 +1587,21 @@ flowchart TD
     Y02["Y02<br/>C# probe library"]:::done
     Y03["Y03<br/>Selected-profile recipe execution"]:::done
     Y04["Y04<br/>Self-contained .NET 10 setup GUI"]:::done
-    Y05["Y05<br/>Repair and interrupted setup"]:::done
+    Y05["Y05<br/>Repair and interrupted setup"]:::pending
     Y06["Y06<br/>Headless setup/doctor and CI"]:::done
-    Y07["Y07<br/>Bootstrap distribution and acceptance"]:::ready
+    Y07["Y07<br/>Bootstrap distribution and acceptance"]:::pending
     Y08["Y08<br/>Native compiler and SDK production discovery"]:::ready
     Y09["Y09<br/>Approved native toolchain acquisition"]:::pending
-    Y10["Y10<br/>Managed SDK and NuGet closure preparation"]:::ready
-    Y11["Y11<br/>Python build and tools venv integration"]:::ready
+    Y10["Y10<br/>Managed SDK and NuGet closure preparation"]:::pending
+    Y11["Y11<br/>Python build and tools venv integration"]:::pending
     Y12["Y12<br/>LuaJIT and VS Code environment integration"]:::pending
     Y13["Y13<br/>Designer binary toolset preparation"]:::pending
     Y14["Y14<br/>Complete environment coverage acceptance"]:::pending
+    Y15["Y15<br/>Last-good environment activation contract"]:::ready
+    Y16["Y16<br/>Transactional managed Python environment replacement"]:::pending
+    Y17["Y17<br/>Repair identity and policy compatibility"]:::ready
+    Y18["Y18<br/>Setup composition and typed presentation boundaries"]:::ready
+    Y19["Y19<br/>Real native managed and Python setup acceptance"]:::pending
     ref_Y_Q01 --> Y01
     ref_Y_T01 --> Y01
     Y01 --> Y02
@@ -1436,17 +1613,21 @@ flowchart TD
     ref_Y_Q07 --> Y03
     Y03 --> Y04
     Y04 --> Y05
+    Y16 --> Y05
     Y03 --> Y06
     Y05 --> Y07
     Y06 --> Y07
+    Y19 --> Y07
     Y04 --> Y08
     ref_Y_Q02 --> Y08
     Y08 --> Y09
     Y05 --> Y09
     Y04 --> Y10
     ref_Y_Q05 --> Y10
+    ref_Y_Q10 --> Y10
     Y04 --> Y11
     ref_Y_Q07 --> Y11
+    Y16 --> Y11
     Y04 --> Y12
     ref_Y_G15 --> Y12
     Y04 --> Y13
@@ -1458,6 +1639,19 @@ flowchart TD
     Y11 --> Y14
     Y12 --> Y14
     Y13 --> Y14
+    ref_Y_Q07 --> Y15
+    Y15 --> Y16
+    ref_Y_Q07 --> Y16
+    Y03 --> Y17
+    Y06 --> Y17
+    Y04 --> Y18
+    Y06 --> Y18
+    Y09 --> Y19
+    Y10 --> Y19
+    Y11 --> Y19
+    Y16 --> Y19
+    ref_Y_Q10 --> Y19
+    Y17 --> Y19
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -1470,6 +1664,7 @@ Plans: [launcher](plans/launcher.md).
 ```mermaid
 flowchart TD
     ref_Z_J02["J02<br/>prerequisite reference"]:::pending
+    ref_Z_J12["J12<br/>prerequisite reference"]:::pending
     ref_Z_Q02["Q02<br/>prerequisite reference"]:::done
     ref_Z_Q04["Q04<br/>prerequisite reference"]:::pending
     ref_Z_Q05["Q05<br/>prerequisite reference"]:::done
@@ -1480,7 +1675,7 @@ flowchart TD
     ref_Z_X06["X06<br/>prerequisite reference"]:::pending
     ref_Z_Y01["Y01<br/>prerequisite reference"]:::done
     ref_Z_Y06["Y06<br/>prerequisite reference"]:::done
-    ref_Z_Y07["Y07<br/>prerequisite reference"]:::ready
+    ref_Z_Y07["Y07<br/>prerequisite reference"]:::pending
     Z01["Z01<br/>Launcher workspace and action contract"]:::ready
     Z02["Z02<br/>Self-contained launcher shell"]:::pending
     Z03["Z03<br/>Tool discovery and launch lifecycle"]:::pending
@@ -1495,6 +1690,7 @@ flowchart TD
     Z01 --> Z02
     ref_Z_Q05 --> Z02
     ref_Z_T05 --> Z02
+    ref_Z_J12 --> Z02
     Z02 --> Z03
     ref_Z_J02 --> Z03
     Z02 --> Z04
@@ -1541,3 +1737,8 @@ flowchart TD
 
 This diagram is the requested shared planning artifact. Agent execution notes,
 temporary generators, validation captures and local milestone evidence stay local.
+
+If an audit finds an unmet original requirement after merge, remove that ID from
+Completed IDs, retain its merged delivery evidence, add the closure prerequisite
+and recompute all colors/readiness. Do not retroactively weaken acceptance or
+mark the closure task completed because the original PR exists.

@@ -1,10 +1,12 @@
 # Space Raiders: macro development roadmap
 
-Updated: 2026-10-26. Merged progress checked against master `6f148dd` (#25).
+Updated: 2026-10-26. Merged progress checked against master `2832f5b` (#26).
 The original source/PDF inspection used `9d87fe4`; its legacy findings remain
-historical context. A01-A05, Q01-Q02/Q05-Q07, T01-T06 and Y01-Y05 are merged.
-Y06's headless commands are locally validated, pending review/merge. Production profile
-coverage is partial; job-system, addons and launcher implementation remain planned.
+historical context. A01-A05, Q01-Q02/Q05-Q07, T01-T06 and Y01-Y06 are merged.
+The [delivery audit](audits/2026-10-26-delivery-completeness.md) reopens Y05's unmet
+last-good acceptance. Merged history is not proof of a completed product workflow.
+Production setup/profile coverage remains partial; shared UI/localization, jobs,
+addons and launcher work are planned.
 
 This is the coordination plan for a reusable 2D engine and its developer ecosystem.
 The game is a sample demonstrating the engine, editors, scripting and content
@@ -16,23 +18,26 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 
 | Project | Authoritative plan | Owned tasks | Delivery state |
 | --- | --- | --- | --- |
-| C++20 engine, renderer, physics, native UI and preview host | [Engine](plans/engine.md) | A, B, C, D, E, H and J07 | A01-A05 baseline merged; extraction planned |
+| C++20 engine, renderer, physics, native UI and preview host | [Engine](plans/engine.md) | A, B, C, D, E, H01-H07 and J07 | A01-A05 baseline merged; extraction planned |
 | LuaJIT runtime, bindings, VS Code and debugger | [Scripting](plans/scripting.md) | G | Planned |
-| Assets/bundles, pipeline, build, CI and Designer SDK | [Asset pipeline](plans/asset-pipeline.md) | F, I, O, P, Q, R and X | Contract ready (Q01/Q02); remaining work planned |
-| Shared C# tooling platform and UI editor | [UI editor](plans/ui-editor.md) | J except J07, and K | Planned |
+| Assets/bundles, pipeline, build, CI and Designer SDK | [Asset pipeline](plans/asset-pipeline.md) | F01-F10, I, O, P, Q, R and X | Q01/Q02/Q05-Q07 merged; production package adoption remains Q08-Q12 |
+| Shared C# UI/resource packages, tooling platform and UI editor | [UI editor](plans/ui-editor.md) | J except J07, and K01-K07 | Planned; J09-J16 cover shared visual/resource foundation |
+| Localization bundles, native text and C# localization editor | [Localization](plans/localization.md) | F11-F14, H08-H12 and K08-K12 | Planned; no current localization runtime/editor |
 | C# entity, drawing and animation editor | [Entity editor](plans/entity-editor.md) | L | Planned |
 | C# dependency graph and memory inspector | [Bundle inspector](plans/bundle-inspector.md) | S | Planned |
-| Cross-language diagnostics | [Observability](plans/observability.md) | T | Native/managed/Python foundations merged (T01-T06) |
+| Cross-language diagnostics | [Observability](plans/observability.md) | T | T01-T06 libraries merged; async/export/current-consumer closure T16-T19 planned |
 | Shared native job system and C#/Python packages | [Jobs](plans/jobs.md) | V | Planned |
-| C#/.NET 10 graphical/headless environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Y01-Y05 merged; Y06 locally validated; full profile preparation planned |
+| C#/.NET 10 graphical/headless environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Y01-Y06 merged; Y05 acceptance reopened; missing production/repair acceptance explicit in Y08-Y19 |
 | Engine, tool, setup and pipeline addons | [Addons](plans/addons.md) | U | Planned |
 | C#/.NET 10 central tools and workflow launcher | [Launcher](plans/launcher.md) | Z | Planned |
 | C# scene/level editor and native playtest | [Level editor](plans/level-editor.md) | W | Planned |
 | Authored Space Raiders sample and legacy regression | [Sample game](plans/sample-game.md) | M and N | Planned |
 
-The plans currently define **256 small PR-sized tasks**: the previous 226 plus
-14 addon tasks (U01-U14), nine launcher tasks (Z01-Z09) and seven production
-setup coverage tasks (Y08-Y14). Task IDs are unique across projects.
+The plans currently define **292 small PR-sized tasks**: the previous 256 plus
+five package/policy closure tasks (Q08-Q12), four diagnostics tasks (T16-T19),
+five repair/acceptance tasks (Y15-Y19), eight shared UI/resource tasks (J09-J16),
+and fourteen localization tasks (F11-F14, H08-H12, K08-K12).
+Task IDs are unique across projects.
 Cross-project needs refer to those IDs. The dependency graph must remain acyclic.
 Projects may consume each other's incremental interfaces; this does not require
 completing a whole project before starting a consumer.
@@ -40,6 +45,10 @@ completing a whole project before starting a consumer.
 Delivery status is a public product-level summary explicitly requested for this
 roadmap: Planned -> Contract ready -> Usable slice -> Integrated -> Verified.
 Only update it with a merged PR/reference or reproducible acceptance evidence.
+Keep merged history separate from acceptance: a failed original requirement
+reopens its task even after merge. Contract/library completion does not certify
+all real consumers. The audit inventories every previously completed task and
+links missing bindings, data and acceptance to specific tasks.
 Drafted documentation is not implementation progress. Detailed execution checklists,
 agent notes, temporary captures and milestone evidence remain local or CI artifacts.
 The explicitly requested [task dependency diagram](task-dependencies.md) is the
@@ -72,6 +81,16 @@ definitions and dependency edits stay in their owning project plans.
 - Interactive developer applications use C# with .NET 10: UI/entity/level editors, inspectors
   the graphical environment setup manager and the engine launcher.
   A native preview process is an engine service, not a C++ authoring frontend.
+- All interactive tools consume shared UI/resource NuGet packages. One design
+  system supplies controls, colors, dimensions, typography and accessibility;
+  applications provide commands and behavior. J09-J16 introduce and adopt it.
+- Tool-facing text is resource-backed and localizable, initially English. Game
+  text uses stable keys and source/cooked localization bundle catalogs. Plan
+  placeholder/fallback rules, Unicode fonts/shaping/layout and a C# localization
+  editor explicitly; a translated resource fixture is not a supported locale.
+- Use SOLID, composition, named limits/options and shared typed contracts.
+  Human-facing strings use resource tables; invariant protocol IDs remain
+  unlocalized schema/constant values. Follow the [coding standard](coding-standard.md).
 - Reusable managed libraries may be NuGet package producers/consumers; Python
   modules are built as wheels and installed into reproducible build/runtime venvs.
   Setup detects Ready/Missing/Needs repair states and prepares selected profiles.
@@ -225,6 +244,8 @@ A side-scroller is a possible engine reuse case, not a second promised sample.
 | Job handles, dependency/child completion, lanes and native ABI | Shared jobs | Runtime/render/physics, C# tooling, Python pipeline | Same DAG semantics; bounded queues; cancellation/shutdown; trace correlation; GIL/GC and serial-oracle tests |
 | Addon manifest, lifecycle, capabilities and locked dependencies | Addons | Engine, Lua, desktop tools, setup, pipelines and launcher | Compatible loading; conflicts/failure/cleanup; source/cooked parity; future target-provider seam |
 | Workspace actions, tool discovery and execution results | Launcher | Developers, designers, test/pipeline owners | No SDK startup dependency; source/Designer capability filtering; framework results and cancellation |
+| Shared desktop controls, tokens and resource lookup | Shared tooling UI | Setup, launcher, editors, inspectors and addon views | Real NuGet consumers; consistent DPI/focus/accessibility; no duplicated theme/user-facing literals |
+| String keys, locale catalogs, fonts and typed formatting | Localization | Native runtime, Lua, source/cooked pipeline and C# localization editor | Placeholder/fallback validation; Unicode layout; native preview parity; binary-only authoring and packaging |
 
 When changing a shared contract, its producer owns the change; list all consumers
 and update only those affected. Keep compatibility or introduce a versioned migration.
@@ -264,11 +285,30 @@ explicit packaging, setup and addons. It delegates existing executors and does n
 turn editing into cooking. Z08 creates an independent launcher artifact; Z09 verifies
 the integrated workflow. A launcher is not needed to run setup or headless tools.
 
-Y08-Y11 bind the missing native, managed and Python production capabilities in
-small deliveries. Y12 waits for working embedded Lua authoring/debugging (G15),
-and Y13 for a real Designer distribution (P07/X04). Y07 can distribute the approved
-subset first; Y14 alone claims complete profile acceptance. P06 now requires
-U14, Z09 and Y14 so final delivery cannot silently omit these requirements.
+Y08-Y11 bind missing native, managed and Python production capabilities. Y15/Y16
+provide transactional venv replacement before Y05 reacceptance. Y17 validates
+journal/catalog compatibility; Y18 separates backend composition from presentation.
+Y19 verifies real current native/.NET/Python workflows; Y07 depends on it and must
+not claim bootstrap acceptance for an interpreter-only slice. Lua (Y12/G15) and
+Designer (Y13/P07/X04) remain explicit later dependencies of full acceptance Y14.
+
+Q08-Q10 prove the actual managed package graph and immutable version upgrades;
+Q11 proves real wheel publication and Q12 checks effective toolchain pins.
+T16-T18 make current async setup/Python timings exportable before future editors;
+T19 makes native viewer acceptance reproducible. J02/Z02 depend on the shared UI
+package J12. P06 requires this closure plus J16/K12, not only the original sample.
+
+### Living plan and evidence handoff
+
+For each task, enumerate real consumers, supported branches, error/restart/upgrade
+paths and data sources. Label contract, fixture, real local and product acceptance
+evidence separately. Missing adapters/manifests or untested real branches require
+an owning task/dependency and immediate maintainer notification. Update the plan
+as assumptions change; do not retrospectively lower acceptance to match a partial
+implementation. Final handoffs report real functionality, fixture-only evidence,
+known gaps/task IDs, validation limits and completion status. The audit's
+[protocol](audits/2026-10-26-delivery-completeness.md#mandatory-delivery-and-discovery-protocol)
+is the required handoff format.
 
 ## Build and CI approach
 
@@ -330,15 +370,16 @@ the detailed source/PDF diagnosis and legacy stabilization tasks.
 
 Merged foundations include the legacy reference, source/IDE hygiene, C++20 presets,
 native tests/CI, build decision/environment policies and native/managed telemetry.
-The [task diagram](task-dependencies.md) records twenty-one merged task IDs and their
-PRs, plus the locally validated Y06 delivery awaiting review/merge. The pytest
+The [task diagram](task-dependencies.md) records twenty-two merged task IDs and their
+PRs, but only twenty-one accepted completions after reopening Y05. The pytest
 maintenance PR (#14) is not another task. Q05-Q07's package foundations are merged;
 they are not yet all integrated into the setup GUI.
 
 The [diagram's green frontier](task-dependencies.md#available-now) lists the current
-ready choices. Bootstrap distribution Y07, native discovery Y08, managed preparation Y10 and Python
-integration Y11 are environment options. U01/Z01 define addons/launcher contracts
-independently; A06 and V01 remain available in their own project branches.
+ready choices. Y07 now waits for real current-profile acceptance, rather than
+being green while those profiles are unbound. Y15 is the first last-good repair
+contract; Q08, Q11/Q12, T16/T19, Y17/Y18, J09 and F11 are independent audit closure
+options. Native discovery Y08 and existing A06/U01/V01/Z01 remain selectable.
 Choose one ready task with the maintainer; never execute adjacent work automatically.
 Use branches named `<TASK_ID>_<short_description>`. Completion must update the task
 diagram and newly unlocked green nodes as part of the same reviewed delivery.
