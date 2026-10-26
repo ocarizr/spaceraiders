@@ -7,6 +7,8 @@
 
 #include "Vector2D.h"
 #include "renderer.h"
+#include "GameMode.h"
+#include "PlayField.h"
 
 class GameMenus
 {
@@ -45,6 +47,21 @@ class GameMenus
     }
 
   public:
+    static void GenerateGameOverFrame(RenderItemList& rl, const PlayField& world)
+    {
+        for (auto object : world.GameObjects())
+        {
+            rl.emplace_back(object->pos, object->sprite);
+        }
+
+        auto mode = world.GetGameMode();
+        if (mode && mode->GameOver())
+        {
+            GenerateGameOverMenu(rl, world.bounds, mode->GetScore(),
+                                 mode->GetOutcome() == GameOutcome::Won);
+        }
+    }
+
     static void GenerateStartMenu(RenderItemList& rl, const Vector2D canvasSize)
     {
         auto Title = GameMenus::LayoutToPrint(

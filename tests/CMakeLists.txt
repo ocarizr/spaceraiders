@@ -15,10 +15,19 @@ endif()
 include(GoogleTest)
 gtest_discover_tests(vector_tests TEST_PREFIX "core." DISCOVERY_MODE PRE_TEST PROPERTIES TIMEOUT 10)
 
-foreach(runtime_test IN ITEMS legacy_lifetime_tests legacy_time_tests)
+foreach(
+    test_source
+    IN
+    ITEMS
+        runtime/legacy_lifetime_tests.cpp
+        runtime/legacy_time_tests.cpp
+        game/legacy_rules_tests.cpp
+)
+    get_filename_component(runtime_test "${test_source}" NAME_WE)
+    get_filename_component(test_family "${test_source}" DIRECTORY)
     add_executable(
         ${runtime_test}
-        "runtime/${runtime_test}.cpp"
+        "${test_source}"
         "${PROJECT_SOURCE_DIR}/PlayField.cpp"
         "${PROJECT_SOURCE_DIR}/PowerUp.cpp"
         "${PROJECT_SOURCE_DIR}/renderer.cpp"
@@ -35,7 +44,7 @@ foreach(runtime_test IN ITEMS legacy_lifetime_tests legacy_time_tests)
 
     gtest_discover_tests(
         ${runtime_test}
-        TEST_PREFIX "runtime."
+        TEST_PREFIX "${test_family}."
         DISCOVERY_MODE PRE_TEST
         PROPERTIES TIMEOUT 10
     )

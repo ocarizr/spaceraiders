@@ -169,11 +169,41 @@ void PlayField::DespawnLaser(GameObjPtr object)
 
 void PlayField::Update()
 {
+    if (gameMode && gameMode->GameOver())
+    {
+        return;
+    }
+
+    // Commit the previous tick's wave/effects before mode queries. Otherwise a
+    // pending wave can be mistaken for a cleared scene and appear after game over.
+    ProcessQueues();
+
+    // Resolve initial overlap and post-movement contact independently of entity
+    // insertion order. Only the queue boundary physically destroys objects.
+    const auto resolveContacts = [this]
+    {
+        for (auto object : GameObjects())
+        {
+            if (auto alien = dynamic_cast<Alien*>(object))
+            {
+                alien->ResolvePlayerContact(*this);
+            }
+        }
+    };
+
+    resolveContacts();
+    if (gameMode && !HasPlayer())
+    {
+        gameMode->Update(*this);
+        return;
+    }
+
     for (auto item : GameObjects())
     {
         item->Update(*this);
     }
 
+    resolveContacts();
     if (gameMode)
     {
         gameMode->Update(*this);
@@ -182,6 +212,11 @@ void PlayField::Update()
 
 void PlayField::AddAlienWave(Vector2D& canvasSize)
 {
+    if (gameMode && gameMode->GameOver())
+    {
+        return;
+    }
+
     intRand xCoord(1, static_cast<int>(canvasSize.x - 2));
     intRand yCoord(0, 10);
 
