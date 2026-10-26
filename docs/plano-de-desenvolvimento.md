@@ -1,9 +1,9 @@
 # Space Raiders: macro development roadmap
 
-Updated: 2026-10-25. Merged progress checked against master `a571e55` (#23).
+Updated: 2026-10-26. Merged progress checked against master `6f148dd` (#25).
 The original source/PDF inspection used `9d87fe4`; its legacy findings remain
-historical context. A01-A05, Q01-Q02/Q05-Q07, T01-T06 and Y01-Y03 are merged.
-Y04's GUI is locally validated, pending review/merge. Its production profile
+historical context. A01-A05, Q01-Q02/Q05-Q07, T01-T06 and Y01-Y05 are merged.
+Y06's headless commands are locally validated, pending review/merge. Production profile
 coverage is partial; job-system, addons and launcher implementation remain planned.
 
 This is the coordination plan for a reusable 2D engine and its developer ecosystem.
@@ -24,7 +24,7 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 | C# dependency graph and memory inspector | [Bundle inspector](plans/bundle-inspector.md) | S | Planned |
 | Cross-language diagnostics | [Observability](plans/observability.md) | T | Native/managed/Python foundations merged (T01-T06) |
 | Shared native job system and C#/Python packages | [Jobs](plans/jobs.md) | V | Planned |
-| C#/.NET 10 graphical environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Y01-Y03 merged; Y04 GUI locally validated; full profile preparation planned |
+| C#/.NET 10 graphical/headless environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Y01-Y05 merged; Y06 locally validated; full profile preparation planned |
 | Engine, tool, setup and pipeline addons | [Addons](plans/addons.md) | U | Planned |
 | C#/.NET 10 central tools and workflow launcher | [Launcher](plans/launcher.md) | Z | Planned |
 | C# scene/level editor and native playtest | [Level editor](plans/level-editor.md) | W | Planned |
@@ -330,13 +330,13 @@ the detailed source/PDF diagnosis and legacy stabilization tasks.
 
 Merged foundations include the legacy reference, source/IDE hygiene, C++20 presets,
 native tests/CI, build decision/environment policies and native/managed telemetry.
-The [task diagram](task-dependencies.md) records nineteen merged task IDs and their
-PRs, plus the locally validated Y04 delivery awaiting review/merge. The pytest
+The [task diagram](task-dependencies.md) records twenty-one merged task IDs and their
+PRs, plus the locally validated Y06 delivery awaiting review/merge. The pytest
 maintenance PR (#14) is not another task. Q05-Q07's package foundations are merged;
 they are not yet all integrated into the setup GUI.
 
 The [diagram's green frontier](task-dependencies.md#available-now) lists the current
-ready choices. Y05/Y06, native discovery Y08, managed preparation Y10 and Python
+ready choices. Bootstrap distribution Y07, native discovery Y08, managed preparation Y10 and Python
 integration Y11 are environment options. U01/Z01 define addons/launcher contracts
 independently; A06 and V01 remain available in their own project branches.
 Choose one ready task with the maintainer; never execute adjacent work automatically.

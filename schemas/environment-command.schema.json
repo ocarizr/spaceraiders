@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spaceraiders.invalid/schemas/v1/environment-command.schema.json",
+  "title": "Raiders headless environment command result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "command", "status", "exit_code", "health", "steps", "error", "profiles", "usage"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "command": { "enum": ["help", "profiles", "doctor", "prepare", "invalid"] },
+    "status": { "enum": ["Completed", "Blocked", "Failed", "InvalidArguments", "Error", "Cancelled"] },
+    "exit_code": { "enum": [0, 2, 3, 64, 70, 130] },
+    "health": { "anyOf": [{ "$ref": "environment-health.schema.json", "properties": { "visibility": { "const": "shareable" } } }, { "type": "null" }] },
+    "steps": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["profile_id", "requirement_id", "status", "reason"],
+        "properties": {
+          "profile_id": { "$ref": "environment-profile.schema.json#/$defs/id" },
+          "requirement_id": { "$ref": "environment-profile.schema.json#/$defs/id" },
+          "status": { "enum": ["AlreadyReady", "Completed", "Blocked", "Failed"] },
+          "reason": { "enum": ["None", "DependencyNotReady", "RecipeUnavailable", "PolicyChanged", "ProbeInconclusive", "UnsupportedHost", "ArtifactRejected", "AcquisitionFailed", "ExecutionFailed", "ValidationFailed", "RestartRequired", "PrivilegeRequired", "IncompleteSetup"] }
+        }
+      }
+    },
+    "error": { "type": ["string", "null"], "maxLength": 1024 },
+    "profiles": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "depends_on"],
+        "properties": {
+          "id": { "$ref": "environment-profile.schema.json#/$defs/id" },
+          "title": { "type": "string", "minLength": 1 },
+          "depends_on": { "type": "array", "uniqueItems": true, "items": { "$ref": "environment-profile.schema.json#/$defs/id" } }
+        }
+      }
+    },
+    "usage": { "type": ["array", "null"], "items": { "type": "string" } }
+  },
+  "allOf": [
+    { "if": { "properties": { "status": { "const": "Completed" }, "command": { "enum": ["doctor", "prepare"] } } }, "then": { "properties": { "health": { "$ref": "environment-health.schema.json", "properties": { "state": { "const": "Ready" } } } } } },
+    { "if": { "properties": { "status": { "const": "Completed" } } }, "then": { "properties": { "exit_code": { "const": 0 }, "error": { "type": "null" } } } },
+    { "if": { "properties": { "status": { "const": "Blocked" } } }, "then": { "properties": { "exit_code": { "const": 2 }, "health": { "$ref": "environment-health.schema.json" } } } },
+    { "if": { "properties": { "status": { "const": "Failed" } } }, "then": { "properties": { "exit_code": { "const": 3 }, "command": { "const": "prepare" }, "health": { "$ref": "environment-health.schema.json" } } } },
+    { "if": { "properties": { "status": { "const": "InvalidArguments" } } }, "then": { "properties": { "exit_code": { "const": 64 }, "error": { "type": "string", "minLength": 1 } } } },
+    { "if": { "properties": { "status": { "const": "Error" } } }, "then": { "properties": { "exit_code": { "const": 70 }, "error": { "type": "string", "minLength": 1 } } } },
+    { "if": { "properties": { "status": { "const": "Cancelled" } } }, "then": { "properties": { "exit_code": { "const": 130 }, "error": { "type": "string", "minLength": 1 } } } }
+  ]
+}

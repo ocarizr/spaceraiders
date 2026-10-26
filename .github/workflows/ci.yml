@@ -213,6 +213,15 @@ jobs:
           $env:RAIDERS_SETUP_PUBLISHED_EXE = (Resolve-Path out/setup/win-x64/Raiders.Environment.Setup.exe).Path
           dotnet test $project --no-restore -c Release -p:RaidersEnableProfiling=true --logger 'trx;LogFileName=setup.trx' --results-directory out/test-results/setup -- RunConfiguration.TreatNoTestsAsError=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # WinExe commands must be explicitly awaited and have their streams redirected.
+          $stateRoot = Join-Path $env:RUNNER_TEMP 'raiders-headless-doctor'
+          $resultPath = 'out/test-results/setup/doctor.json'
+          $process = Start-Process -FilePath $env:RAIDERS_SETUP_PUBLISHED_EXE -ArgumentList @('doctor', '--profile', 'lua-development', '--timeout-seconds', '30', '--state-root', "`"$stateRoot`"") -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $resultPath -RedirectStandardError 'out/test-results/setup/doctor.log.jsonl'
+          if ($process.ExitCode -notin @(0, 2)) { throw "Headless doctor failed: $($process.ExitCode)" }
+          $result = Get-Content -Raw $resultPath | ConvertFrom-Json
+          if ($result.schema_version -ne 1 -or $result.exit_code -ne $process.ExitCode -or $result.command -ne 'doctor' -or $result.health.visibility -ne 'shareable') {
+            throw 'Headless doctor did not return the expected versioned health result.'
+          }
 
   gate:
     name: CI gate

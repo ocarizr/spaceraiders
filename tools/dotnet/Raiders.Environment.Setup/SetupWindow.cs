@@ -6,8 +6,39 @@ namespace Raiders.Environment.Setup;
 internal static class Program
 {
     [STAThread]
-    private static int Main()
+    private static int Main(string[] args)
     {
+        if (args.Length > 0)
+        {
+            using var output =
+                new StreamWriter(Console.OpenStandardOutput(), new System.Text.UTF8Encoding(false));
+            using var error =
+                new StreamWriter(Console.OpenStandardError(), new System.Text.UTF8Encoding(false));
+            using var cancellation = new CancellationTokenSource();
+            ConsoleCancelEventHandler handler = (_, value) =>
+            {
+                value.Cancel = true;
+                cancellation.Cancel();
+            };
+            Console.CancelKeyPress += handler;
+            try
+            {
+                return HeadlessCommands
+                    .RunAsync(args, output, error, cancellationToken: cancellation.Token)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch (Exception)
+            {
+                // Broken redirected handles must not fall through to GUI error handling.
+                return 70;
+            }
+            finally
+            {
+                Console.CancelKeyPress -= handler;
+            }
+        }
+
         ApplicationConfiguration.Initialize();
         var localRoot = Path.Combine(
             System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),

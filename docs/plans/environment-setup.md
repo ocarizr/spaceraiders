@@ -1,7 +1,7 @@
 # Windows development environment manager
 
-Status: Y01-Y04 and Q07 are merged. Y05's durable repair is implemented and
-locally validated, pending review/merge. Headless/distribution remain Y06-Y07;
+Status: Y01-Y05 and Q07 are merged. Y06's headless commands are implemented and
+locally validated, pending review/merge. Bootstrap distribution remains Y07;
 production profile completion is explicitly tracked in Y08-Y14.
 
 ## Scope and independent execution
@@ -110,8 +110,7 @@ launch without .NET/Python SDK; use shared probes. Split framework-generated fil
 into sub-deliveries if the path budget would be exceeded.
 
 **Y05 - Repair and interrupted setup.** Depends: Y04.
-Status: implemented and locally validated on `Y05_repair_and_interrupted_setup`,
-pending review/merge. See [durable repair](../environment-setup.md#durable-repair-and-interrupted-setup-y05).
+Status: merged in PR #25. See [durable repair](../environment-setup.md#durable-repair-and-interrupted-setup-y05).
 Paths (10): core `RepairPlan.cs`, `EnvironmentState.cs`, `RecipeRunner.cs`,
 `ArtifactAcquisition.cs`, owned `tests/RepairTests.cs`; setup `ProfileViewModel.cs`
 and `SetupWindow.cs`; `docs/environment-setup.md`, this plan and the task diagram.
@@ -120,9 +119,12 @@ preserve last-good state, retry failed steps and explain offline failures.
 Do not remove unrelated user toolchains or project configuration.
 
 **Y06 - Headless setup/doctor and CI.** Depends: Y03.
-Paths (5): `tools/dotnet/Raiders.Environment.Setup/{Program.cs,HeadlessCommands.cs}`,
-`tests/dotnet/Raiders.Environment.Tests/DoctorTests.cs`,
-`.github/workflows/ci.yml`, `docs/environment-setup.md`.
+Status: implemented and locally validated on `Y06_headless_setup_and_doctor`,
+pending review/merge. See [headless commands](../environment-setup.md#headless-setup-and-doctor-y06).
+Paths (10): setup `SetupWindow.cs`, `HeadlessCommands.cs`, owned `tests/HeadlessTests.cs`;
+`schemas/environment-command.schema.json`, `.github/workflows/ci.yml`,
+`tests/integration/environment_setup/test_contract.py`, `docs/environment-setup.md`,
+this plan, the macro roadmap and the task diagram.
 Acceptance: inspect/prepare selected profiles with exit codes and versioned JSON;
 share GUI probes/recipes and logs/profiling. Detect drift instead of trusting
 a prior Ready marker.
