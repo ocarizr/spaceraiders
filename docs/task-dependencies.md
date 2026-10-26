@@ -1,18 +1,18 @@
 # Task dependency diagram
 
-Updated: 2026-10-26. Merged baseline: master `aa21274` (PR #28).
-A07 is locally validated, pending review/merge. Y05 acceptance remains reopened.
+Updated: 2026-10-26. Merged baseline: master `9b75b30` (PR #29).
+A08 is locally validated, pending review/merge. Y05 acceptance remains reopened.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
 
-**292 tasks · 697 prerequisite edges · 23 completed · 15 ready · 254 waiting.**
+**292 tasks · 697 prerequisite edges · 24 completed · 15 ready · 253 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
 task at a time. **Y05 is reopened**: its last-good requirement is not implemented.
 Y07 now waits for Y19 real native/.NET/Python acceptance, including transactional
 repair. Merged library/contract tasks do not certify a complete product capability.
-A07 unlocks A08; its task-level audit is in the [engine plan](plans/engine.md).
+A08 unlocks A09; its task-level audit is in the [engine plan](plans/engine.md).
 See the [delivery audit](audits/2026-10-26-delivery-completeness.md).
 
 The graphs are split by task family so GitHub can render and readers can inspect
@@ -26,7 +26,7 @@ additional ordering. Original task titles retain the approved planning language.
 
 ```mermaid
 flowchart TD
-    ready_A08["A08<br/>Separar tempo simulado de pacing legado"]:::ready
+    ready_A09["A09<br/>Corrigir alien/player e transições de fim de jogo"]:::ready
     ready_F11["F11<br/>Localization keys and catalog contract"]:::ready
     ready_J09["J09<br/>Shared desktop design and framework contract"]:::ready
     ready_Q08["Q08<br/>Production package identity and immutable version discipline"]:::ready
@@ -48,7 +48,7 @@ flowchart TD
 
 | Task | Authoritative plan | Prerequisites |
 | --- | --- | --- |
-| **A08** - Separar tempo simulado de pacing legado | [engine](plans/engine.md) | A07 |
+| **A09** - Corrigir alien/player e transições de fim de jogo | [engine](plans/engine.md) | A08 |
 | **F11** - Localization keys and catalog contract | [localization](plans/localization.md) | Q02 |
 | **J09** - Shared desktop design and framework contract | [ui-editor](plans/ui-editor.md) | Q02, Y04 |
 | **Q08** - Production package identity and immutable version discipline | [asset-pipeline](plans/asset-pipeline.md) | Q05, Y06 |
@@ -66,10 +66,10 @@ flowchart TD
 
 ## Delivery and acceptance evidence
 
-Completed IDs: A01, A02, A03, A04, A05, A06, A07, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04, Y06.
+Completed IDs: A01, A02, A03, A04, A05, A06, A07, A08, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04, Y06.
 
-The baseline is grounded in first-parent task merges on master. Twenty-three
-implementation deliveries are merged; A07 is locally validated and pending review.
+The baseline is grounded in first-parent task merges on master. Twenty-four
+implementation deliveries are merged; A08 is locally validated and pending review.
 Y05 remains excluded from Completed IDs because its original
 last-good acceptance is unmet. The new Y16 dependency closes that requirement
 before Y05 is reaccepted. Preserve the merged PR record when reopening acceptance.
@@ -85,7 +85,8 @@ consumers. PR #14 is pytest maintenance rather than a task ID.
 | A04 | [#7](https://github.com/ocarizr/spaceraiders/pull/7) | `9c136ff` |
 | A05 | [#8](https://github.com/ocarizr/spaceraiders/pull/8) | `176793e` |
 | A06 | [#28](https://github.com/ocarizr/spaceraiders/pull/28) | `aa21274` |
-| A07 | Actual game/header builds and 50 CTest cases in Debug/Release; 17 lifetime cases also pass MSVC AddressSanitizer; pending review/merge | `A07_legacy_ownership_and_removal_queues` |
+| A07 | [#29](https://github.com/ocarizr/spaceraiders/pull/29) | `9b75b30` |
+| A08 | Actual game/header builds and 64 CTest cases in Debug/Release, including 14 timing cases with real world/mode integration and a renderer/clock/sleep smoke test; pending review/merge | `A08_fixed_timestep_and_frame_pacing` |
 | Q02 | [#9](https://github.com/ocarizr/spaceraiders/pull/9) | `19d7baa` |
 | T01 | [#10](https://github.com/ocarizr/spaceraiders/pull/10) | `7b9430d` |
 | T02 | [#11](https://github.com/ocarizr/spaceraiders/pull/11) | `3d9bc3e` |
@@ -124,8 +125,8 @@ flowchart TD
     A05["A05<br/>Introduzir testes e job obrigatório mínimo"]:::done
     A06["A06<br/>Tornar includes e unidades de compilação explícitos"]:::done
     A07["A07<br/>Corrigir ownership e filas de remoção"]:::done
-    A08["A08<br/>Separar tempo simulado de pacing legado"]:::ready
-    A09["A09<br/>Corrigir alien/player e transições de fim de jogo"]:::pending
+    A08["A08<br/>Separar tempo simulado de pacing legado"]:::done
+    A09["A09<br/>Corrigir alien/player e transições de fim de jogo"]:::ready
     A10["A10<br/>Corrigir colisões e orçamento de lasers"]:::pending
     A11["A11<br/>Corrigir evolução e buffs temporários"]:::pending
     A01 --> A02

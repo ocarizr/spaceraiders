@@ -59,31 +59,38 @@ int main()
 #else
     world.controllerInput = std::make_unique<KeyboardWithRandomFire>();
 #endif
+    // Menu/setup time is not simulated. Each subsequent sample includes update,
+    // rendering and sleeping time since the preceding sample.
+    world.vsync.Reset();
     while (!world.GetGameMode()->GameOver()) // break when game-over
     {
-        auto start = std::chrono::high_resolution_clock::now();
-        world.Update();
-        world.ProcessQueues();
-        if (!world.HasAliens())
+        const int ticks = world.vsync.Advance(VSync::Clock::now());
+        for (int tick = 0; tick < ticks && !world.GetGameMode()->GameOver(); ++tick)
         {
-            world.AddAlienWave(size);
+            world.Update();
+            world.ProcessQueues();
+            if (!world.HasAliens())
+            {
+                world.AddAlienWave(size);
+            }
         }
 
-        RenderItemList rl;
-        for (auto it : world.GameObjects())
+        if (ticks > 0)
         {
-            RenderItem a = RenderItem(Vector2D(it->pos), it->sprite);
-            rl.push_back(a);
+            RenderItemList rl;
+            for (auto it : world.GameObjects())
+            {
+                RenderItem a = RenderItem(Vector2D(it->pos), it->sprite);
+                rl.push_back(a);
+            }
+
+            mainRenderer.Update(rl, world);
         }
 
-        mainRenderer.Update(rl, world);
-        auto finish = std::chrono::high_resolution_clock::now();
-
-        std::chrono::nanoseconds timestamp = finish - start;
-        const int convertToMilli = static_cast<int>(timestamp.count() / 1000000);
-        // Sleep a bit so updates don't run too fast
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(world.vsync.GetSyncPeriod(convertToMilli)));
+        if (!world.GetGameMode()->GameOver())
+        {
+            std::this_thread::sleep_for(world.vsync.TimeUntilNextTick(VSync::Clock::now()));
+        }
     }
 
     {
