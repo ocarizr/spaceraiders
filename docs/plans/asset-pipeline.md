@@ -1,9 +1,18 @@
 # Assets, bundles, build, CI and distribution
 
-Status: Q01-Q02 and Q05-Q06 merged; Q07 implemented and locally validated, pending
-review/merge. The [build decision](../decisions/0001-monorepo-build.md), environment
+Status: Q01-Q02 and Q05-Q07 merged (Q07: `667b838`, PR #20).
+The [build decision](../decisions/0001-monorepo-build.md), environment
 policies, package policies and Python environment recipes are established;
 remaining asset processing and selective orchestration remain planned.
+
+## Approved construction integration
+
+See [runtime design](../runtime-design.md). C06 is the common native metadata source
+for I01/I09 and generated bindings; I09 still owns open asset catalogs. I07 must
+construct from typed source descriptors before cooking exists, with native
+components and serial script lifecycle; I08 compares lifecycle/event ordering and
+normalized state across source/cooked providers. R10/R11 add async lifetime and
+residency, not an implicit complete streaming engine.
 
 ## Scope and independent execution
 
@@ -41,7 +50,7 @@ O06 includes V19 combined-workload budgets. Editing never invokes that cook grap
 
 ## Implementation backlog
 
-**F01 - IDs, schemas e modelo intermediário.** Depende: C02, D02, E02.
+**F01 - IDs, schemas e modelo intermediário.** Depende: C02, D02, E02, C06.
 Arquivos (6): `engine/assets/CMakeLists.txt`,
 `engine/core/include/raiders/AssetId.h`, `engine/assets/include/raiders/AssetModel.h`,
 `docs/assets.md`, `tests/assets/model_tests.cpp`, `CMakeLists.txt`.
@@ -103,7 +112,7 @@ Entrega: referências a entidades, overrides tipados e referências entre instâ
 Aceite: validar/reabrir cena preserva IDs; referência circular de hierarquia ou
 instância ausente produz erro antes da criação do mundo.
 
-**I01 - Fixar ABI lógica dos descritores e registradores.** Depende: F01, C03, G04.
+**I01 - Fixar ABI lógica dos descritores e registradores.** Depende: F01, C03, G04, C06.
 Arquivos (6): `engine/assets/include/raiders/{AssetDescriptors,ComponentRegistry}.h`,
 `engine/assets/src/ComponentRegistry.cpp`, `engine/assets/CMakeLists.txt`,
 `tests/assets/registry_tests.cpp`, `docs/assets.md`.
@@ -619,3 +628,22 @@ Acceptance: discover or acquire pinned compatible interpreter, recreate build/ru
 venvs from locked artifacts/hashes, validate installed package fingerprints and report
 Ready/Needs repair. Source-owned recipes are separate from ignored local environments;
 the C# setup manager can execute them without assuming Python was already installed.
+
+
+## Runtime request and residency backlog
+
+**R10 - Asynchronous construction request lifetime.** Depends: I07, R09, V07.
+Paths (4-7): `engine/assets/` owned `ConstructionRequest` API/implementation, GoogleTest tests
+and required module/build registration; include developer docs only within the budget. List
+exact paths before implementation and split above roughly 10.
+Acceptance: owned request/result, external I/O completion, cancellation and rollback before
+activation; late completions cannot mutate a stopped session and workers never wait on blocking
+I/O.
+
+**R11 - Budgeted asset residency and shared costs.** Depends: R10, R06, T12.
+Paths (4-7): `engine/assets/` owned `AssetResidency` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: measured references, shared allocation attribution and budgeted eviction without
+freeing borrowed data; pressure/cancellation/reload paths are validated and full streaming is
+not implied.

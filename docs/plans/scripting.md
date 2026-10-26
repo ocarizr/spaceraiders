@@ -1,6 +1,9 @@
 # LuaJIT runtime and scripting development environment
 
-Status: Planned. Implementation has not started.
+Status: Planned. Implementation has not started. G19-G25 add shared generated
+bindings, two-VM globally serial dispatch, lifecycle and frame acceptance.
+The approved [runtime design](../runtime-design.md) is the behavioral contract;
+there is no parallel Lua VM pool or per-entity VM task.
 
 ## Scope and independent execution
 
@@ -48,12 +51,16 @@ src/WorldBindings.cpp}`, `engine/scripting/CMakeLists.txt`,
 Entrega: lookup, Transform e spawn/despawn por comandos. Aceite: handle invalidado
 retorna erro controlado; Lua não mantém objeto nativo vivo indevidamente.
 
-**G04 - Componentes de script e ciclo de vida.** Depende: G03.
+**G04 - Native behavior association and initial lifecycle.** Depende: G03.
 Arquivos (6): `engine/scripting/include/raiders/{LuaScript,ScriptSystem}.h`,
 `engine/scripting/src/ScriptSystem.cpp`, `engine/scripting/CMakeLists.txt`,
 `tests/scripting/lifecycle_tests.cpp`, `tests/fixtures/lifecycle.lua`.
-Aceite: create/start/fixed-update/destroy têm ordem definida; callbacks não rodam
-depois de destruir; reiniciar uma cena não mantém listeners ou referências antigas.
+Acceptance: a native association owns behavior-instance handles, not Lua-defined
+components. Awake runs once after construction; Start once before the first eligible
+update; Sleep once during orderly destruction before native data release. Failed
+construction rolls back; callback errors cannot suppress unconditional cleanup.
+Callbacks never run after destruction; scene restart retains no old listeners.
+Enable/Disable transitions are G24; integrated frame/fixed delivery is G25.
 
 **G05 - Binding de física e eventos.** Depende: G04, E04.
 Arquivos (5): `engine/scripting/{include/raiders/PhysicsBindings.h,
@@ -61,6 +68,9 @@ src/PhysicsBindings.cpp}`, `engine/scripting/CMakeLists.txt`,
 `tests/scripting/physics_bindings_tests.cpp`, `tests/fixtures/physics_script.lua`.
 Entrega: forças, velocidade, consultas e contatos; componentes obrigatórios são
 verificados. Aceite: callback pode pedir destruição sem invalidar a física.
+Contact payloads own their data and identify the producing fixed tick. Native
+physics finishes before serial Lua contact dispatch; handlers request structural
+changes at commit boundaries. G25 validates Enter/Stay/Exit and tick ordering.
 
 **G06 - Serviços de gameplay e limites de execução.** Depende: G05, C04.
 Arquivos (6): `engine/scripting/{include/raiders/GameplayBindings.h,
@@ -72,12 +82,16 @@ fora da API normal. Aceite: loop Lua infinito é interrompido por orçamento;
 memória/recursão têm limite e diagnóstico. Isso contém erros de autoria; não se
 declara isolamento suficiente para executar código hostil de terceiros.
 
-**G07 - Resolver módulos e separar UI de gameplay.** Depende: G06.
+**G07 - Resolver módulos e separar UI de gameplay.** Depende: G06, G20.
 Arquivos (5): `engine/scripting/{include/raiders/ScriptResolver.h,
 src/ScriptResolver.cpp}`, `engine/scripting/CMakeLists.txt`,
 `tests/scripting/module_tests.cpp`, `docs/scripting.md`.
 Aceite: `require` respeita raízes e case; UI não acessa o World diretamente;
 comunicação entre contextos usa comandos/eventos e módulos permitidos.
+Gameplay and UI resolve into distinct VM states, both owned by one serial script
+lane (G20/G22). Publishers enqueue native payloads; no cross-VM stack/table/closure
+transfer or immediate nested VM call is allowed. A callback cannot decide to enter
+the other VM. Native ViewModels bridge the domains through H13.
 
 **G08 - Validação de scripts no assetc.** Depende: G07, F06.
 Arquivos (5): `tools/assetc/src/main.cpp`, `tools/assetc/CMakeLists.txt`,
@@ -94,6 +108,9 @@ Arquivos (5): `engine/scripting/include/raiders/ScriptSystem.h`,
 Entrega: recompilar antes de substituir, reiniciar instâncias explicitamente e
 limpar listeners. Aceite: reload inválido mantém versão anterior; sem tentativa
 de preservar qualquer estado arbitrário de VM. Shipping não precisa desse serviço.
+Reload is explicit, on the script owner, and invalid code preserves last-good
+behavior. Play snapshots do not automatically hot-reload; restart instances at an
+explicit boundary rather than migrating arbitrary live VM state (G23).
 
 
 ## LuaJIT and authoring contract
@@ -144,7 +161,7 @@ Paths (4): `schemas/script-bytecode.schema.json`, `tools/assetc/src/ScriptCompil
 Acceptance: source and compiler revision/options feed hashes; wrong bytecode
 version/GC mode fails clearly; compiler binary matches the runtime shipped to designers.
 
-**G11 - Generate LuaLS definitions from registered bindings.** Depends: G03, G05, H05, G18.
+**G11 - Generate LuaLS definitions from registered bindings.** Depends: G03, G05, H05, G18, G19.
 Paths (6): `tools/authoring/{include/LuaApiEmitter.h,src/LuaApiEmitter.cpp}`,
 `tools/authoring/CMakeLists.txt`, `tools/assetc/src/main.cpp`,
 `tests/scripting/api_definition_tests.cpp`, `docs/lua-development.md`.
@@ -207,3 +224,61 @@ src/RenderBindings.cpp}`, `engine/scripting/CMakeLists.txt`,
 Acceptance: scripts play/stop/sample authored clips, receive animation events and
 select valid render layers through handles; callbacks cannot retain destroyed
 animators or bypass registry validation. Bindings feed generated LuaLS definitions.
+
+
+## Binding, serial dispatch and frame integration backlog
+
+**G19 - Generate executable native Lua bindings.** Depends: C06, G03.
+Paths (4-7): `engine/scripting/` owned `GeneratedBindings` API/implementation, GoogleTest tests
+and required module/build registration; include developer docs only within the budget. List
+exact paths before implementation and split above roughly 10.
+Acceptance: one real component binding generated from shared metadata with matching LuaLS
+descriptions; G11 consumes the same source and is not an independent runtime registry.
+
+**G20 - Two owned Lua runtime domains.** Depends: G04, V07.
+Paths (4-7): `engine/scripting/` owned `ScriptDomains` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: gameplay and UI states share one main/game-thread owner; many isolated behavior
+instances, no VM-per-entity/pool; initialization, errors and orderly cleanup use the same
+ownership boundary.
+
+**G21 - Scoped native views and explicit commands.** Depends: G19, C09, V21.
+Paths (4-7): `engine/scripting/` owned `NativeViews` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: generation/epoch/access validation, immediate read-after-write with exclusive
+ownership and explicit deferred command results; stale views, yield/escape and invalid
+permissions fail safely.
+
+**G22 - Globally serial script-dispatch jobs.** Depends: G20, G21, V30.
+Paths (4-7): `engine/scripting/` owned `ScriptDispatch` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: typed dispatch is the sole VM entry, both VMs never overlap, ordinary workers cannot
+enter Lua, and queued native results reenter only through the lane; no per-property mutex or
+developer call-chain inference.
+
+**G23 - Play snapshots and settled teardown.** Depends: G07, C03, V07.
+Paths (4-7): `engine/scripting/` owned `ScriptSession` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: fresh World/VM instances per Play, fixed source snapshot, explicit restart/reload
+policy and session-generation rejection; close normal admission, settle jobs, run permitted
+cleanup then free native/VM data.
+
+**G24 - Enable and Disable lifecycle transitions.** Depends: G04.
+Paths (4-7): `engine/scripting/` owned `ActivationLifecycle` API/implementation, GoogleTest
+tests and required module/build registration; include developer docs only within the budget.
+List exact paths before implementation and split above roughly 10.
+Acceptance: initial Awake/Enable, delayed one-time Start, repeatable Enable/Disable and final
+Disable/Sleep; hierarchy changes, disabled destruction and callback exceptions do not duplicate
+or skip unconditional cleanup.
+
+**G25 - Fixed and frame Lua phase integration.** Depends: G22, G24, G05, V16, H13.
+Paths (4-7): `engine/scripting/` owned `ScriptFramePhases` API/implementation, GoogleTest tests
+and required module/build registration; include developer docs only within the budget. List
+exact paths before implementation and split above roughly 10.
+Acceptance: real embedded callbacks: pre-physics FixedUpdate, completed-tick contact delivery,
+gameplay Update/LateUpdate, ViewModel publication then UI events/Update/LateUpdate;
+zero/multiple ticks, pause/step/resume and bounded catch-up match the runtime design.

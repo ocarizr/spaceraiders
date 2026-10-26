@@ -1,6 +1,7 @@
 # Shared job system
 
-Status: Planned. V01-V19 are new work; no scheduler or language wrapper is implemented.
+Status: Planned. V01-V30 are unimplemented; no scheduler, language wrapper or live job debugger exists.
+See the approved [runtime design](../runtime-design.md). V20-V30 extend rather than replace V01-V19.
 See the [macro roadmap](../plano-de-desenvolvimento.md) and [task diagram](../task-dependencies.md).
 
 ## Scope and architecture
@@ -91,8 +92,11 @@ read/write ownership, immutable inputs and explicit merge/publication steps.
   interpreter thread. Never call into a finalizing interpreter or retain borrowed
   references after their lifetime. Ship DLLs in wheels; venv setup needs no compiler.
   See [Python's threading contract](https://docs.python.org/3.12/library/threading.html).
-- Lua gets no scheduler wrapper in this scope. Its VM remains owner-thread-bound;
-  native work can publish results back to the game/VM lane before Lua callbacks.
+- Lua gets no general scheduler wrapper. Gameplay and UI use two session-owned
+  VMs on one main/game-thread script lane: all VM entry is globally serial, even
+  across different VMs. Only typed script-dispatch jobs may enter Lua; ordinary
+  workers have no VM access. Native results return as owned messages/continuations.
+  See G20/G22/G25 and the [frame/lifecycle design](../runtime-design.md).
 - Designers receive runtime-complete tools and native dependencies through the
   Designer SDK; runtime job execution does not require C++, C#, Python build tools
   or cooking during editing. Packaging is still explicit.
@@ -129,7 +133,10 @@ Paths (3-5): `docs/decisions/0002-job-system.md`, `docs/jobs.md`, this plan,
 and at most two developer-reusable benchmark files if the design needs them.
 Acceptance: API examples for fork/join, nested children, affinity, failure,
 publication, lifetime and capacity; select initial queues/counters and worker-wait
-policy; record benchmark questions. Spike artifacts used only by the agent stay local.
+policy; record benchmark questions. Include decentralized execution without a
+dedicated per-job dispatcher, serial script-lane capabilities, resource-planning
+boundaries and explicit parallel-for semantics; do not require fibers or lock-free
+queues without evidence. Spike artifacts used only by the agent stay local.
 
 **V02 - Independent native job package and handles.** Depends: V01, A05.
 Paths (5-7): `engine/jobs/{CMakeLists.txt,include/raiders/Jobs.h,src/Jobs.cpp,
@@ -165,7 +172,7 @@ Acceptance: errors skip dependent consumers, cleanup continuations run as specif
 running callbacks settle cooperatively, no late callbacks/use-after-free, and every
 accepted job reaches exactly one terminal state under saturation and shutdown races.
 
-**V08 - Job graph diagnostics and profiling.** Depends: V07, T04.
+**V08 - Job graph diagnostics and profiling.** Depends: V07, T04, V22.
 Paths (4-6): job diagnostics adapter, snapshot/dump API, trace tests and `docs/jobs.md`.
 Acceptance: named jobs, edges, child lifetime, readiness/wait reasons, queue pressure,
 worker/lane identity and failures are inspectable; trace output is bounded and
@@ -208,15 +215,17 @@ Acceptance: native CPU kernels run with the GIL released, Python callbacks obey
 interpreter affinity, explicit CPU subprocess work respects budgets, child results
 settle cancellation, and interpreter shutdown cannot receive a late callback.
 
-**V15 - Game/render frame graph and ownership handoff.** Depends: V09, B07, C03, D05.
+**V15 - Game/render frame graph and ownership handoff.** Depends: V09, B07, C03, D05, V20, V21.
 Paths (5-8): runtime frame DAG, render submission snapshots, native lane pumps,
 module registration and integration tests.
 Acceptance: main/game and render orchestration use shared CPU workers; transform,
 extraction and presentation dependencies are explicit; intermediate main-thread
 waits are removed, frame buffers have bounded ownership/backpressure, and Lua/renderer
-callbacks remain on their owners. Editing still uses source data without cooking.
+callbacks remain on their owners. All gameplay/UI VM access shares one serial
+main/game-thread lane. Fixed simulation joins are DAG continuations, not periodic
+physics-thread callbacks or blocked workers. Editing uses source data without cooking.
 
-**V16 - Parallel physics batches and deterministic result merge.** Depends: V15, E06, E07.
+**V16 - Parallel physics batches and deterministic result merge.** Depends: V15, E06, E07, V30.
 Paths (4-7): physics batch scheduling, broad/narrow-phase consumers, result merge
 and serial-versus-parallel tests.
 Acceptance: immutable inputs and disjoint writes prevent races; contact results
@@ -238,7 +247,7 @@ job continuations; global per-process/child-process budgets prevent nested pool
 oversubscription; failed/cancelled stages never publish partial artifacts. Editing
 does not execute the packaging graph; binary-only designers can use distributed tools.
 
-**V19 - Combined runtime/tool/pipeline performance acceptance.** Depends: V16, V17, V18.
+**V19 - Combined runtime/tool/pipeline performance acceptance.** Depends: V16, V17, V18, V30, G25, V29.
 Paths (4-6): representative integration workloads, benchmark configuration and
 performance/operations docs; executable-specific changes are split when needed.
 Acceptance: measured frame/preview responsiveness, throughput, starvation, memory,
@@ -253,3 +262,87 @@ J07/D10 consume V15; E09 consumes V16; K05/L07/S03 consume V17; I05 consumes the
 native scheduler after V09, and V18 adds Python/process orchestration over I06.
 O07 covers native and language-wrapper impact; O06 and T14 include V19 measurements.
 No dependency on V is added to T06. Task edges in the owning plans are authoritative.
+
+## Approved extension backlog
+
+**V20 - Parallel-for batches and aggregate completion.** Depends: V06.
+Paths (4-7): `engine/jobs/` owned `ParallelFor` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: empty/uneven ranges, configurable granularity, cancellation, child completion and a
+serial fallback; no job per entity or quadtree node requirement.
+
+**V21 - Resource access planning over the native DAG.** Depends: V04, C03.
+Paths (4-7): `engine/runtime/` owned `ResourcePlan` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: read/read overlap, ordered read/write and write/write conflicts, disjoint chunks,
+structural barriers, aliases and conservative dynamic access; use the existing scheduler, not a
+second executor.
+
+**V22 - Versioned job telemetry contract.** Depends: V01, T01.
+Paths (4-7): `engine/jobs/` owned `JobTraceContract` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: capture IDs versus reusable handles, body versus public completion, parent versus
+dependency edges, units, source IDs and explicit sequence-gap/loss records.
+
+**V23 - Bounded per-producer job telemetry.** Depends: V08, V22.
+Paths (4-7): `engine/jobs/` owned `JobTraceProducer` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: bounded producer buffers, consumer-side draining, disabled-build removal and
+overflow accounting; compare overhead against capture off without hot-path
+JSON/shared-profiler-mutex assumptions.
+
+**V24 - Local job capture transport.** Depends: V23.
+Paths (4-7): `engine/jobs/` owned `JobTraceTransport` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: version/build/session negotiation and bounded native attach transport;
+slow/disconnected/reconnecting clients cannot block workers and gaps remain visible.
+
+**V25 - Shared-UI C# job inspector attach client.** Depends: V24, J12, T05.
+Paths (4-7): `tools/dotnet/Raiders.JobInspector/` owned `CaptureClient` API/implementation,
+MSTest tests and required module/build registration; include developer docs only within the
+budget. List exact paths before implementation and split above roughly 10.
+Acceptance: consume shared UI/resource NuGets, attach to a real native process and reconstruct a
+bounded model; invalid/out-of-order/incomplete records are tested with MSTest.
+
+**V26 - Live job graph MVP.** Depends: V25.
+Paths (4-7): `tools/dotnet/Raiders.JobInspector/` owned `LiveGraph` API/implementation, MSTest
+tests and required module/build registration; include developer docs only within the budget.
+List exact paths before implementation and split above roughly 10.
+Acceptance: white/unstarted, green/executing and red/publicly completed nodes, accessible extra
+states, right-edge arrivals, follow/pan/selection, configurable 500 ms retention and bounded
+virtualized rendering.
+
+**V27 - Hierarchical job timeline and metrics.** Depends: V26.
+Paths (4-7): `tools/dotnet/Raiders.JobInspector/` owned `JobTimeline` API/implementation, MSTest
+tests and required module/build registration; include developer docs only within the budget.
+List exact paths before implementation and split above roughly 10.
+Acceptance: distinct hierarchy/dependency edges, bounded history/tombstones, ready waits and
+child completion; do not double-count inclusive parent durations as CPU time or assert deadlock
+from elapsed time.
+
+**V28 - Validated job source navigation.** Depends: V26.
+Paths (4-7): `tools/dotnet/Raiders.JobInspector/` owned `SourceNavigation` API/implementation,
+MSTest tests and required module/build registration; include developer docs only within the
+budget. List exact paths before implementation and split above roughly 10.
+Acceptance: build/revision/source mapping and safe file/line navigation through configured VS
+Code/Visual Studio adapters; telemetry cannot supply arbitrary shell commands.
+
+**V29 - Live debugger product acceptance.** Depends: V27, V28, V09.
+Paths (4-7): `tools/dotnet/Raiders.JobInspector/` owned `CaptureAcceptance` API/implementation,
+MSTest tests and required module/build registration; include developer docs only within the
+budget. List exact paths before implementation and split above roughly 10.
+Acceptance: actual scheduler capture plus deterministic replay, loss/reconnect/client-stall
+tests and bounded memory/rendering under load; fixture-only graphs do not close acceptance.
+
+**V30 - Resource and batch performance acceptance.** Depends: V09, V20, V21.
+Paths (4-7): `engine/runtime/` owned resource/batch integration harness, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: serial oracle, uneven work, conflicting/disjoint resource partitions and
+one/four/five-worker measurements; record planning overhead and define budgets only after
+hardware baselines.

@@ -2,6 +2,14 @@
 
 Status: Planned. Implementation has not started.
 
+## Approved Play integration
+
+G23/G25 gate W03 acceptance: fresh two-VM sessions share one serial native script
+lane; source assets are snapshotted for Play, not automatically cooked/reloaded.
+Pause freezes simulation debt/timers; single-step completes one fixed tick and its
+contacts, followed by UI/render refresh. Stop settles native work and cleanup before
+freeing VM/World memory. See [runtime design](../runtime-design.md).
+
 ## Scope and independent execution
 
 A deliberately small C# scene/level authoring tool: entity instances, transforms,
@@ -55,7 +63,7 @@ InstanceInspector.cs,SceneDocument.cs}`,
 Acceptance: pick bundle asset, place/rotate/duplicate/delete, set layer and override
 supported fields with undo/redo; new IDs/references survive save/reopen.
 
-**W03 - Native play/pause/step/stop without packaging.** Depends: W02, X02, J08, G15.
+**W03 - Native play/pause/step/stop without packaging.** Depends: W02, X02, J08, G15, G23, G25.
 Paths (5): `tools/dotnet/Raiders.LevelEditor/{PlaytestController.cs,
 PlaytestToolbar.cs,SceneDocument.cs}`,
 `tests/dotnet/Raiders.Tools.Tests/PlaytestTests.cs`, `docs/level-editor.md`.

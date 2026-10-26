@@ -1,11 +1,11 @@
 # Task dependency diagram
 
-Updated: 2026-10-26. Merged baseline: master `61df377` (PR #31).
-A10 is locally validated, pending review/merge. Y05 acceptance remains reopened.
+Updated: 2026-10-26. Merged baseline: master `a2908c8` (PR #32).
+The approved runtime design adds pending tasks; no runtime implementation is claimed. Y05 acceptance remains reopened.
 
-[Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
+[Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md) | [Runtime design](runtime-design.md)
 
-**292 tasks · 697 prerequisite edges · 26 completed · 15 ready · 251 waiting.**
+**318 tasks · 767 prerequisite edges · 26 completed · 15 ready · 277 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
@@ -69,7 +69,7 @@ flowchart TD
 Completed IDs: A01, A02, A03, A04, A05, A06, A07, A08, A09, A10, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04, Y06.
 
 The baseline is grounded in first-parent task merges on master. Twenty-six
-implementation deliveries are merged; A10 is locally validated and pending review.
+accepted implementation deliveries are merged; A10 is integrated in PR #32.
 Y05 remains excluded from Completed IDs because its original
 last-good acceptance is unmet. The new Y16 dependency closes that requirement
 before Y05 is reaccepted. Preserve the merged PR record when reopening acceptance.
@@ -88,7 +88,7 @@ consumers. PR #14 is pytest maintenance rather than a task ID.
 | A07 | [#29](https://github.com/ocarizr/spaceraiders/pull/29) | `9b75b30` |
 | A08 | [#30](https://github.com/ocarizr/spaceraiders/pull/30) | `5a49e47` |
 | A09 | [#31](https://github.com/ocarizr/spaceraiders/pull/31) | `61df377` |
-| A10 | Actual game/header builds and 150 CTest cases in Debug/Release; 86 game and 17 lifetime cases also pass MSVC AddressSanitizer; pending review/merge | `A10_projectile_collisions_and_budgets` |
+| A10 | Actual game/header builds and 150 CTest cases in Debug/Release; 86 game and 17 lifetime cases also pass MSVC AddressSanitizer; merged in [#32](https://github.com/ocarizr/spaceraiders/pull/32) | `a2908c8` |
 | Q02 | [#9](https://github.com/ocarizr/spaceraiders/pull/9) | `19d7baa` |
 | T01 | [#10](https://github.com/ocarizr/spaceraiders/pull/10) | `7b9430d` |
 | T02 | [#11](https://github.com/ocarizr/spaceraiders/pull/11) | `3d9bc3e` |
@@ -108,7 +108,7 @@ consumers. PR #14 is pytest maintenance rather than a task ID.
 
 ## Reading the task families
 
-[A: Legacy stabilization](#a-legacy-stabilization) | [B: Engine extraction](#b-engine-extraction) | [C: World and components](#c-world-and-components) | [D: Rendering](#d-rendering) | [E: Physics](#e-physics) | [F: Asset models validation and localization data](#f-asset-models-validation-and-localization-data) | [G: Lua runtime and development](#g-lua-runtime-and-development) | [H: Native UI and localized text](#h-native-ui-and-localized-text) | [I: Cooking and generated data](#i-cooking-and-generated-data) | [J: Shared UI tooling and native preview](#j-shared-ui-tooling-and-native-preview) | [K: UI and localization editors](#k-ui-and-localization-editors) | [L: Entity editor](#l-entity-editor) | [M: Sample migration](#m-sample-migration) | [N: Sample gameplay and regression](#n-sample-gameplay-and-regression) | [O: CI and quality](#o-ci-and-quality) | [P: Packaging and release](#p-packaging-and-release) | [Q: Build and package foundations](#q-build-and-package-foundations) | [R: Bundles and providers](#r-bundles-and-providers) | [S: Bundle and memory inspector](#s-bundle-and-memory-inspector) | [T: Observability](#t-observability) | [U: Addons](#u-addons) | [V: Shared job system](#v-shared-job-system) | [W: Level editor](#w-level-editor) | [X: Designer workflow](#x-designer-workflow) | [Y: Environment setup](#y-environment-setup) | [Z: Launcher](#z-launcher)
+[A: Legacy stabilization](#a-legacy-stabilization) | [B: Engine extraction](#b-engine-extraction) | [C: World and components](#c-world-and-components) | [D: Rendering](#d-rendering) | [E: Physics](#e-physics) | [F: Asset models validation and localization data](#f-asset-models-validation-and-localization-data) | [G: Lua runtime and development](#g-lua-runtime-and-development) | [H: Native UI and localized text](#h-native-ui-and-localized-text) | [I: Cooking and generated data](#i-cooking-and-generated-data) | [J: Shared UI tooling and native preview](#j-shared-ui-tooling-and-native-preview) | [K: UI and localization editors](#k-ui-and-localization-editors) | [L: Entity editor](#l-entity-editor) | [M: Sample migration](#m-sample-migration) | [N: Sample gameplay and regression](#n-sample-gameplay-and-regression) | [O: CI and quality](#o-ci-and-quality) | [P: Packaging and release](#p-packaging-and-release) | [Q: Build and package foundations](#q-build-and-package-foundations) | [R: Bundles and providers](#r-bundles-and-providers) | [S: Bundle and memory inspector](#s-bundle-and-memory-inspector) | [T: Observability](#t-observability) | [U: Addons](#u-addons) | [V: Shared job system](#v-shared-job-system) | [W: Level editor](#w-level-editor) | [X: Designer workflow](#x-designer-workflow) | [Y: Environment setup](#y-environment-setup) | [Z: Launcher](#z-launcher) | [AU: Native audio scope](#au-native-audio-scope)
 
 Primary node titles come from the owning plans. For complete deliverables, file
 budgets and acceptance, open the linked plan above each diagram.
@@ -190,17 +190,31 @@ Plans: [engine](plans/engine.md).
 flowchart TD
     ref_C_B07["B07<br/>prerequisite reference"]:::pending
     ref_C_B11["B11<br/>prerequisite reference"]:::pending
+    ref_C_V07["V07<br/>prerequisite reference"]:::pending
+    ref_C_V21["V21<br/>prerequisite reference"]:::pending
     C01["C01<br/>IDs e armazenamento de entidades"]:::pending
     C02["C02<br/>Componentes básicos por composição"]:::pending
     C03["C03<br/>Hierarquia e comandos diferidos"]:::pending
     C04["C04<br/>RNG e eventos por mundo"]:::pending
     C05["C05<br/>Migração vertical do jogador legado"]:::pending
+    C06["C06<br/>Shared native type metadata"]:::pending
+    C07["C07<br/>Typed native event contracts"]:::pending
+    C08["C08<br/>Bounded deferred event delivery"]:::pending
+    C09["C09<br/>Observable native property commits"]:::pending
     ref_C_B07 --> C01
     C01 --> C02
     C02 --> C03
     C03 --> C04
     C04 --> C05
     ref_C_B11 --> C05
+    C02 --> C06
+    C04 --> C07
+    C06 --> C07
+    C07 --> C08
+    ref_C_V07 --> C08
+    C08 --> C09
+    C06 --> C09
+    ref_C_V21 --> C09
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -308,6 +322,7 @@ Plans: [asset-pipeline](plans/asset-pipeline.md), [localization](plans/localizat
 ```mermaid
 flowchart TD
     ref_F_C02["C02<br/>prerequisite reference"]:::pending
+    ref_F_C06["C06<br/>prerequisite reference"]:::pending
     ref_F_D02["D02<br/>prerequisite reference"]:::pending
     ref_F_D07["D07<br/>prerequisite reference"]:::pending
     ref_F_D08["D08<br/>prerequisite reference"]:::pending
@@ -334,6 +349,7 @@ flowchart TD
     ref_F_C02 --> F01
     ref_F_D02 --> F01
     ref_F_E02 --> F01
+    ref_F_C06 --> F01
     F01 --> F02
     F02 --> F03
     F02 --> F04
@@ -369,11 +385,14 @@ flowchart TD
     ref_G_B07["B07<br/>prerequisite reference"]:::pending
     ref_G_C03["C03<br/>prerequisite reference"]:::pending
     ref_G_C04["C04<br/>prerequisite reference"]:::pending
+    ref_G_C06["C06<br/>prerequisite reference"]:::pending
+    ref_G_C09["C09<br/>prerequisite reference"]:::pending
     ref_G_D08["D08<br/>prerequisite reference"]:::pending
     ref_G_D09["D09<br/>prerequisite reference"]:::pending
     ref_G_E04["E04<br/>prerequisite reference"]:::pending
     ref_G_F06["F06<br/>prerequisite reference"]:::pending
     ref_G_H05["H05<br/>prerequisite reference"]:::pending
+    ref_G_H13["H13<br/>prerequisite reference"]:::pending
     ref_G_J06["J06<br/>prerequisite reference"]:::pending
     ref_G_J07["J07<br/>prerequisite reference"]:::pending
     ref_G_K03["K03<br/>prerequisite reference"]:::pending
@@ -381,10 +400,14 @@ flowchart TD
     ref_G_R01["R01<br/>prerequisite reference"]:::pending
     ref_G_R04["R04<br/>prerequisite reference"]:::pending
     ref_G_T08["T08<br/>prerequisite reference"]:::pending
+    ref_G_V07["V07<br/>prerequisite reference"]:::pending
+    ref_G_V16["V16<br/>prerequisite reference"]:::pending
+    ref_G_V21["V21<br/>prerequisite reference"]:::pending
+    ref_G_V30["V30<br/>prerequisite reference"]:::pending
     G01["G01<br/>Embed a pinned LuaJIT runtime"]:::pending
     G02["G02<br/>Definir módulo e diagnósticos de scripting"]:::pending
     G03["G03<br/>Binding de entidades por handles"]:::pending
-    G04["G04<br/>Componentes de script e ciclo de vida"]:::pending
+    G04["G04<br/>Native behavior association and initial lifecycle"]:::pending
     G05["G05<br/>Binding de física e eventos"]:::pending
     G06["G06<br/>Serviços de gameplay e limites de execução"]:::pending
     G07["G07<br/>Resolver módulos e separar UI de gameplay"]:::pending
@@ -399,6 +422,13 @@ flowchart TD
     G16["G16<br/>Shipping bytecode and development symbols"]:::pending
     G17["G17<br/>Profile JIT execution separately from debugging"]:::pending
     G18["G18<br/>Animation and configurable-render binding API"]:::pending
+    G19["G19<br/>Generate executable native Lua bindings"]:::pending
+    G20["G20<br/>Two owned Lua runtime domains"]:::pending
+    G21["G21<br/>Scoped native views and explicit commands"]:::pending
+    G22["G22<br/>Globally serial script-dispatch jobs"]:::pending
+    G23["G23<br/>Play snapshots and settled teardown"]:::pending
+    G24["G24<br/>Enable and Disable lifecycle transitions"]:::pending
+    G25["G25<br/>Fixed and frame Lua phase integration"]:::pending
     ref_G_B07 --> G01
     G01 --> G02
     G02 --> G03
@@ -409,6 +439,7 @@ flowchart TD
     G05 --> G06
     ref_G_C04 --> G06
     G06 --> G07
+    G20 --> G07
     G07 --> G08
     ref_G_F06 --> G08
     G08 --> G09
@@ -418,6 +449,7 @@ flowchart TD
     G05 --> G11
     ref_G_H05 --> G11
     G18 --> G11
+    G19 --> G11
     G11 --> G12
     ref_G_Q02 --> G12
     G01 --> G13
@@ -436,6 +468,25 @@ flowchart TD
     G04 --> G18
     ref_G_D08 --> G18
     ref_G_D09 --> G18
+    ref_G_C06 --> G19
+    G03 --> G19
+    G04 --> G20
+    ref_G_V07 --> G20
+    G19 --> G21
+    ref_G_C09 --> G21
+    ref_G_V21 --> G21
+    G20 --> G22
+    G21 --> G22
+    ref_G_V30 --> G22
+    G07 --> G23
+    ref_G_C03 --> G23
+    ref_G_V07 --> G23
+    G04 --> G24
+    G22 --> G25
+    G24 --> G25
+    G05 --> G25
+    ref_G_V16 --> G25
+    ref_G_H13 --> G25
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -449,6 +500,7 @@ Plans: [engine](plans/engine.md), [localization](plans/localization.md).
 flowchart TD
     ref_H_B02["B02<br/>prerequisite reference"]:::pending
     ref_H_C02["C02<br/>prerequisite reference"]:::pending
+    ref_H_C09["C09<br/>prerequisite reference"]:::pending
     ref_H_D01["D01<br/>prerequisite reference"]:::pending
     ref_H_D02["D02<br/>prerequisite reference"]:::pending
     ref_H_D06["D06<br/>prerequisite reference"]:::pending
@@ -469,6 +521,7 @@ flowchart TD
     H10["H10<br/>Localized widget bindings and reload"]:::pending
     H11["H11<br/>Unicode font resources and glyph fallback"]:::pending
     H12["H12<br/>Native text shaping and layout integration"]:::pending
+    H13["H13<br/>Native ViewModel to UI binding"]:::pending
     ref_H_F04 --> H01
     ref_H_D01 --> H01
     H01 --> H02
@@ -492,6 +545,8 @@ flowchart TD
     ref_H_D06 --> H11
     H11 --> H12
     ref_H_D06 --> H12
+    H05 --> H13
+    ref_H_C09 --> H13
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -504,6 +559,7 @@ Plans: [asset-pipeline](plans/asset-pipeline.md).
 ```mermaid
 flowchart TD
     ref_I_C03["C03<br/>prerequisite reference"]:::pending
+    ref_I_C06["C06<br/>prerequisite reference"]:::pending
     ref_I_E03["E03<br/>prerequisite reference"]:::pending
     ref_I_F01["F01<br/>prerequisite reference"]:::pending
     ref_I_F05["F05<br/>prerequisite reference"]:::pending
@@ -529,6 +585,7 @@ flowchart TD
     ref_I_F01 --> I01
     ref_I_C03 --> I01
     ref_I_G04 --> I01
+    ref_I_C06 --> I01
     I01 --> I02
     ref_I_F06 --> I02
     ref_I_R02 --> I02
@@ -1104,7 +1161,10 @@ flowchart TD
     ref_R_I01["I01<br/>prerequisite reference"]:::pending
     ref_R_I04["I04<br/>prerequisite reference"]:::pending
     ref_R_I05["I05<br/>prerequisite reference"]:::pending
+    ref_R_I07["I07<br/>prerequisite reference"]:::pending
     ref_R_I09["I09<br/>prerequisite reference"]:::pending
+    ref_R_T12["T12<br/>prerequisite reference"]:::pending
+    ref_R_V07["V07<br/>prerequisite reference"]:::pending
     R01["R01<br/>Contrato de bundle e identidade"]:::pending
     R02["R02<br/>Leitura/save transacional de bundle de autoria"]:::pending
     R03["R03<br/>Consultas de metadados/grafo por CLI"]:::pending
@@ -1114,6 +1174,8 @@ flowchart TD
     R07["R07<br/>Migração de versões e cooking incremental"]:::pending
     R08["R08<br/>Inspeção de bundle cooked pelo pipeline"]:::pending
     R09["R09<br/>Development-only serialized source provider"]:::pending
+    R10["R10<br/>Asynchronous construction request lifetime"]:::pending
+    R11["R11<br/>Budgeted asset residency and shared costs"]:::pending
     ref_R_F01 --> R01
     R01 --> R02
     ref_R_F08 --> R02
@@ -1133,6 +1195,12 @@ flowchart TD
     R02 --> R09
     ref_R_F08 --> R09
     ref_R_I01 --> R09
+    ref_R_I07 --> R10
+    R09 --> R10
+    ref_R_V07 --> R10
+    R10 --> R11
+    R06 --> R11
+    ref_R_T12 --> R11
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -1387,9 +1455,11 @@ flowchart TD
     ref_V_E06["E06<br/>prerequisite reference"]:::pending
     ref_V_E07["E07<br/>prerequisite reference"]:::pending
     ref_V_F06["F06<br/>prerequisite reference"]:::pending
+    ref_V_G25["G25<br/>prerequisite reference"]:::pending
     ref_V_I06["I06<br/>prerequisite reference"]:::pending
     ref_V_J02["J02<br/>prerequisite reference"]:::pending
     ref_V_J06["J06<br/>prerequisite reference"]:::pending
+    ref_V_J12["J12<br/>prerequisite reference"]:::pending
     ref_V_Q02["Q02<br/>prerequisite reference"]:::done
     ref_V_Q04["Q04<br/>prerequisite reference"]:::pending
     ref_V_Q05["Q05<br/>prerequisite reference"]:::done
@@ -1418,6 +1488,17 @@ flowchart TD
     V17["V17<br/>Shared C# tooling jobs, progress and UI handoff"]:::pending
     V18["V18<br/>Pipeline cooking graph and process-budget integration"]:::pending
     V19["V19<br/>Combined runtime/tool/pipeline performance acceptance"]:::pending
+    V20["V20<br/>Parallel-for batches and aggregate completion"]:::pending
+    V21["V21<br/>Resource access planning over the native DAG"]:::pending
+    V22["V22<br/>Versioned job telemetry contract"]:::pending
+    V23["V23<br/>Bounded per-producer job telemetry"]:::pending
+    V24["V24<br/>Local job capture transport"]:::pending
+    V25["V25<br/>Shared-UI C# job inspector attach client"]:::pending
+    V26["V26<br/>Live job graph MVP"]:::pending
+    V27["V27<br/>Hierarchical job timeline and metrics"]:::pending
+    V28["V28<br/>Validated job source navigation"]:::pending
+    V29["V29<br/>Live debugger product acceptance"]:::pending
+    V30["V30<br/>Resource and batch performance acceptance"]:::pending
     ref_V_Q02 --> V01
     ref_V_T01 --> V01
     V01 --> V02
@@ -1429,6 +1510,7 @@ flowchart TD
     V06 --> V07
     V07 --> V08
     ref_V_T04 --> V08
+    V22 --> V08
     V08 --> V09
     V09 --> V10
     V10 --> V11
@@ -1444,9 +1526,12 @@ flowchart TD
     ref_V_B07 --> V15
     ref_V_C03 --> V15
     ref_V_D05 --> V15
+    V20 --> V15
+    V21 --> V15
     V15 --> V16
     ref_V_E06 --> V16
     ref_V_E07 --> V16
+    V30 --> V16
     V12 --> V17
     ref_V_J02 --> V17
     ref_V_J06 --> V17
@@ -1457,6 +1542,29 @@ flowchart TD
     V16 --> V19
     V17 --> V19
     V18 --> V19
+    V30 --> V19
+    ref_V_G25 --> V19
+    V29 --> V19
+    V06 --> V20
+    V04 --> V21
+    ref_V_C03 --> V21
+    V01 --> V22
+    ref_V_T01 --> V22
+    V08 --> V23
+    V22 --> V23
+    V23 --> V24
+    V24 --> V25
+    ref_V_J12 --> V25
+    ref_V_T05 --> V25
+    V25 --> V26
+    V26 --> V27
+    V26 --> V28
+    V27 --> V29
+    V28 --> V29
+    V09 --> V29
+    V09 --> V30
+    V20 --> V30
+    V21 --> V30
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
@@ -1473,6 +1581,8 @@ flowchart TD
     ref_W_F08["F08<br/>prerequisite reference"]:::pending
     ref_W_F10["F10<br/>prerequisite reference"]:::pending
     ref_W_G15["G15<br/>prerequisite reference"]:::pending
+    ref_W_G23["G23<br/>prerequisite reference"]:::pending
+    ref_W_G25["G25<br/>prerequisite reference"]:::pending
     ref_W_J05["J05<br/>prerequisite reference"]:::pending
     ref_W_J06["J06<br/>prerequisite reference"]:::pending
     ref_W_J08["J08<br/>prerequisite reference"]:::pending
@@ -1499,6 +1609,8 @@ flowchart TD
     ref_W_X02 --> W03
     ref_W_J08 --> W03
     ref_W_G15 --> W03
+    ref_W_G23 --> W03
+    ref_W_G25 --> W03
     W03 --> W04
     ref_W_D08 --> W04
     ref_W_F10 --> W04
@@ -1717,6 +1829,22 @@ flowchart TD
     Z05 --> Z09
     Z07 --> Z09
     Z08 --> Z09
+    classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
+    classDef ready fill:#86efac,stroke:#166534,color:#111827
+    classDef done fill:#f87171,stroke:#991b1b,color:#111827
+```
+
+### AU: Native audio scope
+
+Plans: [audio](plans/audio.md).
+
+```mermaid
+flowchart TD
+    ref_AU_T01["T01<br/>prerequisite reference"]:::done
+    ref_AU_V01["V01<br/>prerequisite reference"]:::ready
+    AU01["AU01<br/>Audio scope and native ownership decision"]:::pending
+    ref_AU_V01 --> AU01
+    ref_AU_T01 --> AU01
     classDef pending fill:#ffffff,stroke:#6b7280,color:#111827
     classDef ready fill:#86efac,stroke:#166534,color:#111827
     classDef done fill:#f87171,stroke:#991b1b,color:#111827
