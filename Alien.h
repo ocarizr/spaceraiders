@@ -10,11 +10,15 @@ enum class AlienState : unsigned char
 
 class Alien : public GameObject
 {
-public:
-    Alien() : GameObject("ot_AlienShip", RS_Alien) { state = AlienState::as_Normal; }
+  public:
+    Alien() : GameObject("ot_AlienShip", RS_Alien)
+    {
+        state = AlienState::as_Normal;
+    }
+
     inline ~Alien() noexcept override = default;
 
-private:
+  private:
     // Alien constants - these could move out into PlayField as configurable variables
     const float maxUpdateRate = 0.01f;
     const float transformEnergy = 2.f;
@@ -33,24 +37,30 @@ private:
         health = 2.f;
         velocity *= 2.f;
     }
+
     bool DecreaseHealth(PlayField& world) noexcept override
     {
+        if (health <= 0)
+        {
+            return false;
+        }
+
         health -= 1.f;
         bool isDead = health <= 0;
-        if(isDead)
+        if (isDead)
         {
             world.GetGameMode()->UpdateScore(state == AlienState::as_Normal ? 10 : 20);
 
             floatRand dropRate(0, 10);
-            if(dropRate(rGen) <= 1.f)
+            if (dropRate(rGen) <= 1.f)
             {
                 auto puRate = dropRate(rGen);
                 PowerUp* pu;
-                if(puRate < .3f)
+                if (puRate < .3f)
                 {
                     pu = new SpeedBoost;
                 }
-                else if(puRate < .6f)
+                else if (puRate < .6f)
                 {
                     pu = new FireBoost;
                 }
@@ -58,11 +68,13 @@ private:
                 {
                     pu = new TripleFire;
                 }
+
                 Vector2D dropPos(pos.x, pos.y + 1);
                 pu->pos = dropPos;
                 world.AddObject(pu);
             }
         }
+
         return isDead;
     }
 
@@ -83,7 +95,7 @@ private:
             auto player = world.GetPlayerObject();
             if (player && pos.IntCmp(player->pos))
             {
-                //Spawn explosion
+                // Spawn explosion
                 GameObjPtr no = new Explosion;
                 no->pos = pos;
                 world.AddObject(no);
@@ -98,13 +110,15 @@ private:
             floatRand updateRate(0, maxUpdateRate);
             energy += updateRate(rGen);
             if (energy >= transformEnergy)
+            {
                 Transform();
+            }
         }
 
         floatRand fireRate(0, 1);
         if (fireRate(rGen) < .5f && world.AlienLasers > 0)
         {
-            //Spawn laser
+            // Spawn laser
             GameObjPtr newLaser = new AlienLaser;
             Vector2D laserPos(pos.x, pos.y + 1);
             newLaser->pos = laserPos;

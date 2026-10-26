@@ -1,6 +1,6 @@
 # Engine, rendering, physics and native UI
 
-Status: A01-A05 baseline merged. A06 is locally validated, pending review/merge;
+Status: A01-A06 baseline merged. A07 is locally validated, pending review/merge;
 engine extraction and runtime extensions remain planned.
 
 ## Scope and independent execution
@@ -76,8 +76,7 @@ Entrega: CTest com teste útil de coordenadas; build Windows e agregador de stat
 Aceite: checkout limpo compila/testa em CI; falha de compilação bloqueia o gate.
 
 **A06 - Tornar includes e unidades de compilação explícitos.** Depende: A05.
-Status: implemented and locally validated on `A06_explicit_headers_and_translation_units`,
-pending review/merge. Paths (10): `renderer.cpp`, `renderer.h`, `PowerUp.cpp`,
+Status: merged through PR #28 (`aa21274`). Paths (10): `renderer.cpp`, `renderer.h`, `PowerUp.cpp`,
 `PlayField.cpp`, `GameObject.h`, `GameMenus.h`, `tests/CMakeLists.txt`,
 `tests/core/header_tests.cpp`, this plan and the task diagram.
 Entrega: incluir a própria declaração primeiro e declarar dependências reais.
@@ -107,11 +106,48 @@ owns target warning/static-analysis adoption in small batches. These are not
 silently described as resolved. No additional in-scope A06 acceptance gap was found.
 
 **A07 - Corrigir ownership e filas de remoção.** Depende: A06.
-Arquivos (5): `PlayField.h`, `PlayField.cpp`, `renderer.h`, `tests/CMakeLists.txt`,
-`tests/runtime/legacy_lifetime_tests.cpp`.
+Status: implemented and locally validated on `A07_legacy_ownership_and_removal_queues`,
+pending review/merge. Paths (10): `PlayField.h`, `PlayField.cpp`, `renderer.h`,
+`renderer.cpp`, `SpaceRaiders.cpp`, `Alien.h`, `tests/CMakeLists.txt`,
+`tests/runtime/legacy_lifetime_tests.cpp`, this plan and the task diagram.
 Entrega: ownership único, limpeza de filas/objetos/modo e proibição de cópia de
 donos de recursos. Remoção é idempotente; objetos removidos não pontuam duas vezes.
 Aceite: destruir mundo com filas pendentes, trocar modo e repetir remoção é seguro.
+
+A07 delivery audit: active/pending entities, game mode, controller and renderer
+buffers now have unique ownership. World/renderer copying and moving are explicitly
+disabled. Mode replacement releases the previous instance; reinstalling the same
+mode is a no-op and clearing it is supported. The real game entry point assigns
+owned input. Destruction/RemoveAllObjects drain both object queues and removal
+markers; flushing an emptied world cannot resurrect old pending spawns.
+
+Removal is idempotent for owned active/pending objects; null/foreign removal is
+ignored. Objects stay allocated until the queue boundary but disappear immediately
+from collision traversal, updates and player/alien queries. Duplicate registration
+cannot create a second owner or spend a second laser slot. Repeated despawn returns
+at most one slot. Alien death awards score/drops once; two actual player lasers
+cannot score the same removed alien twice. Borrowed object pointers/views must not
+outlive queue processing or clearing. These legacy APIs remain single-threaded;
+queue flushing/clearing is an outer-loop operation, not an entity update callback.
+
+Validation: MSVC C++20 Debug/Release builds compile/link the actual game, all 16
+isolated header targets and 50 GoogleTest/CTest cases each (17 new lifetime cases).
+New tests link the production world, renderer and power-up translation units.
+Real player/alien/laser/mode classes exercise collision scoring, immediate removal
+queries, wave creation, pending teardown, and scene ticks/restart using the real
+RndInput implementation. Instrumented test objects/modes/inputs separately count
+updates and exactly-once destruction; those counters are fixture evidence rather
+than real gameplay. The 17 lifetime cases also pass MSVC AddressSanitizer.
+The existing CI native job builds/discovers them through CTest without a new job.
+
+Limits: no full interactive playthrough, allocation-failure injection, leak-profiler
+capture or performance benchmark was performed. AddressSanitizer is a local memory
+access check, not a Windows leak detector or a new CI job. No external SDK adapters,
+manifests or asset fixtures are required by this legacy ownership slice. No known
+in-scope A07 acceptance gap remains. Timing (A08), game-over/contact rules (A09),
+full laser budgets/collision effects (A10), buffs/drop balancing (A11), and existing
+legacy warnings (O04) remain explicitly planned. Clearing releases entities but
+does not reset gameplay slot policy; A10 owns that reset/reconciliation contract.
 
 **A08 - Separar tempo simulado de pacing legado.** Depende: A07.
 Arquivos (5): `VSync.h`, `SpaceRaiders.cpp`, `GameMode.h`,
@@ -128,10 +164,11 @@ congelamento da cena final e prioridade das condições de término/novas ondas.
 Aceite: nenhum modo repovoa uma partida encerrada; posição final permanece visível.
 
 **A10 - Corrigir colisões e orçamento de lasers.** Depende: A09.
-Arquivos (6): `PlayerLaser.h`, `PlayerDiagonalLaser.h`, `AlienLaser.h`,
-`PlayField.h`, `BlockWall.h`, `tests/game/legacy_rules_tests.cpp`.
+Arquivos (7): `PlayerLaser.h`, `PlayerDiagonalLaser.h`, `AlienLaser.h`,
+`PlayField.h`, `PlayField.cpp`, `BlockWall.h`, `tests/game/legacy_rules_tests.cpp`.
 Entrega: slots coerentes para tiro triplo, laser contra laser, uma resolução por
-contato e deslocamento de parede sem recursão. Aceite: slots retornam ao despawn,
+contato e deslocamento de parede sem recursão; reset/reconciliação de slots ao
+limpar/reiniciar o mundo. Aceite: slots retornam ao despawn,
 uma colisão não duplica score/efeito, parede sobreposta não trava a atualização.
 
 **A11 - Corrigir evolução e buffs temporários.** Depende: A10.
