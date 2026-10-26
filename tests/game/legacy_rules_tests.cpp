@@ -11,6 +11,8 @@
 #include <vector>
 #include <limits>
 #include <type_traits>
+#include <cmath>
+#include <tuple>
 
 #include <gtest/gtest.h>
 
@@ -984,5 +986,500 @@ TEST_F(ProjectileScene, FireBoostSaturatesCapacityWithoutIntegerOverflow)
     player->UpdateFireDelay(0.5f, world);
     EXPECT_EQ(world.GetPlayerLaserCapacity(), maximum);
     EXPECT_EQ(world.PlayerLasers, maximum);
+}
+} // namespace
+
+namespace
+{
+class ScriptedRandom : public RandomSource
+{
+  public:
+    float fallback = 0.5f;
+    std::vector<float> samples;
+    std::size_t cursor = 0;
+    std::size_t calls = 0;
+
+    void Set(std::initializer_list<float> values)
+    {
+        samples = values;
+        cursor = 0;
+    }
+
+    float Unit() override
+    {
+        ++calls;
+        return cursor < samples.size() ? samples[cursor++] : fallback;
+    }
+};
+
+class EvolutionScene : public ProjectileScene
+{
+  protected:
+    void SetUp() override
+    {
+        ProjectileScene::SetUp();
+        world.SetAlienLaserCapacity(0);
+        alien = new Alien(random);
+        alien->pos = Vector2D(10, 1);
+        world.AddObject(alien);
+        world.ProcessQueues();
+    }
+
+    void TearDown() override
+    {
+        world.RemoveAllObjects(); // Destroy consumers before the injected source.
+    }
+
+    void Energize()
+    {
+        // Energy rises by 0.005 per tick; 0.5 rejects every evolution roll.
+        for (int tick = 0; tick < 500; ++tick)
+        {
+            alien->Update(world);
+        }
+    }
+
+    ScriptedRandom random;
+    GameObjPtr alien = nullptr;
+};
+
+TEST_F(EvolutionScene, EnergyIsRequiredEvenWhenAnEvolutionRollWouldSucceed)
+{
+    random.fallback = 0.f;
+    for (int tick = 0; tick < 500; ++tick)
+    {
+        alien->Update(world);
+    }
+
+    EXPECT_EQ(alien->sprite, RS_Alien);
+    EXPECT_EQ(random.calls, 500u); // No chance roll before sufficient energy.
+}
+
+TEST_F(EvolutionScene, SufficientEnergyStillRequiresAStrictChanceRoll)
+{
+    Energize();
+    ASSERT_EQ(alien->sprite, RS_Alien);
+    random.Set({0.f, Alien::EvolutionChancePerTick});
+    alien->Update(world);
+    EXPECT_EQ(alien->sprite, RS_Alien);
+    random.Set({0.f, std::nextafter(Alien::EvolutionChancePerTick, 0.f)});
+    alien->Update(world);
+    EXPECT_EQ(alien->sprite, RS_BetterAlien);
+    const auto calls = random.calls;
+    alien->Update(world);
+    EXPECT_EQ(random.calls, calls); // No re-evolution or fire roll with zero slots.
+}
+
+TEST_F(EvolutionScene, CrossingTheEnergyThresholdEnablesTheFirstChanceRoll)
+{
+    random.fallback = 0.9999f;
+    for (int tick = 0; tick < 200; ++tick)
+    {
+        alien->Update(world);
+    }
+
+    ASSERT_EQ(alien->sprite, RS_Alien);
+    ASSERT_EQ(random.calls, 200u);
+    random.Set({0.5f, 0.f}); // Cross energy 2, then pass the independent roll.
+    alien->Update(world);
+    EXPECT_EQ(alien->sprite, RS_BetterAlien);
+    EXPECT_EQ(random.calls, 202u);
+}
+
+class EvolutionFiring : public EvolutionScene,
+                        public testing::WithParamInterface<std::tuple<bool, float, bool>>
+{
+};
+
+TEST_P(EvolutionFiring, NormalAndBetterAliensUseTheirOwnProbabilityBoundary)
+{
+    const auto [better, sample, fires] = GetParam();
+    if (better)
+    {
+        Energize();
+        random.Set({0.f, 0.f});
+        alien->Update(world);
+        ASSERT_EQ(alien->sprite, RS_BetterAlien);
+        random.Set({sample});
+    }
+    else
+    {
+        random.Set({0.f, sample});
+    }
+
+    world.SetAlienLaserCapacity(1);
+    alien->Update(world);
+    world.ProcessQueues();
+    EXPECT_EQ(world.AlienLaserCount(), fires ? 1 : 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Thresholds, EvolutionFiring,
+    testing::Values(std::tuple{false, 0.f, true}, std::tuple{false, 0.499f, true},
+                    std::tuple{false, 0.5f, false}, std::tuple{true, 0.5f, true},
+                    std::tuple{true, 0.749f, true}, std::tuple{true, 0.75f, false}));
+
+TEST_F(EvolutionScene, ActualLaserKillCreatesTheSelectedDropAndScoresOnce)
+{
+    random.Set({0.f, 0.01f});
+    auto shot = new PlayerLaser;
+    shot->pos = alien->pos;
+    world.SpawnLaser(shot);
+    world.ProcessQueues();
+    shot->Update(world);
+    world.ProcessQueues();
+    EXPECT_FALSE(world.HasAliens());
+    EXPECT_EQ(world.GetGameMode()->GetScore(), 10);
+    EXPECT_EQ(std::ranges::count_if(world.GameObjects(),
+                                    [](auto object)
+                                    {
+                                        return dynamic_cast<SpeedBoost*>(object) != nullptr;
+                                    }),
+              1);
+}
+
+enum class DropKind
+{
+    None,
+    Speed,
+    Fire,
+    Triple
+};
+
+class DropSelection : public testing::TestWithParam<std::tuple<float, float, DropKind>>
+{
+};
+
+TEST_P(DropSelection, ExplicitWeightsAndDropChanceUseHalfOpenIntervals)
+{
+    const auto [dropSample, choiceSample, expected] = GetParam();
+    ScriptedRandom random;
+    random.Set({dropSample, choiceSample});
+    std::unique_ptr<PowerUp> drop(PowerUp::CreateDrop(random));
+    if (expected == DropKind::None)
+    {
+        EXPECT_EQ(drop, nullptr);
+        EXPECT_EQ(random.calls, 1u);
+        return;
+    }
+
+    ASSERT_NE(drop, nullptr);
+    EXPECT_EQ(random.calls, 2u);
+    EXPECT_EQ(dynamic_cast<SpeedBoost*>(drop.get()) != nullptr, expected == DropKind::Speed);
+    EXPECT_EQ(dynamic_cast<FireBoost*>(drop.get()) != nullptr, expected == DropKind::Fire);
+    EXPECT_EQ(dynamic_cast<TripleFire*>(drop.get()) != nullptr, expected == DropKind::Triple);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Boundaries, DropSelection,
+    testing::Values(std::tuple{0.1f, 0.f, DropKind::None}, std::tuple{0.999f, 0.f, DropKind::None},
+                    std::tuple{0.f, 0.f, DropKind::Speed},
+                    std::tuple{0.099f, std::nextafter(0.03f, 0.f), DropKind::Speed},
+                    std::tuple{0.f, 0.03f, DropKind::Fire},
+                    std::tuple{0.f, std::nextafter(0.06f, 0.f), DropKind::Fire},
+                    std::tuple{0.f, 0.06f, DropKind::Triple},
+                    std::tuple{0.f, 0.999f, DropKind::Triple}));
+
+class TemporaryBuffs : public ProjectileScene
+{
+  protected:
+    static constexpr int TicksBeforeExpiry =
+        static_cast<int>((PlayerShip::BuffDuration.count() - 1) / VSync::SimulationStep.count());
+
+    PlayerShip& Player()
+    {
+        return *dynamic_cast<PlayerShip*>(world.GetPlayerObject());
+    }
+
+    void Advance(int ticks)
+    {
+        for (int tick = 0; tick < ticks; ++tick)
+        {
+            Player().Update(world);
+            world.ProcessQueues();
+        }
+    }
+
+    float MoveOnce()
+    {
+        Player().pos.x = 40.f;
+        controls->right = true;
+        Player().Update(world);
+        controls->right = false;
+        return Player().pos.x - 40.f;
+    }
+
+    int FireAndClear()
+    {
+        controls->fire = true;
+        for (int tick = 0; tick < 100 && PlayerShots() == 0; ++tick)
+        {
+            Advance(1);
+        }
+
+        controls->fire = false;
+        const int count = PlayerShots();
+        for (auto object : world.GameObjects())
+        {
+            if (dynamic_cast<PlayerLaser*>(object))
+            {
+                world.RemoveObject(object);
+            }
+        }
+
+        world.ProcessQueues();
+        return count;
+    }
+};
+
+TEST_F(TemporaryBuffs, SpeedExpiresAtTheFirstFixedTickAfterItsDuration)
+{
+    Player().UpdateMovementSpeed(PlayerShip::SpeedBoostMultiplier);
+    Advance(TicksBeforeExpiry - 1);
+    EXPECT_NEAR(MoveOnce(), 6.f * VSync::DeltaTime(), 0.00001f);
+    EXPECT_NEAR(MoveOnce(), 4.f * VSync::DeltaTime(), 0.00001f);
+}
+
+TEST_F(TemporaryBuffs, RepeatedSpeedPickupRefreshesWithoutStacking)
+{
+    SpeedBoost* raw = new SpeedBoost;
+    std::unique_ptr<PowerUp> pickup(raw);
+    ASSERT_TRUE(pickup->ApplyPowerUp(&Player(), world));
+    Advance(200);
+    ASSERT_TRUE(pickup->ApplyPowerUp(&Player(), world));
+    Advance(200);
+    EXPECT_NEAR(MoveOnce(), 6.f * VSync::DeltaTime(), 0.00001f);
+    Advance(TicksBeforeExpiry - 201);
+    EXPECT_NEAR(MoveOnce(), 4.f * VSync::DeltaTime(), 0.00001f);
+}
+
+TEST_F(TemporaryBuffs, FireRenewalDoesNotAddSlotsAndExpiryKeepsInflightShots)
+{
+    Player().UpdateFireDelay(PlayerShip::FireBoostMultiplier, world);
+    Advance(200);
+    Player().UpdateFireDelay(PlayerShip::FireBoostMultiplier, world);
+    EXPECT_EQ(world.GetPlayerLaserCapacity(), 7);
+    Advance(TicksBeforeExpiry);
+    for (int shot = 0; shot < 7; ++shot)
+    {
+        world.SpawnLaser(new PlayerLaser);
+    }
+
+    world.ProcessQueues();
+    Advance(1);
+    EXPECT_EQ(world.GetPlayerLaserCapacity(), 5);
+    EXPECT_EQ(PlayerShots(), 7);
+    EXPECT_EQ(world.PlayerLasers, 0);
+    EXPECT_FALSE(world.SpawnLaser(new PlayerLaser));
+    world.RemoveAllObjects();
+    EXPECT_EQ(world.GetPlayerLaserCapacity(), 5);
+    EXPECT_EQ(world.PlayerLasers, 5);
+}
+
+TEST_F(TemporaryBuffs, TripleFireExpiresAndCanBeActivatedAgain)
+{
+    Player().StartTripleLaser();
+    Advance(30);
+    EXPECT_EQ(FireAndClear(), 3);
+    Advance(TicksBeforeExpiry + 1);
+    EXPECT_EQ(FireAndClear(), 1);
+    Player().StartTripleLaser();
+    EXPECT_EQ(FireAndClear(), 3);
+}
+
+TEST_F(TemporaryBuffs, IndependentlyRenewedBuffDoesNotExtendOtherBuffs)
+{
+    Player().StartTripleLaser();
+    Player().UpdateFireDelay(PlayerShip::FireBoostMultiplier, world);
+    Advance(200);
+    Player().StartTripleLaser();
+    Advance(TicksBeforeExpiry + 1 - 200);
+    EXPECT_EQ(world.GetPlayerLaserCapacity(), 5);
+    EXPECT_EQ(FireAndClear(), 3);
+}
+
+TEST_F(TemporaryBuffs, CheckedPickupRejectsNullWrongTypeAndForeignPlayer)
+{
+    std::unique_ptr<PowerUp> pickup(new SpeedBoost);
+    PlayerShip foreign;
+    Explosion wrongType;
+    EXPECT_FALSE(pickup->ApplyPowerUp(nullptr, world));
+    EXPECT_FALSE(pickup->ApplyPowerUp(&wrongType, world));
+    EXPECT_FALSE(pickup->ApplyPowerUp(&foreign, world));
+    EXPECT_NEAR(MoveOnce(), 4.f * VSync::DeltaTime(), 0.00001f);
+}
+
+TEST_F(TemporaryBuffs, FallingPickupAppliesThroughTheActualWorldAndIsRemoved)
+{
+    auto pickup = new FireBoost;
+    pickup->pos = Player().pos;
+    world.AddObject(pickup);
+    world.ProcessQueues();
+    world.Update();
+    world.ProcessQueues();
+    EXPECT_EQ(world.GetPlayerLaserCapacity(), 7);
+    EXPECT_EQ(std::ranges::count_if(world.GameObjects(),
+                                    [](auto object)
+                                    {
+                                        return dynamic_cast<PowerUp*>(object) != nullptr;
+                                    }),
+              0);
+}
+
+class PickupApplication : public TemporaryBuffs, public testing::WithParamInterface<DropKind>
+{
+};
+
+TEST_P(PickupApplication, FallingSpeedAndTriplePickupsUseCheckedNativeApplication)
+{
+    PowerUp* pickup = GetParam() == DropKind::Speed ? static_cast<PowerUp*>(new SpeedBoost)
+                                                    : static_cast<PowerUp*>(new TripleFire);
+    pickup->pos = Player().pos;
+    world.AddObject(pickup);
+    world.ProcessQueues();
+    world.Update();
+    world.ProcessQueues();
+    EXPECT_EQ(std::ranges::count_if(world.GameObjects(),
+                                    [](auto object)
+                                    {
+                                        return dynamic_cast<PowerUp*>(object) != nullptr;
+                                    }),
+              0);
+
+    if (GetParam() == DropKind::Speed)
+    {
+        EXPECT_NEAR(MoveOnce(), 6.f * VSync::DeltaTime(), 0.00001f);
+    }
+    else
+    {
+        EXPECT_EQ(FireAndClear(), 3);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(ActualPickups, PickupApplication,
+                         testing::Values(DropKind::Speed, DropKind::Triple));
+
+TEST_F(TemporaryBuffs, SaturatedFireCapacityRestoresOnlySlotsActuallyGranted)
+{
+    const int maximum = (std::numeric_limits<int>::max)();
+    for (int baseline : {maximum - 1, maximum})
+    {
+        world.SetPlayerLaserCapacity(baseline);
+        Player().UpdateFireDelay(PlayerShip::FireBoostMultiplier, world);
+        EXPECT_EQ(world.GetPlayerLaserCapacity(), maximum);
+        Advance(TicksBeforeExpiry + 1);
+        EXPECT_EQ(world.GetPlayerLaserCapacity(), baseline);
+    }
+}
+
+TEST_F(TemporaryBuffs, InvalidMultipliersDoNotActivateBuffs)
+{
+    for (float value : {0.f, -1.f, 1.f, std::numeric_limits<float>::quiet_NaN()})
+    {
+        Player().UpdateMovementSpeed(value);
+        Player().UpdateFireDelay(value, world);
+    }
+
+    EXPECT_EQ(world.GetPlayerLaserCapacity(), 5);
+    EXPECT_NEAR(MoveOnce(), 4.f * VSync::DeltaTime(), 0.00001f);
+}
+
+TEST_F(TemporaryBuffs, ActualFiringCadenceReturnsToBaselineAfterExpiry)
+{
+    const auto nextVolley = [this]()
+    {
+        controls->fire = true;
+        for (int ticks = 1; ticks <= 100; ++ticks)
+        {
+            Advance(1);
+            if (PlayerShots() == 0)
+            {
+                continue;
+            }
+
+            for (auto object : world.GameObjects())
+            {
+                if (dynamic_cast<PlayerLaser*>(object))
+                {
+                    world.RemoveObject(object);
+                }
+            }
+
+            world.ProcessQueues();
+            controls->fire = false;
+            return ticks;
+        }
+
+        ADD_FAILURE() << "No volley within 100 fixed ticks";
+        controls->fire = false;
+        return 100;
+    };
+
+    const int baseline = nextVolley();
+    Player().UpdateFireDelay(PlayerShip::FireBoostMultiplier, world);
+    EXPECT_LT(nextVolley(), baseline);
+    Advance(TicksBeforeExpiry + 1);
+    nextVolley(); // Start a fresh unboosted cooldown after an idle interval.
+    EXPECT_EQ(nextVolley(), baseline);
+}
+
+TEST_F(ProjectileScene, RandomInputSamplesEachActionOnlyOncePerTick)
+{
+    ScriptedRandom random;
+    random.Set({0.f, 0.9f, 0.9f});
+    world.controllerInput = std::make_unique<RndInput>(random);
+    world.GetPlayerObject()->pos.x = 40.f;
+    world.GetPlayerObject()->Update(world);
+    EXPECT_EQ(random.calls, 3u);
+    EXPECT_NEAR(world.GetPlayerObject()->pos.x, 40.f - 4.f * VSync::DeltaTime(), 0.00001f);
+    world.controllerInput.reset();
+}
+
+std::string ReplayLegacyGame(unsigned int seed)
+{
+    rGen.seed(seed);
+    Vector2D bounds(80, 28);
+    PlayField world(bounds);
+    auto input = std::make_unique<ControlledInput>();
+    auto controls = input.get();
+    world.controllerInput = std::move(input);
+    world.SetGameMode(new UntilPlayerDeath);
+    world.AddPlayer(bounds);
+    // A small real scene keeps Debug/ASan replay below the per-case timeout.
+    for (int count = 0; count < 3; ++count)
+    {
+        auto alien = new Alien;
+        alien->pos = Vector2D(floatRand(5.f, 70.f)(rGen), 1.f);
+        world.AddObject(alien);
+    }
+
+    world.SetAlienLaserCapacity(3);
+    world.ProcessQueues();
+    std::ostringstream events;
+    for (int tick = 0; tick < 800 && !world.GetGameMode()->GameOver(); ++tick)
+    {
+        controls->left = tick % 120 < 60;
+        controls->right = !controls->left;
+        controls->fire = true;
+        world.Update();
+        world.ProcessQueues();
+        events << tick << ':' << world.GetGameMode()->GetScore() << ':' << world.PlayerLasers << ':'
+               << world.AlienLasers << '\n';
+        for (auto object : world.GameObjects())
+        {
+            events << object->m_objType << ':' << object->pos.x << ':' << object->pos.y << ':'
+                   << static_cast<int>(object->sprite) << '\n';
+        }
+    }
+
+    events << rGen;
+    return events.str();
+}
+
+TEST(LegacyReplay, SameSeedAndInputsReproduceActualWorldEventsWithinThisBuild)
+{
+    const auto first = ReplayLegacyGame(1);
+    EXPECT_EQ(first, ReplayLegacyGame(1));
+    EXPECT_NE(first, ReplayLegacyGame(2));
 }
 } // namespace

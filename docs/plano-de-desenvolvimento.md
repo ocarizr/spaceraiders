@@ -1,8 +1,10 @@
 # Space Raiders: macro development roadmap
 
-Updated: 2026-10-26. Merged progress checked against master `a2908c8` (#32).
+Updated: 2026-10-26. Merged progress checked against master `8b9266c` (#33).
 The original source/PDF inspection used `9d87fe4`; its legacy findings remain
 historical context. A01-A10, Q01-Q02/Q05-Q07, T01-T06 and Y01-Y06 are merged.
+A11 is implemented/validated locally, pending review/merge; the A stabilization
+tree is complete locally and B01 engine extraction is now available.
 The [delivery audit](audits/2026-10-26-delivery-completeness.md) reopens Y05's unmet
 last-good acceptance. Merged history is not proof of a completed product workflow.
 Production setup/profile coverage remains partial; shared UI/localization, jobs,
@@ -18,7 +20,7 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 
 | Project | Authoritative plan | Owned tasks | Delivery state |
 | --- | --- | --- | --- |
-| C++20 engine, renderer, physics, native UI and preview host | [Engine](plans/engine.md) | A, B, C, D, E, H01-H07/H13 and J07 | A01-A10 baseline merged; extraction and metadata/events planned |
+| C++20 engine, renderer, physics, native UI and preview host | [Engine](plans/engine.md) | A, B, C, D, E, H01-H07/H13 and J07 | A01-A10 merged, A11 locally validated; B01 available; runtime extensions planned |
 | LuaJIT runtime, bindings, VS Code and debugger | [Scripting](plans/scripting.md) | G | Planned |
 | Assets/bundles, pipeline, build, CI and Designer SDK | [Asset pipeline](plans/asset-pipeline.md) | F01-F10, I, O, P, Q, R and X | Q01/Q02/Q05-Q07 merged; production package adoption remains Q08-Q12 |
 | Shared C# UI/resource packages, tooling platform and UI editor | [UI editor](plans/ui-editor.md) | J except J07, and K01-K07 | Planned; J09-J16 cover shared visual/resource foundation |
@@ -377,8 +379,8 @@ the detailed source/PDF diagnosis and legacy stabilization tasks.
 
 Merged foundations include the legacy reference, source/IDE hygiene, C++20 presets,
 native tests/CI, build decision/environment policies and native/managed telemetry.
-The [task diagram](task-dependencies.md) records twenty-seven merged task IDs and
-their PRs, with twenty-six accepted completions after reopening Y05. The pytest
+The [task diagram](task-dependencies.md) records twenty-six accepted merged tasks
+plus locally validated A11; the separate merged Y05 remains reopened. The pytest
 maintenance PR (#14) is not another task. Q05-Q07's package foundations are merged;
 they are not yet all integrated into the setup GUI.
 
@@ -386,7 +388,7 @@ The [diagram's green frontier](task-dependencies.md#available-now) lists the cur
 ready choices. Y07 now waits for real current-profile acceptance, rather than
 being green while those profiles are unbound. Y15 is the first last-good repair
 contract; Q08, Q11/Q12, T16/T19, Y17/Y18, J09 and F11 are independent audit closure
-options. Native discovery Y08 and A11/U01/V01/Z01 remain selectable.
+options. Native discovery Y08 and B01/U01/V01/Z01 remain selectable.
 Choose one ready task with the maintainer; never execute adjacent work automatically.
 Use branches named `<TASK_ID>_<short_description>`. Completion must update the task
 diagram and newly unlocked green nodes as part of the same reviewed delivery.

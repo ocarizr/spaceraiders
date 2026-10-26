@@ -1,18 +1,19 @@
 # Task dependency diagram
 
-Updated: 2026-10-26. Merged baseline: master `a2908c8` (PR #32).
-The approved runtime design adds pending tasks; no runtime implementation is claimed. Y05 acceptance remains reopened.
+Updated: 2026-10-26. Merged baseline: master `8b9266c` (PR #33).
+A11 is locally validated, pending review/merge; all A tasks are complete locally.
+Future runtime work remains planned. Y05 acceptance remains reopened.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md) | [Runtime design](runtime-design.md)
 
-**318 tasks · 767 prerequisite edges · 26 completed · 15 ready · 277 waiting.**
+**318 tasks · 767 prerequisite edges · 27 completed · 15 ready · 276 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
 task at a time. **Y05 is reopened**: its last-good requirement is not implemented.
 Y07 now waits for Y19 real native/.NET/Python acceptance, including transactional
 repair. Merged library/contract tasks do not certify a complete product capability.
-A10 unlocks A11; its task-level audit is in the [engine plan](plans/engine.md).
+A11 unlocks B01; its task-level audit is in the [engine plan](plans/engine.md).
 See the [delivery audit](audits/2026-10-26-delivery-completeness.md).
 
 The graphs are split by task family so GitHub can render and readers can inspect
@@ -26,7 +27,7 @@ additional ordering. Original task titles retain the approved planning language.
 
 ```mermaid
 flowchart TD
-    ready_A11["A11<br/>Corrigir evolução e buffs temporários"]:::ready
+    ready_B01["B01<br/>Criar o núcleo e mover o vetor"]:::ready
     ready_F11["F11<br/>Localization keys and catalog contract"]:::ready
     ready_J09["J09<br/>Shared desktop design and framework contract"]:::ready
     ready_Q08["Q08<br/>Production package identity and immutable version discipline"]:::ready
@@ -48,7 +49,7 @@ flowchart TD
 
 | Task | Authoritative plan | Prerequisites |
 | --- | --- | --- |
-| **A11** - Corrigir evolução e buffs temporários | [engine](plans/engine.md) | A10 |
+| **B01** - Criar o núcleo e mover o vetor | [engine](plans/engine.md) | A11 |
 | **F11** - Localization keys and catalog contract | [localization](plans/localization.md) | Q02 |
 | **J09** - Shared desktop design and framework contract | [ui-editor](plans/ui-editor.md) | Q02, Y04 |
 | **Q08** - Production package identity and immutable version discipline | [asset-pipeline](plans/asset-pipeline.md) | Q05, Y06 |
@@ -66,10 +67,11 @@ flowchart TD
 
 ## Delivery and acceptance evidence
 
-Completed IDs: A01, A02, A03, A04, A05, A06, A07, A08, A09, A10, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04, Y06.
+Completed IDs: A01, A02, A03, A04, A05, A06, A07, A08, A09, A10, A11, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04, Y06.
 
 The baseline is grounded in first-parent task merges on master. Twenty-six
-accepted implementation deliveries are merged; A10 is integrated in PR #32.
+accepted implementation deliveries are merged; A11 adds one locally validated
+delivery pending maintainer review/merge. A10 is integrated in PR #32.
 Y05 remains excluded from Completed IDs because its original
 last-good acceptance is unmet. The new Y16 dependency closes that requirement
 before Y05 is reaccepted. Preserve the merged PR record when reopening acceptance.
@@ -89,6 +91,7 @@ consumers. PR #14 is pytest maintenance rather than a task ID.
 | A08 | [#30](https://github.com/ocarizr/spaceraiders/pull/30) | `5a49e47` |
 | A09 | [#31](https://github.com/ocarizr/spaceraiders/pull/31) | `61df377` |
 | A10 | Actual game/header builds and 150 CTest cases in Debug/Release; 86 game and 17 lifetime cases also pass MSVC AddressSanitizer; merged in [#32](https://github.com/ocarizr/spaceraiders/pull/32) | `a2908c8` |
+| A11 | Actual game/16 header builds and 182 CTest cases pass in Debug/Release; 118 game and 17 lifetime cases pass MSVC AddressSanitizer; pending review/merge | `A11_evolution_and_temporary_buffs` |
 | Q02 | [#9](https://github.com/ocarizr/spaceraiders/pull/9) | `19d7baa` |
 | T01 | [#10](https://github.com/ocarizr/spaceraiders/pull/10) | `7b9430d` |
 | T02 | [#11](https://github.com/ocarizr/spaceraiders/pull/11) | `3d9bc3e` |
@@ -130,7 +133,7 @@ flowchart TD
     A08["A08<br/>Separar tempo simulado de pacing legado"]:::done
     A09["A09<br/>Corrigir alien/player e transições de fim de jogo"]:::done
     A10["A10<br/>Corrigir colisões e orçamento de lasers"]:::done
-    A11["A11<br/>Corrigir evolução e buffs temporários"]:::ready
+    A11["A11<br/>Corrigir evolução e buffs temporários"]:::done
     A01 --> A02
     A02 --> A03
     A01 --> A04
@@ -153,8 +156,8 @@ Plans: [engine](plans/engine.md).
 
 ```mermaid
 flowchart TD
-    ref_B_A11["A11<br/>prerequisite reference"]:::ready
-    B01["B01<br/>Criar o núcleo e mover o vetor"]:::pending
+    ref_B_A11["A11<br/>prerequisite reference"]:::done
+    B01["B01<br/>Criar o núcleo e mover o vetor"]:::ready
     B02["B02<br/>Definir serviços de plataforma e input"]:::pending
     B03["B03<br/>Extrair comandos de renderização"]:::pending
     B04["B04<br/>Isolar o backend de console"]:::pending
