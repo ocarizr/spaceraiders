@@ -19,15 +19,11 @@ void setCursorPosition(int x, int y)
 Renderer::Renderer(const Vector2D& bounds) : renderBounds(bounds)
 {
     canvasSize = static_cast<int>(bounds.x * bounds.y);
-    disp[0].canvas = new unsigned char[canvasSize];
-    disp[1].canvas = new unsigned char[canvasSize];
+    disp[0].canvas = std::make_unique<unsigned char[]>(canvasSize);
+    disp[1].canvas = std::make_unique<unsigned char[]>(canvasSize);
 }
 
-Renderer::~Renderer() noexcept
-{
-    delete[] disp[0].canvas;
-    delete[] disp[1].canvas;
-}
+Renderer::~Renderer() noexcept = default;
 
 void Renderer::Update(const RenderItemList& RenderList, const PlayField& world)
 {

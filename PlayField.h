@@ -1,9 +1,10 @@
 #ifndef PLAYFIELD_H
 #define PLAYFIELD_H
-#include <list>
-#include <deque>
 #include <atomic>
-#include <algorithm>
+#include <list>
+#include <memory>
+#include <ranges>
+#include <unordered_set>
 
 #include "GameObject.h"
 #include "Input.h"
@@ -13,136 +14,76 @@ class GameMode;
 
 class PlayField
 {
-private:
-    std::list<GameObjPtr> gameObjects;
+  private:
+    static constexpr int InitialAlienLaserSlots = 10;
+    static constexpr int InitialPlayerLaserSlots = 5;
+    static constexpr int AlienLaserSlotsPerAlien = 3;
 
-    std::deque<GameObjPtr> gameObjectsToAdd;
-    std::deque<GameObjPtr> gameObjectsToRemove;
+    std::list<std::unique_ptr<GameObject>> gameObjects;
+    std::list<std::unique_ptr<GameObject>> gameObjectsToAdd;
+    std::unordered_set<GameObjPtr> gameObjectsToRemove;
+    std::unique_ptr<GameMode> gameMode;
 
-    GameMode* gameMode = nullptr;
+    bool OwnsObject(GameObjPtr object) const;
 
-public:
-    Input* controllerInput = nullptr;
+  public:
+    std::unique_ptr<Input> controllerInput;
     Vector2D bounds;
     VSync vsync;
 
-    // Number of available active laser slots for aliens and player
-    // Atomic to don't be optimized by compiler
+    // Available laser slots; gameplay budgeting is refined by A10.
     std::atomic<int> AlienLasers;
     std::atomic<int> PlayerLasers;
 
-    explicit PlayField(const Vector2D& iBounds) : bounds(iBounds), AlienLasers(10), PlayerLasers(5) {}
-
+    explicit PlayField(const Vector2D& iBounds);
     ~PlayField();
+    PlayField(const PlayField&) = delete;
 
-    const std::list<GameObjPtr>& GameObjects() { return gameObjects; }
+    PlayField& operator=(const PlayField&) = delete;
+
+    PlayField(PlayField&&) = delete;
+
+    PlayField& operator=(PlayField&&) = delete;
+
+    // Borrowed objects remain alive until ProcessQueues/RemoveAllObjects.
+    // Pending removals disappear immediately from queries and collision traversal.
+    auto GameObjects() const
+    {
+        return gameObjects |
+               std::views::filter(
+                   [this](const auto& object)
+                   {
+                       return !gameObjectsToRemove.contains(object.get());
+                   }) |
+               std::views::transform(
+                   [](const auto& object)
+                   {
+                       return object.get();
+                   });
+    }
 
     void Update();
+    GameObjPtr GetPlayerObject();
+    bool HasPlayer();
+    bool HasAliens();
+    int AlienLaserCount();
+    int AlienCount();
+    void SpawnLaser(GameObjPtr newObj);
+    void DespawnLaser(GameObjPtr newObj);
 
-    GameObjPtr GetPlayerObject()
-    {
-        auto it = std::find_if(gameObjects.begin(), gameObjects.end(), [](GameObjPtr in) { return in->m_objType == "ot_PlayerShip"; });
-        if (it != gameObjects.end())
-            return (*it);
-        return nullptr;
-    }
+    // Transfers ownership on first registration; null/duplicate registrations
+    // are ignored. The caller must not delete or transfer an owned object elsewhere.
+    bool AddObject(GameObjPtr newObj);
+    bool RemoveObject(GameObjPtr object);
+    void RemoveAllObjects();
+    void ProcessQueues();
 
-    bool HasPlayer()
-    {
-        return GetPlayerObject() != nullptr;
-    }
-
-    bool HasAliens()
-    {
-        auto it = std::find_if(gameObjects.begin(), gameObjects.end(),
-                               [](const GameObjPtr in){ return in->m_objType == "ot_AlienShip"; });
-        return it != GameObjects().end();
-    }
-
-    int AlienLaserCount()
-    {
-        auto count = std::count_if(gameObjects.begin(), gameObjects.end(),
-                             [](const GameObjPtr in){ return in->m_objType == "ot_AlienLaser"; });
-        return static_cast<int>(count);
-    }
-
-    int AlienCount()
-    {
-        auto count = std::count_if(gameObjects.begin(), gameObjects.end(),
-                                   [](const GameObjPtr in){ return in->m_objType == "ot_AlienShip"; });
-        return static_cast<int>(count);
-    }
-
-    void SpawnLaser(GameObjPtr newObj)
-    {
-        if (newObj->m_objType == "ot_AlienLaser")
-            AlienLasers--;
-        else if (newObj->m_objType == "ot_PlayerLaser")
-            PlayerLasers--;
-        AddObject(newObj);
-    }
-
-    void DespawnLaser(GameObjPtr newObj)
-    {
-        if (newObj->m_objType == "ot_AlienLaser")
-        {
-            if(AlienLaserCount() < AlienCount() * 3)
-            {
-                AlienLasers++;
-            }
-        }
-        else if (newObj->m_objType == "ot_PlayerLaser")
-            PlayerLasers++;
-        RemoveObject(newObj);
-    }
-
-    void AddObject(GameObjPtr newObj)
-    {
-        gameObjectsToAdd.push_back(newObj);
-    }
-
-    void RemoveObject(GameObjPtr newObj)
-    {
-        gameObjectsToRemove.push_back(newObj);
-    }
-
-    void RemoveAllObjects()
-    {
-        for(auto& item : gameObjects)
-        {
-            delete item;
-        }
-        gameObjects.clear();
-    }
-
-    void ProcessQueues()
-    {
-        for (auto& item : gameObjectsToAdd)
-        {
-            gameObjects.push_back(item);
-        }
-        gameObjectsToAdd.clear();
-
-        for(auto& item : gameObjectsToRemove)
-        {
-            auto it = std::find_if(gameObjects.begin(), gameObjects.end(), [&](auto& go){return go == item;});
-            if(it != gameObjects.end())
-            {
-                delete *it;
-                gameObjects.erase(it);
-            }
-        }
-        gameObjectsToRemove.clear();
-    }
-
-    [[nodiscard]] GameMode* GetGameMode() const{ return gameMode; }
-
-    void SetGameMode(GameMode* value){ gameMode = value; }
+    [[nodiscard]] GameMode* GetGameMode() const;
+    // Transfers ownership, replacing the old mode. Passing the current mode is a no-op.
+    void SetGameMode(GameMode* value);
 
     void AddAlienWave(Vector2D& canvasSize);
-
     void AddBlockWalls(Vector2D& canvasSize);
-
     void AddPlayer(Vector2D& canvasSize);
 };
 

@@ -1,6 +1,7 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 #include <vector>
+#include <memory>
 #include "Vector2D.h"
 
 class PlayField;
@@ -37,6 +38,13 @@ class Renderer
   public:
     explicit Renderer(const Vector2D& bounds);
     ~Renderer() noexcept;
+    Renderer(const Renderer&) = delete;
+
+    Renderer& operator=(const Renderer&) = delete;
+
+    Renderer(Renderer&&) = delete;
+
+    Renderer& operator=(Renderer&&) = delete;
 
     // Draws all game objects after clearing filling the Canvas with _ symbol
     void Update(const RenderItemList& renderList, const PlayField& world);
@@ -47,7 +55,7 @@ class Renderer
 
     struct
     {
-        unsigned char* canvas = nullptr;
+        std::unique_ptr<unsigned char[]> canvas;
     } disp[2]; // double buffer our canvas for no flicker display
 
     int canvasSize = 0;
