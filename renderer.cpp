@@ -1,24 +1,27 @@
-#include <vector>
+#include "renderer.h"
+
+#include <windows.h>
 #include <iomanip>
 #include <iostream>
-#include "renderer.h"
+#include <sstream>
+
+#include "GameMode.h"
+#include "PlayField.h"
 
 void setCursorPosition(int x, int y)
 {
     static const HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     std::cout.flush();
-    COORD coord = { static_cast<SHORT>(x), static_cast<SHORT>(y) };
+    COORD coord = {static_cast<SHORT>(x), static_cast<SHORT>(y)};
     SetConsoleCursorPosition(hOut, coord);
 }
 
-Renderer::Renderer(const Vector2D& bounds)
-    : renderBounds(bounds)
+Renderer::Renderer(const Vector2D& bounds) : renderBounds(bounds)
 {
     canvasSize = static_cast<int>(bounds.x * bounds.y);
     disp[0].canvas = new unsigned char[canvasSize];
     disp[1].canvas = new unsigned char[canvasSize];
 }
-
 
 Renderer::~Renderer() noexcept
 {
@@ -36,7 +39,8 @@ void Renderer::Update(const RenderItemList& RenderList, const PlayField& world)
         int x = int(ri.pos.x);
         int y = int(ri.pos.y);
 
-        if (x >= 0 && x < static_cast<int>(renderBounds.x) && y >= 0 && y < static_cast<int>(renderBounds.y))
+        if (x >= 0 && x < static_cast<int>(renderBounds.x) && y >= 0 &&
+            y < static_cast<int>(renderBounds.y))
         {
             *CurCanvas(x, y) = ri.sprite;
         }
@@ -49,7 +53,7 @@ void Renderer::FillCanvas(unsigned char sprite) noexcept
 {
     for (int i = 0; i < canvasSize; i++)
     {
-        *CurCanvas(i,0) = sprite;
+        *CurCanvas(i, 0) = sprite;
     }
 }
 
@@ -58,25 +62,32 @@ void Renderer::DrawCanvas(const PlayField& world)
     std::stringstream canvas;
     auto gameMode = world.GetGameMode();
 
-    if(world.GetGameMode() && !world.GetGameMode()->GameOver())
+    if (world.GetGameMode() && !world.GetGameMode()->GameOver())
     {
         {
             auto ta = dynamic_cast<TimeAttack*>(gameMode);
             if (ta)
+            {
                 canvas << "Time: " << std::setw(2) << std::setfill('0') << ta->GetTimer() << '\t';
+            }
         }
 
         if (gameMode)
+        {
             canvas << "Score: " << gameMode->GetScore() << '\n';
+        }
     }
+
     for (int y = 0; y < static_cast<int>(renderBounds.y); ++y)
     {
         for (int x = 0; x < static_cast<int>(renderBounds.x); ++x)
         {
-            canvas << *CurCanvas(x,y);
+            canvas << *CurCanvas(x, y);
         }
+
         canvas << '\n';
     }
+
     setCursorPosition(0, 0);
     std::cout << canvas.str();
     curIdx++;

@@ -1,4 +1,8 @@
+#include "PlayField.h"
+
 #include "Alien.h"
+#include "GameMode.h"
+#include "Input.h"
 #include "PlayerShip.h"
 #include "BlockWall.h"
 
@@ -15,6 +19,7 @@ void PlayField::Update()
     {
         item->Update(*this);
     }
+
     gameMode->Update(*this);
 }
 
@@ -24,8 +29,10 @@ void PlayField::AddAlienWave(Vector2D& canvasSize)
     intRand yCoord(0, 10);
 
     int amount;
-    if(dynamic_cast<DestroyAllAliens*>(gameMode))
+    if (dynamic_cast<DestroyAllAliens*>(gameMode))
+    {
         amount = 50;
+    }
     else
     {
         intRand amountOfAliens(15, 30);
@@ -39,6 +46,7 @@ void PlayField::AddAlienWave(Vector2D& canvasSize)
         a->pos.y = static_cast<float>(yCoord(rGen));
         AddObject(a);
     }
+
     AlienLasers = amount;
 
     AddBlockWalls(canvasSize);
@@ -52,7 +60,7 @@ void PlayField::AddBlockWalls(Vector2D& canvasSize)
     intRand amountOfWalls(5, 15);
     auto amount = amountOfWalls(rGen);
 
-    for(int i = 0; i < amount; ++i)
+    for (int i = 0; i < amount; ++i)
     {
         auto b = new BlockWall;
         b->pos.x = static_cast<float>(xCoord(rGen));

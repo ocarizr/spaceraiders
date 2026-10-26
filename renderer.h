@@ -1,16 +1,20 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 #include <vector>
-#include <sstream>
 #include "Vector2D.h"
-#include "GameMode.h"
+
+class PlayField;
 
 struct RenderItem
 {
-    RenderItem(const Vector2D& iPos, unsigned char iSprite) : pos(iPos), sprite(iSprite) {}
+    RenderItem(const Vector2D& iPos, unsigned char iSprite) : pos(iPos), sprite(iSprite)
+    {
+    }
+
     Vector2D pos;
     unsigned char sprite;
 };
+
 typedef std::vector<RenderItem> RenderItemList;
 
 enum RaiderSprites
@@ -30,22 +34,28 @@ enum RaiderSprites
 
 class Renderer
 {
-public:
+  public:
     explicit Renderer(const Vector2D& bounds);
     ~Renderer() noexcept;
 
     // Draws all game objects after clearing filling the Canvas with _ symbol
     void Update(const RenderItemList& renderList, const PlayField& world);
 
-private:
+  private:
     Vector2D renderBounds;
     int curIdx = 0;
+
     struct
     {
         unsigned char* canvas = nullptr;
     } disp[2]; // double buffer our canvas for no flicker display
+
     int canvasSize = 0;
-    unsigned char* CurCanvas(int x, int y) { return &disp[curIdx % 2].canvas[x + static_cast<int>(renderBounds.x) * y];  }
+
+    unsigned char* CurCanvas(int x, int y)
+    {
+        return &disp[curIdx % 2].canvas[x + static_cast<int>(renderBounds.x) * y];
+    }
 
     // Fills whole canvas array with sprite
     void FillCanvas(unsigned char sprite) noexcept;
