@@ -109,6 +109,10 @@ public sealed class SetupWindow : Form
     private readonly Button cancel =
         new() { Name = "Cancel", Text = "&Cancel", AutoSize = true, MinimumSize = new Size(100, 38),
                 AccessibleName = "Cancel current operation" };
+    private readonly Button reconcile =
+        new() { Name = "Reconcile", Text = "Recheck installer action", AutoSize = true,
+                MinimumSize = new Size(180, 38),
+                AccessibleName = "Confirm and recheck pending installer actions" };
     private SetupAction[] rows = [];
     private bool closing;
 
@@ -183,6 +187,7 @@ public sealed class SetupWindow : Form
         buttons.Controls.Add(cancel);
         buttons.Controls.Add(prepare);
         buttons.Controls.Add(scan);
+        buttons.Controls.Add(reconcile);
         footer.Controls.Add(buttons, 0, 1);
         root.Controls.Add(footer, 0, 3);
         Controls.Add(root);
@@ -210,6 +215,20 @@ public sealed class SetupWindow : Form
         };
 
         cancel.Click += (_, _) => model.Cancel();
+
+        reconcile.Click += async (_, _) =>
+        {
+            var answer = MessageBox.Show(
+                this,
+                "Have you completed the required Windows restart or privilege action? " +
+                    "Confirm to recheck the selected components. This does not grant privileges " +
+                    "or run an installer; unresolved checks will remain visible.",
+                "Recheck installer action", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (answer == DialogResult.Yes)
+            {
+                await model.ReconcileAsync();
+            }
+        };
 
         model.Changed += OnChanged;
         FormClosing += (_, args) =>
@@ -263,6 +282,7 @@ public sealed class SetupWindow : Form
 
     private void RefreshState()
     {
+        reconcile.Enabled = model.CanReconcile;
         profiles.Enabled = !model.IsBusy;
         scan.Enabled = model.CanScan;
         prepare.Enabled = model.CanPrepare;

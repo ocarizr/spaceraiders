@@ -30,7 +30,8 @@ public sealed class ArtifactAcquisition
     }
 
     public async Task<VerifiedArtifact> AcquireAsync(SetupArtifact artifact,
-                                                     CancellationToken cancellationToken = default)
+                                                     CancellationToken cancellationToken = default,
+                                                     bool repairCorruptCache = false)
     {
         Validate(artifact);
         cancellationToken.ThrowIfCancellationRequested();
@@ -39,6 +40,7 @@ public sealed class ArtifactAcquisition
         Directory.CreateDirectory(directory);
         var destination = Path.Combine(directory, artifact.FileName);
         RejectLinks(destination);
+        var replaceCorrupt = false;
         try
         {
             await VerifyAsync(destination, artifact, cancellationToken);
@@ -47,6 +49,10 @@ public sealed class ArtifactAcquisition
         catch (FileNotFoundException)
         {
             // Only conclusive absence permits acquisition. Corrupt cache entries are rejected.
+        }
+        catch (ArtifactIntegrityException) when (repairCorruptCache)
+        {
+            replaceCorrupt = true;
         }
 
         var temporary = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".partial");
@@ -84,7 +90,8 @@ public sealed class ArtifactAcquisition
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                File.Move(temporary, destination, overwrite: false);
+                RejectLinks(destination);
+                File.Move(temporary, destination, overwrite: replaceCorrupt);
             }
             catch (IOException) when (File.Exists(destination))
             {
@@ -143,7 +150,7 @@ public sealed class ArtifactAcquisition
         }
     }
 
-    private static void RejectLinks(string path)
+    internal static void RejectLinks(string path)
     {
         for (string? current = path; current is not null; current = Path.GetDirectoryName(current))
         {

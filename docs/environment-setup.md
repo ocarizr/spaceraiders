@@ -273,11 +273,10 @@ by a reviewed adapter rather than guessed as success.
 
 Restart/privilege outcomes remain `Needs repair` in the Y01 health report, even
 when a tool version probe succeeds. They block dependent installation and repeated
-runs on the same runner. This is in-memory session state. Durable interruption
-receipts, restart reconciliation, retry policy and last-good replacement are Y05;
-the runner does not claim rollback of arbitrary installer side effects. A fresh
-host session must use probes that report outstanding OS/installer actions rather
-than interpreting an old Ready report as proof.
+runs on the same runner. Y03 supplied in-memory session state; the production
+backend now opts into Y05's durable repair and explicit action reconciliation
+described below. Neither mode interprets an old Ready report as proof or claims
+rollback of arbitrary third-party installer side effects.
 
 The existing Q07 CPython locks supply approved native bootstrap URL/hash/arguments
 for a Python interpreter recipe. A host can register that installer action and
@@ -354,8 +353,10 @@ availability; preparation requires a fresh scan. Probes/recipes run off the UI
 thread, using the same `EnvironmentProbe` and `RecipeRunner` as other consumers.
 The UI shows real failures and pending restart/privilege actions, even when a
 subsequent version check succeeds. Pending actions are retained across selection
-changes during the current app session. Durable reconciliation remains Y05;
-headless commands remain Y06 and bootstrap/release acquisition remains Y07.
+changes during the current app session. Y05 adds durable interruption evidence and
+explicit installer-action reconciliation as described below; the Y04 session-only
+behavior is retained for legacy test hosts. Headless commands remain Y06 and
+bootstrap/release acquisition remains Y07.
 
 ### Registered capabilities in this delivery
 
@@ -408,3 +409,63 @@ inspects the owned hidden window, and verifies the host's self-contained-runtime
 trace. It closes the process cleanly. Optional `RAIDERS_SETUP_PREVIEW` and
 `RAIDERS_SETUP_CATALOG_OUTPUT` paths capture a fixture-window PNG and production
 catalog for local visual/schema validation; these outputs stay ignored.
+
+## Durable repair and interrupted setup (Y05)
+
+The production backend passes an owned `RepairPlan` directory to `RecipeRunner`:
+`%LOCALAPPDATA%/Raiders/Setup/repair`. A versioned `repair-state.json` records the
+catalog/profile/requirement identity, requirement policy SHA-256, last preparation
+phase and failure/pending reason. It stores no credentials, executable arguments,
+installation paths or Ready receipts. It remains machine-local and outside Git.
+
+Before acquisition/execution/validation, the runner flushes an atomic replacement
+of this journal. A crash or cancellation leaves interruption evidence for the next
+instance. Exclusive `repair.lock` access prevents separate setup processes from
+modifying the same state or executing installations concurrently. Closing/crashing
+releases the OS handle; a leftover lock filename does not mean the tool is busy.
+Invalid, oversized or unsupported journal data fails closed and is preserved for
+diagnosis. Linked/reparse-point storage is rejected. Do not delete the repair record
+to bypass installer restart requirements; retain it when investigating corruption.
+
+`RecipeRunner.ScanAsync` combines fresh probes with recorded interruption evidence.
+Incomplete steps report Needs repair (`IncompleteSetup`); Unknown, Checking and
+Unsupported probes are never promoted to repair authorization. Requirement version,
+package/configuration and venv fingerprints still come from actual probes, not the
+journal. Changing policy does not authorize an outdated recipe: execution rechecks
+the current registration fingerprint. Y08-Y13 still own missing production bindings.
+
+After reviewing available actions, **Prepare available actions** rechecks each step.
+Already healthy prerequisites are skipped. An interrupted step that now passes all
+current probes can finish by validation alone; otherwise only its approved repair
+recipe runs. Failure blocks dependent steps and remains visible on reopening.
+The runner never removes environment directories, source files, user settings or
+unrelated toolchains. It does not promise rollback of arbitrary third-party installer
+side effects; recipe authors must preserve their last-good managed environment and
+respect ownership when replacing it. New production venv bindings remain Y11.
+
+Artifact acquisition reuses only hash-verified cached files. During an explicit
+preparation retry, a corrupt cached artifact is replaced only after a complete
+replacement passes SHA-256 and size checks; failed/offline acquisition preserves
+the existing destination. Incomplete `.partial` files are never accepted as artifacts;
+retries use new isolated temporary files. The runner does not broadly delete old
+partials because another acquisition might own them. Direct `AcquireAsync` callers
+retain strict corrupt-cache rejection unless `repairCorruptCache: true` is supplied.
+For offline use, provide the approved artifact in the managed hash/file cache slot;
+unverified or incomplete data never authorizes execution. A failed acquisition shows
+connectivity/offline guidance in component details, then allows a reviewed retry.
+
+RestartRequired and PrivilegeRequired remain blocking across application sessions,
+even when files already look healthy. Complete the external action, then select
+**Recheck installer action** and explicitly confirm it. The shared core performs a
+fresh scan with `acknowledgePendingActions: true`; only conclusively checked selected
+components are reconciled. Ready checks clear the pending state; Missing/Needs repair
+checks allow a normal reviewed retry. Inconclusive checks retain the pending action.
+Confirmation does not reboot Windows, grant privileges or execute an installer.
+This is user acknowledgement plus probe validation, not automatic reboot detection.
+
+MSTest cases under `Raiders.Environment.Core/tests/RepairTests.cs` exercise interrupted
+phases, cancellation, persisted installer actions, failed dependencies, fingerprint
+drift, no-op reopen, state corruption, cross-instance locking and verified cache
+recovery with offline failures. All use isolated fake installers/local artifacts;
+no real SDK installation is performed. The existing WinForms/published EXE tests
+continue to validate the GUI and runtime-independent startup.

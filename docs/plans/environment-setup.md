@@ -1,8 +1,8 @@
 # Windows development environment manager
 
-Status: Y01-Y03 and Q07 are merged. Y04's self-contained GUI is implemented and
-locally validated, pending review/merge. Durable repair/headless/distribution
-remain Y05-Y07; production profile completion is explicitly tracked in Y08-Y14.
+Status: Y01-Y04 and Q07 are merged. Y05's durable repair is implemented and
+locally validated, pending review/merge. Headless/distribution remain Y06-Y07;
+production profile completion is explicitly tracked in Y08-Y14.
 
 ## Scope and independent execution
 
@@ -103,17 +103,18 @@ Acceptance: ordered prerequisites, checksummed artifacts, cancellation/progress 
 post-step validation; healthy state is a no-op. Tests use isolated fake installers.
 
 **Y04 - Self-contained .NET 10 setup GUI.** Depends: Y03.
-Status: implemented and locally validated on `Y04_self_contained_setup_gui`,
-pending review/merge. Application and owned MSTest project live under
+Status: merged in PR #24. Application and owned MSTest project live under
 `tools/dotnet/Raiders.Environment.Setup/`; the entry point shares `SetupWindow.cs`.
 Acceptance: show health/evidence, select actions and report progress/failures;
 launch without .NET/Python SDK; use shared probes. Split framework-generated files
 into sub-deliveries if the path budget would be exceeded.
 
 **Y05 - Repair and interrupted setup.** Depends: Y04.
-Paths (5): `tools/dotnet/Raiders.Environment.Core/{RepairPlan.cs,
-EnvironmentState.cs,RecipeRunner.cs}`,
-`tests/dotnet/Raiders.Environment.Tests/RepairTests.cs`, `docs/environment-setup.md`.
+Status: implemented and locally validated on `Y05_repair_and_interrupted_setup`,
+pending review/merge. See [durable repair](../environment-setup.md#durable-repair-and-interrupted-setup-y05).
+Paths (10): core `RepairPlan.cs`, `EnvironmentState.cs`, `RecipeRunner.cs`,
+`ArtifactAcquisition.cs`, owned `tests/RepairTests.cs`; setup `ProfileViewModel.cs`
+and `SetupWindow.cs`; `docs/environment-setup.md`, this plan and the task diagram.
 Acceptance: diagnose stale package/venv fingerprints and incomplete downloads;
 preserve last-good state, retry failed steps and explain offline failures.
 Do not remove unrelated user toolchains or project configuration.
