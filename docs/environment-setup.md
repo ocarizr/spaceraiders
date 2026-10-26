@@ -355,8 +355,8 @@ The UI shows real failures and pending restart/privilege actions, even when a
 subsequent version check succeeds. Pending actions are retained across selection
 changes during the current app session. Y05 adds durable interruption evidence and
 explicit installer-action reconciliation as described below; the Y04 session-only
-behavior is retained for legacy test hosts. Headless commands remain Y06 and
-bootstrap/release acquisition remains Y07.
+behavior is retained for legacy test hosts. Y06 adds the headless entry point
+below; bootstrap/release acquisition remains Y07.
 
 ### Registered capabilities in this delivery
 
@@ -469,3 +469,93 @@ drift, no-op reopen, state corruption, cross-instance locking and verified cache
 recovery with offline failures. All use isolated fake installers/local artifacts;
 no real SDK installation is performed. The existing WinForms/published EXE tests
 continue to validate the GUI and runtime-independent startup.
+
+## Headless setup and doctor (Y06)
+
+The same self-contained `Raiders.Environment.Setup.exe` opens the GUI with no
+arguments. Any arguments route to a headless command **before** WinForms
+initialization; malformed commands return errors without dialogs. Both paths use
+`WindowsSetupBackend`, the same approved catalog/probes/recipes and Y05 repair
+store. Headless mode does not add production toolchain bindings that are still
+planned in Y08-Y13.
+
+| Command | Behavior |
+| --- | --- |
+| `--help` or `help` | Print JSON command syntax without constructing a backend or creating setup storage |
+| `profiles` | List profile IDs/titles/dependencies; this does not scan or install tools |
+| `doctor --profile ID` | Fresh selected-profile scan, including required dependencies and persisted interruption evidence |
+| `prepare --profile ID --yes` | Explicit consent to prepare the selected required closure using registered recipes and fresh checks |
+
+Repeat `--profile ID` to select multiple profiles; duplicates are coalesced. No
+implicit all-profiles selection is allowed. `prepare` without `--yes` is an error
+and performs no scan/acquisition/installation. Unknown profiles, options or
+incompatible flag combinations are errors; commands never come from a supplied
+catalog or arbitrary executable argument.
+
+Optional `--state-root ABSOLUTE_PATH` selects an owned cache/logical repair root;
+otherwise the GUI's `%LOCALAPPDATA%/Raiders/Setup` is used. This flag does not
+redirect tool installation to a workspace by itself; each approved recipe still
+owns its documented target. `--timeout-seconds N` sets the command deadline
+(1-7200 seconds; default 300). Cancellation/deadline expiration returns a structured
+result; the shared runner retains interruption evidence and drains/kills its owned
+installer process according to the existing Y03 cancellation contract. Ctrl+C is
+handled when the host supplies a console; CI should use the explicit deadline.
+
+After completing a required restart/privilege action, use
+`doctor --profile ID --acknowledge-actions` to invoke Y05's explicit reconciliation.
+It does not grant privilege, reboot or install anything. `prepare` does not accept
+that flag, and `doctor` does not accept `--yes`. Failed/inconclusive checks remain
+visible. A prior Ready result is never accepted as proof of current health.
+
+Stdout contains exactly one UTF-8 JSON document and a newline. The envelope's
+`schema_version` is 1; its contract is
+[`environment-command.schema.json`](../schemas/environment-command.schema.json).
+Nested `health` uses the existing Y01 schema with `visibility: shareable` and all
+evidence locations redacted. `steps` contains typed preparation outcomes; it is
+null for non-preparation commands. Other unused result fields are explicitly null.
+Stderr is a separate bounded structured log stream with session IDs and preparation
+progress. Optional profiling uses the existing diagnostics build switch; no human
+log text, raw exception, command arguments or local tool path enters stdout.
+
+| Exit code | Status | Meaning |
+| --- | --- | --- |
+| 0 | Completed | Help/list succeeded, or all selected required health checks are Ready |
+| 2 | Blocked | Health is not Ready, requirements are unavailable or an installer action is pending |
+| 3 | Failed | At least one preparation step failed |
+| 64 | InvalidArguments | Invalid syntax, missing explicit consent or unknown selection |
+| 70 | Error | Backend, storage or internal operation failed; diagnostics are sanitized |
+| 130 | Cancelled | Caller cancellation or command deadline expired |
+
+Use exit codes and structured health together. In particular, a successfully
+executed doctor that finds Missing/Unknown tools returns 2; it is not a failed
+JSON protocol invocation. Unknown does not authorize installation.
+
+Because the application is a Windows GUI-subsystem executable, explicitly wait
+for it and redirect its handles in PowerShell automation:
+
+```powershell
+$setup = (Resolve-Path out/setup/win-x64/Raiders.Environment.Setup.exe).Path
+$process = Start-Process -FilePath $setup -ArgumentList @('doctor', '--profile', 'managed-tooling') -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput doctor.json -RedirectStandardError doctor.log.jsonl
+$result = Get-Content -Raw doctor.json | ConvertFrom-Json
+$process.ExitCode
+$result.health
+```
+
+Run a reviewed preparation by replacing arguments with
+`@('prepare', '--profile', 'python-pipeline', '--yes')`. This may install the
+approved Python interpreter; it does not claim that the currently unbound venv
+requirements are Ready. The default managed profile detects the SDK but still
+lacks Y10's approved SDK installation/NuGet closure binding.
+
+A prebuilt self-contained artifact includes its .NET runtime: GUI/headless launch
+does not require .NET SDK or Python on the destination machine. Building this
+application from source does require the pinned SDK. Y07 owns verified bootstrap
+artifact acquisition/distribution; Y10 owns installing the development SDK from
+setup. Those are separate from the runtime bundled in this executable.
+
+The existing managed CI job publishes first, runs GUI and headless MSTest cases,
+then captures a real doctor JSON result with isolated state. The subprocess tests
+also run help/list/doctor/invalid input from an unrelated directory with empty PATH
+and absent .NET/Python roots. Tests verify consent, selected closure/idempotence,
+live drift, pending-action reconciliation, redaction, separate logs, failures and
+deadlines. No real installer is executed by this validation.

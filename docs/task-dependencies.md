@@ -1,16 +1,16 @@
 # Task dependency diagram
 
-Updated: 2026-10-26. Merged baseline: master `e7ade58` (PR #24).
-Includes Y05's locally validated delivery, pending review/merge.
+Updated: 2026-10-26. Merged baseline: master `6f148dd` (PR #25).
+Includes Y06's locally validated delivery, pending review/merge.
 
 [Macro roadmap](plano-de-desenvolvimento.md) | [Job-system plan](plans/jobs.md)
 
-**256 tasks · 596 prerequisite edges · 21 completed · 8 ready · 227 waiting.**
+**256 tasks · 596 prerequisite edges · 22 completed · 8 ready · 226 waiting.**
 
 White rectangles wait on prerequisites. Green rectangles are available to select.
 Red rectangles are completed; red does **not** mean failure. Choose one ready
-task at a time. Y05 is complete locally and awaits review/merge. Y07 still waits
-for Y06; completing one prerequisite does not unlock a task by itself.
+task at a time. Y06 is complete locally and awaits review/merge. Y07 is now
+ready because both Y05 and Y06 are complete; choose the next task explicitly.
 
 The graphs are split by task family so GitHub can render and readers can inspect
 them without a single large canvas. Every task has exactly one primary node.
@@ -26,7 +26,7 @@ flowchart TD
     ready_A06["A06<br/>Tornar includes e unidades de compilação explícitos"]:::ready
     ready_U01["U01<br/>Addon manifest and host extension ADR"]:::ready
     ready_V01["V01<br/>Scheduler contract and design decision"]:::ready
-    ready_Y06["Y06<br/>Headless setup/doctor and CI"]:::ready
+    ready_Y07["Y07<br/>Bootstrap distribution and acceptance"]:::ready
     ready_Y08["Y08<br/>Native compiler and SDK production discovery"]:::ready
     ready_Y10["Y10<br/>Managed SDK and NuGet closure preparation"]:::ready
     ready_Y11["Y11<br/>Python build and tools venv integration"]:::ready
@@ -41,7 +41,7 @@ flowchart TD
 | **A06** - Tornar includes e unidades de compilação explícitos | [engine](plans/engine.md) | A05 |
 | **U01** - Addon manifest and host extension ADR | [addons](plans/addons.md) | Q02, T01 |
 | **V01** - Scheduler contract and design decision | [jobs](plans/jobs.md) | Q02, T01 |
-| **Y06** - Headless setup/doctor and CI | [environment-setup](plans/environment-setup.md) | Y03 |
+| **Y07** - Bootstrap distribution and acceptance | [environment-setup](plans/environment-setup.md) | Y05, Y06 |
 | **Y08** - Native compiler and SDK production discovery | [environment-setup](plans/environment-setup.md) | Y04, Q02 |
 | **Y10** - Managed SDK and NuGet closure preparation | [environment-setup](plans/environment-setup.md) | Y04, Q05 |
 | **Y11** - Python build and tools venv integration | [environment-setup](plans/environment-setup.md) | Y04, Q07 |
@@ -49,9 +49,9 @@ flowchart TD
 
 ## Completion evidence
 
-Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04, Y05.
+Completed IDs: A01, A02, A03, A04, A05, Q01, Q02, Q05, Q06, Q07, T01, T02, T03, T04, T05, T06, Y01, Y02, Y03, Y04, Y05, Y06.
 
-The merged baseline is grounded in first-parent task merges on master. Y05 is
+The merged baseline is grounded in first-parent task merges on master. Y06 is
 the current locally validated branch delivery, not a claimed merge. A maintenance
 change or a partial reusable slice does not complete a separate task. PR #14
 is pytest maintenance rather than a task ID.
@@ -78,7 +78,8 @@ is pytest maintenance rather than a task ID.
 | Y02 | [#22](https://github.com/ocarizr/spaceraiders/pull/22) | `132582e` |
 | Y03 | [#23](https://github.com/ocarizr/spaceraiders/pull/23) | `a571e55` |
 | Y04 | [#24](https://github.com/ocarizr/spaceraiders/pull/24) | `e7ade58` |
-| Y05 | 119 core MSTest cases passed in Release/Debug; 14 GUI regression cases and published self-contained EXE smoke test passed; pending review/merge | `Y05_repair_and_interrupted_setup` |
+| Y05 | [#25](https://github.com/ocarizr/spaceraiders/pull/25) | `6f148dd` |
+| Y06 | 32 managed cases in Release/Debug, 47 contract cases and published headless JSON/schema smoke checks passed; pending review/merge | `Y06_headless_setup_and_doctor` |
 
 ## Reading the task families
 
@@ -1135,7 +1136,7 @@ flowchart TD
     ref_U_T06["T06<br/>prerequisite reference"]:::done
     ref_U_V09["V09<br/>prerequisite reference"]:::pending
     ref_U_Y05["Y05<br/>prerequisite reference"]:::done
-    ref_U_Y06["Y06<br/>prerequisite reference"]:::ready
+    ref_U_Y06["Y06<br/>prerequisite reference"]:::done
     U01["U01<br/>Addon manifest and host extension ADR"]:::ready
     U02["U02<br/>Addon dependency resolver and lock contract"]:::pending
     U03["U03<br/>Native addon loading and lifecycle"]:::pending
@@ -1415,8 +1416,8 @@ flowchart TD
     Y03["Y03<br/>Selected-profile recipe execution"]:::done
     Y04["Y04<br/>Self-contained .NET 10 setup GUI"]:::done
     Y05["Y05<br/>Repair and interrupted setup"]:::done
-    Y06["Y06<br/>Headless setup/doctor and CI"]:::ready
-    Y07["Y07<br/>Bootstrap distribution and acceptance"]:::pending
+    Y06["Y06<br/>Headless setup/doctor and CI"]:::done
+    Y07["Y07<br/>Bootstrap distribution and acceptance"]:::ready
     Y08["Y08<br/>Native compiler and SDK production discovery"]:::ready
     Y09["Y09<br/>Approved native toolchain acquisition"]:::pending
     Y10["Y10<br/>Managed SDK and NuGet closure preparation"]:::ready
@@ -1478,8 +1479,8 @@ flowchart TD
     ref_Z_X03["X03<br/>prerequisite reference"]:::pending
     ref_Z_X06["X06<br/>prerequisite reference"]:::pending
     ref_Z_Y01["Y01<br/>prerequisite reference"]:::done
-    ref_Z_Y06["Y06<br/>prerequisite reference"]:::ready
-    ref_Z_Y07["Y07<br/>prerequisite reference"]:::pending
+    ref_Z_Y06["Y06<br/>prerequisite reference"]:::done
+    ref_Z_Y07["Y07<br/>prerequisite reference"]:::ready
     Z01["Z01<br/>Launcher workspace and action contract"]:::ready
     Z02["Z02<br/>Self-contained launcher shell"]:::pending
     Z03["Z03<br/>Tool discovery and launch lifecycle"]:::pending

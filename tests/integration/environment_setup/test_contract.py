@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = Path(__file__).with_name("fixtures")
 SCHEMAS = {
     name: json.loads((ROOT / "schemas" / f"environment-{name}.schema.json").read_text())
-    for name in ("profile", "health")
+    for name in ("profile", "health", "command")
 }
 REGISTRY = Registry().with_resources(
     (schema["$id"], Resource.from_contents(schema)) for schema in SCHEMAS.values()
@@ -442,3 +442,61 @@ def test_catalog_agrees_with_existing_managed_and_python_pins():
     assert [
         item["constraint"]["value"] for item in catalog["profiles"][0]["requirements"]
     ] == expected
+
+
+@pytest.mark.parametrize(
+    ("status", "code"),
+    [
+        ("Completed", 0),
+        ("Blocked", 2),
+        ("Failed", 3),
+        ("InvalidArguments", 64),
+        ("Error", 70),
+        ("Cancelled", 130),
+    ],
+)
+def test_headless_result_envelope_and_exit_codes(status, code):
+    report = load("health")
+    report["visibility"] = "shareable"
+    for profile in report["profiles"]:
+        for requirement in profile["requirements"]:
+            for evidence in requirement["evidence"]:
+                evidence["location"] = {"kind": "redacted", "value": None}
+
+    result = {
+        "schema_version": 1,
+        "command": "prepare" if status in ("Completed", "Blocked", "Failed") else "doctor",
+        "status": status,
+        "exit_code": code,
+        "health": report if code in (0, 2, 3) else None,
+        "steps": [],
+        "error": "Sanitized diagnostic" if code in (64, 70, 130) else None,
+        "profiles": None,
+        "usage": None,
+    }
+    validate("command", result)
+    result["exit_code"] = 99
+    with pytest.raises(ValidationError):
+        validate("command", result)
+
+
+def test_headless_result_rejects_local_evidence_and_missing_health():
+    report = load("health")
+    report["visibility"] = "local"
+    result = {
+        "schema_version": 1,
+        "command": "doctor",
+        "status": "Completed",
+        "exit_code": 0,
+        "health": report,
+        "steps": None,
+        "error": None,
+        "profiles": None,
+        "usage": None,
+    }
+    with pytest.raises(ValidationError):
+        validate("command", result)
+
+    result["health"] = None
+    with pytest.raises(ValidationError):
+        validate("command", result)
