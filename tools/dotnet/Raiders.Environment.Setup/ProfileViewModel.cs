@@ -10,6 +10,7 @@ namespace Raiders.Environment.Setup;
 public interface ISetupBackend
 {
     string CatalogJson { get; }
+    bool SupportsRepair => false;
     bool HasRecipe(string profileId, ToolRequirement requirement);
 
     string DescribeAction(string profileId, ToolRequirement requirement)
@@ -18,6 +19,11 @@ public interface ISetupBackend
     }
 
     Task<EnvironmentHealth> ScanAsync(string[] selected, CancellationToken token);
+
+    Task<EnvironmentHealth> ReconcileAsync(string[] selected, CancellationToken token)
+    {
+        throw new NotSupportedException("This backend does not support durable repair.");
+    }
 
     Task<EnvironmentState> PrepareAsync(string[] selected, IProgress<PreparationProgress> progress,
                                         CancellationToken token);
@@ -53,7 +59,11 @@ public sealed class ProfileViewModel(ISetupBackend backend, Log? log = null) : I
     public bool CanPrepare => CanScan && health is not null && !HasPendingAction &&
                               Actions.Any(action => action.Action is "Install" or "Repair");
     public bool HasPendingAction =>
-        pending.Keys.Any(key => (health?.ResolvedProfiles ?? Selected).Contains(key.Profile));
+        pending.Keys.Any(key => (health?.ResolvedProfiles ?? Selected).Contains(key.Profile)) ||
+        health?.ReasonCodes.Any(reason => reason is "RestartRequired" or "PrivilegeRequired") ==
+            true;
+    public bool CanReconcile =>
+        CanScan && health is not null && backend.SupportsRepair && HasPendingAction;
 
     public IReadOnlyList<SetupAction> Actions
     {
@@ -72,10 +82,14 @@ public sealed class ProfileViewModel(ISetupBackend backend, Log? log = null) : I
                                              .Requirements.Single(item => item.Id == assessment.Id);
                             pending.TryGetValue((profile.Id, assessment.Id), out var pendingStep);
                             var state = pendingStep is null ? assessment.State : "Needs repair";
-                            var action = !assessment.Required      ? "Optional"
-                                         : pendingStep is not null ? "Action required"
-                                         : state == "Ready"        ? "Up to date"
-                                         : state == "Unsupported"  ? "Unsupported"
+                            var action = !assessment.Required ? "Optional"
+                                         : pendingStep is not null ||
+                                                 assessment.ReasonCodes.Any(reason => reason is
+                                                                            "RestartRequired" or
+                                                                            "PrivilegeRequired")
+                                             ? "Action required"
+                                         : state == "Ready"                       ? "Up to date"
+                                         : state == "Unsupported"                 ? "Unsupported"
                                          : !backend.HasRecipe(profile.Id, policy) ? "Unavailable"
                                          : state == "Missing"                     ? "Install"
                                          : state == "Needs repair"                ? "Repair"
@@ -123,12 +137,22 @@ public sealed class ProfileViewModel(ISetupBackend backend, Log? log = null) : I
         return ExecuteAsync(prepare: true);
     }
 
+    public Task ReconcileAsync()
+    {
+        if (!CanReconcile)
+        {
+            throw new InvalidOperationException("No pending installer action can be rechecked.");
+        }
+
+        return ExecuteAsync(prepare: false, reconcile: true);
+    }
+
     public void Cancel()
     {
         operation?.Cancel();
     }
 
-    private async Task ExecuteAsync(bool prepare)
+    private async Task ExecuteAsync(bool prepare, bool reconcile = false)
     {
         if (prepare ? !CanPrepare : !CanScan)
         {
@@ -180,9 +204,21 @@ public sealed class ProfileViewModel(ISetupBackend backend, Log? log = null) : I
             }
             else
             {
-                health = await Task.Run(() => backend.ScanAsync(selection, cancellation.Token));
+                health = await Task.Run(
+                    () => reconcile ? backend.ReconcileAsync(selection, cancellation.Token)
+                                    : backend.ScanAsync(selection, cancellation.Token));
 
                 cancellation.Token.ThrowIfCancellationRequested();
+                if (reconcile)
+                {
+                    foreach (var key in pending.Keys
+                                 .Where(key => health.ResolvedProfiles.Contains(key.Profile))
+                                 .ToArray())
+                    {
+                        pending.Remove(key);
+                    }
+                }
+
                 message = HasPendingAction ? "An installer action is still pending. Review the " +
                                                  "required restart or privileges."
                           : health.State == "Ready"
@@ -195,12 +231,20 @@ public sealed class ProfileViewModel(ISetupBackend backend, Log? log = null) : I
             health = null;
             message = "Operation cancelled. Scan again before continuing.";
         }
-        catch (Exception)
+        catch (Exception error)
         {
             log?.Write(LogLevel.Error, "setup", () => "Setup operation failed.");
 
             health = null;
-            message = "The operation failed. Scan again and review the environment checks.";
+            message = error switch {
+                InvalidDataException or JsonException =>
+                    "The local repair record is unreadable. Preserve the repair directory for " +
+                    "diagnosis; no installer was started from this record.",
+                IOException => "The operation failed. Setup storage is unavailable or another " +
+                               "setup instance is " +
+                               "working. Close other instances, check access and scan again.",
+                _ => "The operation failed. Scan again and review the environment checks."
+            };
         }
         finally
         {
@@ -247,7 +291,9 @@ public sealed class ProfileViewModel(ISetupBackend backend, Log? log = null) : I
             "None" => "",
             "ExecutionFailed" => "The installer did not complete successfully.",
             "ValidationFailed" => "The component is still unhealthy after installation.",
-            "AcquisitionFailed" => "The required artifact could not be acquired.",
+            "AcquisitionFailed" =>
+                "The required artifact could not be acquired. Check connectivity or supply the " +
+                "approved offline artifact, then retry.",
             "ArtifactRejected" => "The artifact failed integrity verification.",
             _ => reason
         };
@@ -262,11 +308,12 @@ public sealed class ProfileViewModel(ISetupBackend backend, Log? log = null) : I
 /// <summary>Embedded approved policy; creating the application never executes a tool.</summary>
 public sealed class WindowsSetupBackend : ISetupBackend
 {
-    private readonly EnvironmentProbe probe;
     private readonly RecipeRunner runner;
+    private readonly RepairPlan repair;
     private readonly SetupRecipe[] recipes;
     private readonly string interpreterDescription;
     public string CatalogJson { get; }
+    public bool SupportsRepair => true;
 
     public WindowsSetupBackend(string localRoot, TelemetrySession telemetry, Log? log = null)
     {
@@ -313,9 +360,9 @@ public sealed class WindowsSetupBackend : ISetupBackend
                            RecipeProcess.ExecuteAsync(context.Artifacts[artifact.Id].Path,
                                                       arguments, TimeSpan.FromMinutes(15), token))];
 
-        probe = new(discovery, telemetry, log);
+        repair = new(Path.Combine(localRoot, "repair"));
         runner = new(discovery, recipes, new ArtifactAcquisition(Path.Combine(localRoot, "cache")),
-                     telemetry, log);
+                     telemetry, log, repair);
 
         void RegisterPaths(string id, ToolProtocol protocol, string executable,
                            params string[] known)
@@ -339,7 +386,16 @@ public sealed class WindowsSetupBackend : ISetupBackend
 
     public string DescribeAction(string profileId, ToolRequirement requirement)
     {
-        return HasRecipe(profileId, requirement) ? interpreterDescription : "";
+        var previous = repair.LastObserved.SingleOrDefault(
+            entry => entry.ProfileId == profileId && entry.RequirementId == requirement.Id);
+        var detail = previous is null
+                         ? ""
+                         : $"Previous preparation stopped at {previous.Stage}. " +
+                               (previous.Reason == PreparationReason.None
+                                    ? "Recheck before retrying."
+                                    : ProfileViewModel.Explain(previous.Reason.ToString()));
+        return HasRecipe(profileId, requirement) ? (interpreterDescription + " " + detail).Trim()
+                                                 : detail;
     }
 
     public bool HasRecipe(string profileId, ToolRequirement requirement)
@@ -352,7 +408,13 @@ public sealed class WindowsSetupBackend : ISetupBackend
 
     public Task<EnvironmentHealth> ScanAsync(string[] selected, CancellationToken token)
     {
-        return probe.ScanAsync(CatalogJson, selected, shareable: false, cancellationToken: token);
+        return runner.ScanAsync(CatalogJson, selected, cancellationToken: token);
+    }
+
+    public Task<EnvironmentHealth> ReconcileAsync(string[] selected, CancellationToken token)
+    {
+        return runner.ScanAsync(CatalogJson, selected, cancellationToken: token,
+                                acknowledgePendingActions: true);
     }
 
     public Task<EnvironmentState> PrepareAsync(string[] selected,

@@ -39,6 +39,7 @@ public sealed class RecipeRunner
     private readonly ArtifactAcquisition acquisition;
     private readonly TelemetrySession telemetry;
     private readonly Log? log;
+    private readonly RepairPlan? repair;
     private readonly Dictionary<(string Profile, string Requirement), SetupRecipe> recipes = new();
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly Dictionary<(string Profile, string Requirement), PreparationReason> pending =
@@ -46,7 +47,7 @@ public sealed class RecipeRunner
 
     public RecipeRunner(IToolDiscovery discovery, IEnumerable<SetupRecipe> recipes,
                         ArtifactAcquisition acquisition, TelemetrySession telemetry,
-                        Log? log = null)
+                        Log? log = null, RepairPlan? repair = null)
     {
         ArgumentNullException.ThrowIfNull(acquisition);
         ArgumentNullException.ThrowIfNull(telemetry);
@@ -54,6 +55,7 @@ public sealed class RecipeRunner
         this.acquisition = acquisition;
         this.telemetry = telemetry;
         this.log = log;
+        this.repair = repair;
         foreach (var recipe in recipes)
         {
             ArgumentNullException.ThrowIfNull(recipe);
@@ -73,6 +75,75 @@ public sealed class RecipeRunner
             this.recipes.Add((recipe.ProfileId, recipe.RequirementId),
                              recipe with { Artifacts = recipe.Artifacts.ToArray() });
         }
+    }
+
+    public async Task<EnvironmentHealth> ScanAsync(string catalogJson,
+                                                   IEnumerable<string> selection,
+                                                   MachineIdentity? machine = null,
+                                                   CancellationToken cancellationToken = default,
+                                                   bool acknowledgePendingActions = false)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            using var session = repair?.Open();
+            var report = await probe.ScanAsync(catalogJson, selection, machine: machine,
+                                               cancellationToken: cancellationToken);
+            if (acknowledgePendingActions && session is not null)
+            {
+                foreach (var entry in session.Entries.ToArray())
+                {
+                    if (entry.CatalogId == report.CatalogId && IsPending(entry.Reason) &&
+                        report.Profiles.Any(
+                            profile =>
+                                profile.Id == entry.ProfileId &&
+                                profile.Requirements.Any(
+                                    requirement => requirement.Id == entry.RequirementId &&
+                                                   requirement.State is "Ready" or "Missing" or
+                                                                        "Needs repair")))
+                    {
+                        session.Remove(entry.CatalogId, entry.ProfileId, entry.RequirementId);
+                    }
+                }
+            }
+
+            return ApplyRepair(report, session);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private static bool IsPending(PreparationReason reason)
+    {
+        return reason is PreparationReason.RestartRequired or PreparationReason.PrivilegeRequired;
+    }
+
+    private EnvironmentHealth ApplyRepair(EnvironmentHealth report, RepairPlan.Session? session,
+                                          bool includeInterrupted = true)
+    {
+        if (session is null)
+        {
+            return EnvironmentState.ApplyActions(report, pending);
+        }
+
+        pending.Clear();
+        var actions = new Dictionary<(string Profile, string Requirement), PreparationReason>();
+        foreach (var entry in session.Entries.Where(entry => entry.CatalogId == report.CatalogId))
+        {
+            if (IsPending(entry.Reason))
+            {
+                pending[(entry.ProfileId, entry.RequirementId)] = entry.Reason;
+                actions[(entry.ProfileId, entry.RequirementId)] = entry.Reason;
+            }
+            else if (includeInterrupted)
+            {
+                actions[(entry.ProfileId, entry.RequirementId)] = PreparationReason.IncompleteSetup;
+            }
+        }
+
+        return EnvironmentState.ApplyActions(report, actions);
     }
 
     public async Task<EnvironmentState> RunAsync(string catalogJson, IEnumerable<string> selection,
@@ -100,6 +171,7 @@ public sealed class RecipeRunner
         var runId = Guid.NewGuid().ToString("N");
         using var context = telemetry.PushContext(correlationId: runId);
         var catalog = EnvironmentProbe.ReadCatalog(catalogJson);
+        using var repairSession = repair?.Open();
         var profiles = catalog.Profiles.ToDictionary(profile => profile.Id);
         var steps = new List<RecipeStepResult>();
         var health = await CheckAsync();
@@ -120,7 +192,7 @@ public sealed class RecipeRunner
             {
                 token.ThrowIfCancellationRequested();
                 Report(profileId, requirement.Id, PreparationStage.Checking);
-                health = await CheckAsync();
+                health = await CheckAsync(profileId, requirement.Id);
                 var profile = health.Profiles.Single(item => item.Id == profileId);
                 var assessment = profile.Requirements.Single(item => item.Id == requirement.Id);
                 if (assessment.State == "Ready")
@@ -175,12 +247,14 @@ public sealed class RecipeRunner
                 }
 
                 var artifacts = new Dictionary<string, VerifiedArtifact>();
+                Record(profileId, requirement, PreparationStage.Acquiring);
                 try
                 {
                     foreach (var artifact in recipe.Artifacts)
                     {
                         Report(profileId, requirement.Id, PreparationStage.Acquiring, artifact.Id);
-                        artifacts.Add(artifact.Id, await acquisition.AcquireAsync(artifact, token));
+                        artifacts.Add(artifact.Id, await acquisition.AcquireAsync(
+                                                       artifact, token, repairCorruptCache: true));
                     }
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -197,6 +271,7 @@ public sealed class RecipeRunner
                 }
 
                 token.ThrowIfCancellationRequested();
+                Record(profileId, requirement, PreparationStage.Executing);
                 Report(profileId, requirement.Id, PreparationStage.Executing);
                 var started = Stopwatch.GetTimestamp();
                 RecipeExecutionStatus outcome;
@@ -206,7 +281,6 @@ public sealed class RecipeRunner
                         new(runId, profileId, requirement,
                             new ReadOnlyDictionary<string, VerifiedArtifact>(artifacts)),
                         token);
-                    token.ThrowIfCancellationRequested();
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
@@ -228,10 +302,17 @@ public sealed class RecipeRunner
                         outcome == RecipeExecutionStatus.RestartRequired
                             ? PreparationReason.RestartRequired
                             : PreparationReason.PrivilegeRequired;
+                    Record(profileId, requirement, PreparationStage.Validating,
+                           pending[(profileId, requirement.Id)]);
+                }
+                else
+                {
+                    Record(profileId, requirement, PreparationStage.Validating);
                 }
 
+                token.ThrowIfCancellationRequested();
                 Report(profileId, requirement.Id, PreparationStage.Validating);
-                health = await CheckAsync();
+                health = await CheckAsync(includeInterrupted: false);
                 if (pending.TryGetValue((profileId, requirement.Id), out var action))
                 {
                     Finish(profileId, requirement.Id, RecipeStepStatus.Blocked, action);
@@ -271,16 +352,50 @@ public sealed class RecipeRunner
             throw;
         }
 
-        async Task<EnvironmentHealth> CheckAsync()
+        async Task<EnvironmentHealth> CheckAsync(string? reconcileProfile = null,
+                                                 string? reconcileRequirement = null,
+                                                 bool includeInterrupted = true)
         {
             var report = await probe.ScanAsync(catalogJson, selected, machine: machine,
                                                cancellationToken: token);
-            return EnvironmentState.ApplyActions(report, pending);
+            if (repairSession is not null && reconcileProfile is not null &&
+                report.Profiles.Any(profile =>
+                                        profile.Id == reconcileProfile &&
+                                        profile.Requirements.Any(
+                                            requirement => requirement.Id == reconcileRequirement &&
+                                                           requirement.State == "Ready")) &&
+                !repairSession.Entries.Any(entry => entry.CatalogId == catalog.CatalogId &&
+                                                    entry.ProfileId == reconcileProfile &&
+                                                    entry.RequirementId == reconcileRequirement &&
+                                                    IsPending(entry.Reason)))
+            {
+                repairSession.Remove(catalog.CatalogId, reconcileProfile, reconcileRequirement!);
+            }
+
+            return ApplyRepair(report, repairSession, includeInterrupted);
+        }
+
+        void Record(string profileId, ToolRequirement requirement, PreparationStage stage,
+                    PreparationReason reason = PreparationReason.None)
+        {
+            repairSession?.Set(new(catalog.CatalogId, profileId, requirement.Id,
+                                   SetupRecipe.Fingerprint(requirement), stage, reason));
         }
 
         void Finish(string profileId, string requirementId, RecipeStepStatus status,
                     PreparationReason reason)
         {
+            if (status is RecipeStepStatus.Completed or RecipeStepStatus.AlreadyReady)
+            {
+                repairSession?.Remove(catalog.CatalogId, profileId, requirementId);
+            }
+            else if (status == RecipeStepStatus.Failed)
+            {
+                Record(profileId,
+                       profiles[profileId].Requirements.Single(item => item.Id == requirementId),
+                       PreparationStage.Finished, reason);
+            }
+
             steps.Add(new(profileId, requirementId, status, reason));
         }
 

@@ -28,7 +28,8 @@ public enum PreparationReason
     ExecutionFailed,
     ValidationFailed,
     RestartRequired,
-    PrivilegeRequired
+    PrivilegeRequired,
+    IncompleteSetup
 }
 
 public enum PreparationStage
@@ -58,7 +59,7 @@ public sealed record PreparationProgress(string RunId, string? ProfileId, string
 public sealed record EnvironmentState(string RunId, PreparationStatus Status,
                                       EnvironmentHealth Health, RecipeStepResult[] Steps)
 {
-    // Pending installer actions are current-session evidence, never persisted Ready receipts.
+    // Interruption evidence cannot promote an inconclusive probe to a repair authorization.
     internal static EnvironmentHealth ApplyActions(
         EnvironmentHealth report,
         IReadOnlyDictionary<(string Profile, string Requirement), PreparationReason> actions)
@@ -73,22 +74,24 @@ public sealed record EnvironmentState(string RunId, PreparationStatus Status,
         {
             var requirements =
                 original.Requirements
-                    .Select(
-                        requirement =>
-                        {
-                            if (!actions.TryGetValue((original.Id, requirement.Id), out var reason))
+                    .Select(requirement =>
                             {
-                                return requirement;
-                            }
+                                if (!actions.TryGetValue((original.Id, requirement.Id),
+                                                         out var reason) ||
+                                    requirement.State is "Unknown" or "Checking" or
+                                                         "Unsupported")
+                                {
+                                    return requirement;
+                                }
 
-                            var evidence = requirement.Evidence.Last()
-                                               with { Outcome = "mismatch", Complete = true,
-                                                      ObservedAt = report.CompletedAt };
-                            return requirement with { State = "Needs repair",
-                                                      ReasonCodes = [reason.ToString()],
-                                                      Evidence =
-                                                          [..requirement.Evidence, evidence] };
-                        })
+                                var evidence = requirement.Evidence.Last()
+                                                   with { Outcome = "mismatch", Complete = true,
+                                                          ObservedAt = report.CompletedAt };
+                                return requirement with { State = "Needs repair",
+                                                          ReasonCodes = [reason.ToString()],
+                                                          Evidence =
+                                                              [..requirement.Evidence, evidence] };
+                            })
                     .ToArray();
             var dependencies =
                 original.Dependencies
