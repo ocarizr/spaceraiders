@@ -1,8 +1,8 @@
 # Space Raiders: macro development roadmap
 
-Updated: 2026-10-26. Merged progress checked against master `2832f5b` (#26).
+Updated: 2026-10-26. Merged progress checked against master `a2908c8` (#32).
 The original source/PDF inspection used `9d87fe4`; its legacy findings remain
-historical context. A01-A05, Q01-Q02/Q05-Q07, T01-T06 and Y01-Y06 are merged.
+historical context. A01-A10, Q01-Q02/Q05-Q07, T01-T06 and Y01-Y06 are merged.
 The [delivery audit](audits/2026-10-26-delivery-completeness.md) reopens Y05's unmet
 last-good acceptance. Merged history is not proof of a completed product workflow.
 Production setup/profile coverage remains partial; shared UI/localization, jobs,
@@ -18,7 +18,7 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 
 | Project | Authoritative plan | Owned tasks | Delivery state |
 | --- | --- | --- | --- |
-| C++20 engine, renderer, physics, native UI and preview host | [Engine](plans/engine.md) | A, B, C, D, E, H01-H07 and J07 | A01-A05 baseline merged; extraction planned |
+| C++20 engine, renderer, physics, native UI and preview host | [Engine](plans/engine.md) | A, B, C, D, E, H01-H07/H13 and J07 | A01-A10 baseline merged; extraction and metadata/events planned |
 | LuaJIT runtime, bindings, VS Code and debugger | [Scripting](plans/scripting.md) | G | Planned |
 | Assets/bundles, pipeline, build, CI and Designer SDK | [Asset pipeline](plans/asset-pipeline.md) | F01-F10, I, O, P, Q, R and X | Q01/Q02/Q05-Q07 merged; production package adoption remains Q08-Q12 |
 | Shared C# UI/resource packages, tooling platform and UI editor | [UI editor](plans/ui-editor.md) | J except J07, and K01-K07 | Planned; J09-J16 cover shared visual/resource foundation |
@@ -26,17 +26,19 @@ integration contracts and delivery gates; it does not duplicate their tasks.
 | C# entity, drawing and animation editor | [Entity editor](plans/entity-editor.md) | L | Planned |
 | C# dependency graph and memory inspector | [Bundle inspector](plans/bundle-inspector.md) | S | Planned |
 | Cross-language diagnostics | [Observability](plans/observability.md) | T | T01-T06 libraries merged; async/export/current-consumer closure T16-T19 planned |
-| Shared native job system and C#/Python packages | [Jobs](plans/jobs.md) | V | Planned |
+| Shared native job system, C#/Python packages and live C# job debugger | [Jobs](plans/jobs.md) | V | Planned; V20-V30 add batches, resources and live inspection |
+| Native audio scope | [Audio](plans/audio.md) | AU01 | Requirements/ownership decision only; no runtime/editor support claimed |
 | C#/.NET 10 graphical/headless environment setup and repair | [Environment setup](plans/environment-setup.md) | Y | Y01-Y06 merged; Y05 acceptance reopened; missing production/repair acceptance explicit in Y08-Y19 |
 | Engine, tool, setup and pipeline addons | [Addons](plans/addons.md) | U | Planned |
 | C#/.NET 10 central tools and workflow launcher | [Launcher](plans/launcher.md) | Z | Planned |
 | C# scene/level editor and native playtest | [Level editor](plans/level-editor.md) | W | Planned |
 | Authored Space Raiders sample and legacy regression | [Sample game](plans/sample-game.md) | M and N | Planned |
 
-The plans currently define **292 small PR-sized tasks**: the previous 256 plus
-five package/policy closure tasks (Q08-Q12), four diagnostics tasks (T16-T19),
-five repair/acceptance tasks (Y15-Y19), eight shared UI/resource tasks (J09-J16),
-and fourteen localization tasks (F11-F14, H08-H12, K08-K12).
+The plans currently define **318 small PR-sized tasks**. The approved
+[runtime design](runtime-design.md) adds 26 tasks to the previous 292: C06-C09,
+H13, G19-G25, V20-V30, R10-R11 and AU01. These are planned capabilities, not
+implementation progress. The parallel Lua VM pool proposal is superseded by two
+runtime domains with globally serial VM access.
 Task IDs are unique across projects.
 Cross-project needs refer to those IDs. The dependency graph must remain acyclic.
 Projects may consume each other's incremental interfaces; this does not require
@@ -95,7 +97,12 @@ definitions and dependency edits stay in their owning project plans.
   modules are built as wheels and installed into reproducible build/runtime venvs.
   Setup detects Ready/Missing/Needs repair states and prepares selected profiles.
 - Gameplay and UI behavior use LuaJIT. UI/gameplay source modules remain in distinct
-  namespaces in authoring bundles.
+  namespaces in authoring bundles. Each session owns gameplay/UI VMs on one
+  main/game-thread script lane: all VM-entry jobs are sequenced across both VMs.
+  Typed dispatch owns lifecycle/ticks/contacts/UI delivery; ordinary CPU jobs
+  cannot enter Lua. FixedUpdate precedes completed native physics/contact dispatch;
+  Update/LateUpdate run per frame, followed by native ViewModel publication and UI.
+  See [runtime design](runtime-design.md); G20/G22/G24/G25 close real acceptance.
 - Noninteractive pipeline, validation, code/binary generation and orchestration
   may use C++ or Python. Distribute executable/runtime-complete tooling to designers.
 - Public extension functionality is called addons. Engine, desktop tools, setup
@@ -370,8 +377,8 @@ the detailed source/PDF diagnosis and legacy stabilization tasks.
 
 Merged foundations include the legacy reference, source/IDE hygiene, C++20 presets,
 native tests/CI, build decision/environment policies and native/managed telemetry.
-The [task diagram](task-dependencies.md) records twenty-two merged task IDs and their
-PRs, but only twenty-one accepted completions after reopening Y05. The pytest
+The [task diagram](task-dependencies.md) records twenty-seven merged task IDs and
+their PRs, with twenty-six accepted completions after reopening Y05. The pytest
 maintenance PR (#14) is not another task. Q05-Q07's package foundations are merged;
 they are not yet all integrated into the setup GUI.
 
@@ -379,7 +386,7 @@ The [diagram's green frontier](task-dependencies.md#available-now) lists the cur
 ready choices. Y07 now waits for real current-profile acceptance, rather than
 being green while those profiles are unbound. Y15 is the first last-good repair
 contract; Q08, Q11/Q12, T16/T19, Y17/Y18, J09 and F11 are independent audit closure
-options. Native discovery Y08 and existing A06/U01/V01/Z01 remain selectable.
+options. Native discovery Y08 and A11/U01/V01/Z01 remain selectable.
 Choose one ready task with the maintainer; never execute adjacent work automatically.
 Use branches named `<TASK_ID>_<short_description>`. Completion must update the task
 diagram and newly unlocked green nodes as part of the same reviewed delivery.

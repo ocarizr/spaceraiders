@@ -3,6 +3,15 @@
 Status: T01-T06 merged. Their adapters are not full application capture integration.
 Lua adapters and remaining collectors/integration remain planned.
 
+## Approved runtime observability handoff
+
+See [runtime design](../runtime-design.md). T08 records script domain, session,
+phase and fixed tick/frame IDs on the shared serial lane. T10/T12 distinguish two
+VM heaps/JIT caches, shared assets and native ViewModel/event memory without double
+counting. V22-V29 own live job telemetry/transport/inspector; reuse trace context
+without assuming the current shared profiling mutex can carry every job transition.
+T14 acceptance includes capture off/on, bounded loss and paused-time semantics.
+
 ## Scope and independent execution
 
 A shared project covering all C++20, C#, Python and Lua execution paths.

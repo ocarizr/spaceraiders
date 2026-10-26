@@ -1,7 +1,15 @@
 # Engine, rendering, physics and native UI
 
-Status: A01-A09 baseline merged. A10 is locally validated, pending review/merge;
+Status: A01-A10 baseline merged (A10: `a2908c8`, PR #32);
 engine extraction and runtime extensions remain planned.
+
+## Approved runtime integration
+
+See [runtime design](../runtime-design.md): native-only components, shared metadata,
+bounded events/properties, two Lua domains on one globally serial main/game lane,
+accumulator-driven physics and ViewModel publication. C06-C09/H13 add missing
+contracts; G24/G25 define lifecycle/frame integration. No production runtime is
+implemented by this planning update. Audio scope is [AU01](audio.md).
 
 ## Scope and independent execution
 
@@ -249,8 +257,8 @@ legacy compiler warnings remain O04. Restarting a terminal mode requires a fresh
 mode instance; this task does not add a replay/menu workflow.
 
 **A10 - Corrigir colisões e orçamento de lasers.** Depende: A09.
-Status: implemented and locally validated on `A10_projectile_collisions_and_budgets`,
-pending review/merge. Paths (10): `PlayerLaser.h`, `PlayerDiagonalLaser.h`,
+Status: validated on `A10_projectile_collisions_and_budgets`, then merged as
+`a2908c8` in PR #32. Paths (10): `PlayerLaser.h`, `PlayerDiagonalLaser.h`,
 `AlienLaser.h`, `PlayField.h`, `PlayField.cpp`, `BlockWall.h`, `PlayerShip.h`,
 `tests/game/legacy_rules_tests.cpp`, this plan and the task diagram.
 Entrega: slots coerentes para tiro triplo, laser contra laser, uma resolução por
@@ -459,6 +467,9 @@ include/raiders/PhysicsWorld.h,src/PhysicsWorld.cpp}`, `CMakeLists.txt`,
 `tests/physics/integration_tests.cpp`.
 Aceite: força/massa geram aceleração; sem força e sem damping mantém inércia;
 corpos estáticos não se movem; timestep é o do loop fixo.
+A fixed delta does not imply a separate periodic physics thread: accumulator-driven
+steps run zero/multiple times per frame, with bounded catch-up and observable debt.
+G25/V16 own integration of pre-solver FixedUpdate and post-solver contact dispatch.
 
 **E02 - Basic collider/filter contract.** Depends: E01.
 Paths (5): `engine/physics/include/raiders/{Collider2D,CollisionFilter}.h`,
@@ -474,6 +485,9 @@ Arquivos (5): `engine/physics/include/raiders/{Contact,PhysicsWorld}.h`,
 `tests/physics/contact_tests.cpp`.
 Aceite: begin/end sem duplicações; sensores não empurram corpos; destruir entidade
 em callback não deixa contato pendurado; penetração é resolvida em ordem definida.
+Retain stable contact-pair/tick records so G05/G25 can expose Enter/Stay/Exit after
+the producing physics step completes. No Lua callbacks execute inside worker-side
+collision detection or resolution; contact delivery requests deferred destruction.
 
 **E04 - Consulta contínua para projéteis.** Depende: E03.
 Arquivos (4): `engine/physics/include/raiders/PhysicsWorld.h`,
@@ -735,3 +749,40 @@ isso sem assumir que o problema lembrado existe nesta versão.
    pois o PDF não exige pesos iguais. Há `reinterpret_cast` para acessar o jogador.
 8. **Apresentação:** HUD conhece modos por `dynamic_cast`; camadas e ordenação de
    desenho não são explícitas. O menu inicial faz polling contínuo sem espera.
+
+## Runtime integration backlog
+
+**C06 - Shared native type metadata.** Depends: C02.
+Paths (4-7): `engine/runtime/` owned `TypeMetadata` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: stable type/property IDs, collision and unknown-property rejection; serialization,
+inspectors and binding generation consume the same descriptions.
+
+**C07 - Typed native event contracts.** Depends: C04, C06.
+Paths (4-7): `engine/runtime/` owned `TypedEvents` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: owned payloads, subscription lifetime, deterministic delivery order and immediate
+native reentrancy rules; this extends C04 rather than introducing a second bus.
+
+**C08 - Bounded deferred event delivery.** Depends: C07, V07.
+Paths (4-7): `engine/runtime/` owned `EventQueue` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: capacity/backpressure, nested enqueue cutoffs, unsubscribe, destruction and
+cancellation; no stale or cross-session callbacks and no silent critical-event loss.
+
+**C09 - Observable native property commits.** Depends: C08, C06, V21.
+Paths (4-7): `engine/runtime/` owned `PropertyChanges` API/implementation, GoogleTest tests and
+required module/build registration; include developer docs only within the budget. List exact
+paths before implementation and split above roughly 10.
+Acceptance: exclusive writes versus explicit commands, defined publication/rejection and bounded
+property coalescing; repeated domain events remain distinct.
+
+**H13 - Native ViewModel to UI binding.** Depends: H05, C09.
+Paths (4-7): `engine/ui/` owned `DataBinding` API/implementation, GoogleTest tests and required
+module/build registration; include developer docs only within the budget. List exact paths
+before implementation and split above roughly 10.
+Acceptance: a real gameplay property publishes an owned UI notification; UI Lua updates native
+widgets on the script lane; same-frame render visibility and no cross-VM calls.
