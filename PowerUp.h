@@ -3,52 +3,71 @@
 #include "GameMode.h"
 #include "renderer.h"
 
+class PlayerShip;
+
 class PowerUp : public GameObject
 {
-public:
-    PowerUp() : GameObject("ot_PowerUp", RS_PowerUP) {}
+    static constexpr float FallingSpeedCellsPerSecond = 3.f;
+
+  public:
+    PowerUp() : GameObject("ot_PowerUp", RS_PowerUP)
+    {
+    }
+
     virtual ~PowerUp() noexcept override = default;
-    virtual void ApplyPowerUp(GameObjPtr player, PlayField& world) = 0;
+
+    static constexpr float DropChance = 0.1f;
+    // Preserve the original conditional 3/3/94 balance explicitly, not equal thirds.
+    static constexpr int SpeedWeight = 3;
+    static constexpr int FireWeight = 3;
+    static constexpr int TripleWeight = 94;
+    static PowerUp* CreateDrop(RandomSource& random);
+    bool ApplyPowerUp(GameObjPtr player, PlayField& world);
 
     void Update(PlayField& world) override
     {
-        bool deleted = false;
-        pos.y += 3.f * world.vsync.DeltaTime();
-        if (pos.y > world.bounds.y)
+        if (!world.IsLiveObject(this))
         {
-            deleted = true;
+            return;
+        }
+
+        pos.y += FallingSpeedCellsPerSecond * world.vsync.DeltaTime();
+        if (pos.y >= world.bounds.y)
+        {
+            world.RemoveObject(this);
+            return;
         }
 
         auto player = world.GetPlayerObject();
-        if (player && pos.IntCmp(player->pos))
+        if (player && pos.IntCmp(player->pos) && ApplyPowerUp(player, world))
         {
-            ApplyPowerUp(player, world);
-            deleted = true;
-        }
-
-        if (deleted)
-        {
-            world.RemoveObject(static_cast<GameObjPtr>(this));
+            world.RemoveObject(this);
         }
     }
+
+  protected:
+    virtual void ApplyTo(PlayerShip& player, PlayField& world) = 0;
 };
 
 class TripleFire : public PowerUp
 {
     inline ~TripleFire() noexcept override = default;
-    void ApplyPowerUp(GameObjPtr player, PlayField& world) override;
+
+    void ApplyTo(PlayerShip& player, PlayField& world) override;
 };
 
 class SpeedBoost : public PowerUp
 {
     inline ~SpeedBoost() noexcept override = default;
-    void ApplyPowerUp(GameObjPtr player, PlayField& world) override;
+
+    void ApplyTo(PlayerShip& player, PlayField& world) override;
 };
 
 class FireBoost : public PowerUp
 {
     inline ~FireBoost() noexcept override = default;
-    void ApplyPowerUp(GameObjPtr player, PlayField& world) override;
+
+    void ApplyTo(PlayerShip& player, PlayField& world) override;
 };
 
 #endif // POWERUP_H

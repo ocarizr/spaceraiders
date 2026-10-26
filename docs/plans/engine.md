@@ -1,7 +1,9 @@
 # Engine, rendering, physics and native UI
 
 Status: A01-A10 baseline merged (A10: `a2908c8`, PR #32);
-engine extraction and runtime extensions remain planned.
+A11 is locally validated on `A11_evolution_and_temporary_buffs`, pending review/merge.
+The A01-A11 stabilization tree is complete locally; engine extraction/runtime
+extensions remain planned, with B01 now available.
 
 ## Approved runtime integration
 
@@ -321,13 +323,61 @@ in-scope A10 acceptance gap remains. Borrowed pointers still expire at queue flu
 this slice does not introduce stable entity handles, engine extraction or job safety.
 
 **A11 - Corrigir evolução e buffs temporários.** Depende: A10.
-Arquivos (6): `Alien.h`, `PlayerShip.h`, `PowerUp.h`, `PowerUp.cpp`, `Input.h`,
-`tests/game/legacy_rules_tests.cpp`.
+Status: implemented and locally validated on `A11_evolution_and_temporary_buffs`,
+pending review/merge. Paths (9): `Alien.h`, `PlayerShip.h`, `PowerUp.h`, `PowerUp.cpp`,
+`Input.h`, `tests/game/legacy_rules_tests.cpp`, this plan, macro roadmap and diagram.
 Entrega: chance de transformação depois da energia, cadência de alien melhorado,
 expiração/renovação de buffs, pesos de drop explícitos e cast verificado.
 Aceite: testar fronteiras com RNG controlado; buff expira; mesma sequência de
 inputs/seed produz mesmos eventos no mesmo build. Não depender de sequência RNG
 idêntica entre bibliotecas padrão de compiladores diferentes.
+
+A11 delivery and policy:
+
+- Energy gains remain in `[0, 0.01)` per fixed tick, capped at the required 2.
+  Reaching 2 enables an independent 10% evolution roll; it no longer forces an
+  immediate transformation. Evolution happens once. Normal/better fire chances
+  are 50%/75% per eligible 16 ms tick, subject to the existing shared laser budget.
+  These are named legacy tuning choices, not new PDF-mandated numeric values.
+- All three buffs last five simulation seconds. Integer fixed-step timers expire
+  on the first boundary at/after that duration (5,008 ms at the current 16 ms step).
+  Picking up the same kind refreshes only its own timer, without stacking strength
+  or accumulating slots. Speed is 4 -> 6 cells/s, fire interval 0.4 -> 0.2 seconds,
+  and triple fire adds the two diagonal shots. Expiry restores the base effect.
+- Fire boost grants at most two slots, saturating safely at the integer limit.
+  Expiry removes only the granted contribution. In-flight shots remain alive;
+  admission stays closed while occupancy exceeds the restored capacity. Full
+  world reset retains A10's base-capacity/ownership rules.
+- Death has a 10% drop chance. Conditional Speed/Fire/Triple weights explicitly
+  retain the original 3/3/94 policy; equal thirds are not inferred from the PDF.
+  All thresholds use half-open intervals. The actual alien-death path calls the
+  same factory tested at the probability boundaries.
+- Pickup application checks the actual live player type/identity before invoking
+  native effects. Collected/offscreen pickups are removed through world queues.
+  Each player update samples Left/Right/Fire once, preventing contradictory random
+  input reads within a tick. Win32 keyboard bindings retain the same keys.
+
+A11 acceptance and completeness audit (2026-10-26):
+
+- Actual MSVC Windows Debug/Release default-target builds compile the game and all
+  16 isolated public headers. Both configurations pass all 182 CTest cases,
+  including 118 game-rule cases (32 more than A10).
+- The same 118 game-rule and 17 ownership/lifetime cases pass MSVC AddressSanitizer.
+  The repository formatter and dependency-diagram consistency checks also pass.
+- Injected unit samples exercise energy/probability boundaries and each drop kind.
+  Real native laser kills and falling pickups exercise all three effects through
+  production code. Tests cover independent expiry/renewal, non-stacking, restored
+  firing cadence, in-flight reservations, saturation and rejected player casts.
+- A small real World with native aliens, player/projectiles, seeded standard RNG
+  and recorded input pattern is replayed twice; per-tick object/score/slot state and
+  final RNG state match within this build. A different seed changes the trace.
+  This is not a cross-toolchain determinism or an interactive keyboard-play claim.
+- No required A11 branch is deferred and no known in-scope acceptance gap remains.
+  The default RNG still adapts the legacy shared engine; World-owned services are
+  C04, platform/input extraction B02, and stronger physics/query rules E04. Existing
+  compiler warnings remain O04. No new closure task is needed for this slice.
+
+All A01-A11 nodes are complete locally. B01 is unlocked; it is not executed here.
 
 **B01 - Criar o núcleo e mover o vetor.** Depende: A11.
 Arquivos (até 6): `CMakeLists.txt`, `engine/core/CMakeLists.txt`,

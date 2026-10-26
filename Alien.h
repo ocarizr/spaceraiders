@@ -13,7 +13,12 @@ enum class AlienState : unsigned char
 class Alien : public GameObject
 {
   public:
-    Alien() : GameObject("ot_AlienShip", RS_Alien)
+    static constexpr float EvolutionChancePerTick = 0.1f;
+    static constexpr float NormalFireChancePerTick = 0.5f;
+    static constexpr float BetterFireChancePerTick = 0.75f;
+
+    explicit Alien(RandomSource& source = LegacyRandom())
+        : GameObject("ot_AlienShip", RS_Alien), random(source)
     {
         state = AlienState::as_Normal;
     }
@@ -56,9 +61,10 @@ class Alien : public GameObject
     }
 
   private:
+    RandomSource& random;
     // Alien constants - these could move out into PlayField as configurable variables
-    const float maxUpdateRate = 0.01f;
-    const float transformEnergy = 2.f;
+    static constexpr float MaxEnergyGainPerTick = 0.01f;
+    static constexpr float EnergyRequiredForEvolution = 2.f;
 
     // Variables dictating energy level for upgrade, direction of movement, and current speed
     float health = 1.f;
@@ -103,24 +109,8 @@ class Alien : public GameObject
         health = 0;
         world.GetGameMode()->UpdateScore(state == AlienState::as_Normal ? 10 : 20);
 
-        floatRand dropRate(0, 10);
-        if (dropRate(rGen) <= 1.f)
+        if (auto pu = PowerUp::CreateDrop(random))
         {
-            auto puRate = dropRate(rGen);
-            PowerUp* pu;
-            if (puRate < .3f)
-            {
-                pu = new SpeedBoost;
-            }
-            else if (puRate < .6f)
-            {
-                pu = new FireBoost;
-            }
-            else
-            {
-                pu = new TripleFire;
-            }
-
             Vector2D dropPos(pos.x, pos.y + 1);
             pu->pos = dropPos;
             world.AddObject(pu);
@@ -153,16 +143,17 @@ class Alien : public GameObject
         // Transform into better Alien
         if (state != AlienState::as_Better)
         {
-            floatRand updateRate(0, maxUpdateRate);
-            energy += updateRate(rGen);
-            if (energy >= transformEnergy)
+            energy = (std::min)(EnergyRequiredForEvolution,
+                                energy + random.Unit() * MaxEnergyGainPerTick);
+            if (energy >= EnergyRequiredForEvolution && random.Unit() < EvolutionChancePerTick)
             {
                 Transform();
             }
         }
 
-        floatRand fireRate(0, 1);
-        if (fireRate(rGen) < .5f && world.AlienLasers > 0)
+        const float fireChance =
+            state == AlienState::as_Better ? BetterFireChancePerTick : NormalFireChancePerTick;
+        if (world.AlienLasers > 0 && random.Unit() < fireChance)
         {
             // Spawn laser
             GameObjPtr newLaser = new AlienLaser;

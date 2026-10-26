@@ -2,20 +2,51 @@
 
 #include "PlayerShip.h"
 
-void TripleFire::ApplyPowerUp(GameObjPtr player, PlayField& world)
+PowerUp* PowerUp::CreateDrop(RandomSource& random)
 {
-    auto p = reinterpret_cast<PlayerShip*>(player);
-    p->StartTripleLaser();
+    if (random.Unit() >= DropChance)
+    {
+        return nullptr;
+    }
+
+    constexpr int TotalWeight = SpeedWeight + FireWeight + TripleWeight;
+    const float choice = random.Unit() * TotalWeight;
+    if (choice < SpeedWeight)
+    {
+        return new SpeedBoost;
+    }
+
+    if (choice < SpeedWeight + FireWeight)
+    {
+        return new FireBoost;
+    }
+
+    return new TripleFire;
 }
 
-void SpeedBoost::ApplyPowerUp(GameObjPtr player, PlayField& world)
+bool PowerUp::ApplyPowerUp(GameObjPtr player, PlayField& world)
 {
-    auto p = reinterpret_cast<PlayerShip*>(player);
-    p->UpdateMovementSpeed(1.5f);
+    auto ship = dynamic_cast<PlayerShip*>(player);
+    if (!ship || player != world.GetPlayerObject())
+    {
+        return false;
+    }
+
+    ApplyTo(*ship, world);
+    return true;
 }
 
-void FireBoost::ApplyPowerUp(GameObjPtr player, PlayField& world)
+void TripleFire::ApplyTo(PlayerShip& player, PlayField&)
 {
-    auto p = reinterpret_cast<PlayerShip*>(player);
-    p->UpdateFireDelay(.5f, world);
+    player.StartTripleLaser();
+}
+
+void SpeedBoost::ApplyTo(PlayerShip& player, PlayField&)
+{
+    player.UpdateMovementSpeed(PlayerShip::SpeedBoostMultiplier);
+}
+
+void FireBoost::ApplyTo(PlayerShip& player, PlayField& world)
+{
+    player.UpdateFireDelay(PlayerShip::FireBoostMultiplier, world);
 }
